@@ -1,0 +1,13 @@
+node_modules
+.next
+dist
+build
+playwright-report
+test-results
+*.config.js
+*.config.mjs
+*.config.ts
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+

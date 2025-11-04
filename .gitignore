@@ -1,0 +1,11 @@
+.next/
+node_modules/
+.DS_Store
+*.log
+out/
+dist/
+coverage/
+test-results/
+playwright-report/
+playwright/.cache/
+

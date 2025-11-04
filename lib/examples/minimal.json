@@ -1,0 +1,33 @@
+{
+  "$id": "https://flows.pipecat.ai/schema/flow.json",
+  "meta": { "name": "Minimal", "version": "0.1.0", "description": "Minimal initial -> end" },
+  "nodes": [
+    {
+      "id": "initial",
+      "type": "initial",
+      "position": { "x": 100, "y": 100 },
+      "data": {
+        "label": "Initial",
+        "task_messages": [{ "role": "system", "content": "Hello! This is a minimal flow." }],
+        "functions": [
+          {
+            "name": "done",
+            "description": "Continue to end",
+            "next_node_id": "end"
+          }
+        ]
+      }
+    },
+    {
+      "id": "end",
+      "type": "end",
+      "position": { "x": 320, "y": 100 },
+      "data": {
+        "label": "End",
+        "task_messages": [{ "role": "system", "content": "Thank you and goodbye." }],
+        "post_actions": [{ "type": "end_conversation" }]
+      }
+    }
+  ],
+  "edges": [{ "id": "e1", "source": "initial", "target": "end", "label": "done" }]
+}
