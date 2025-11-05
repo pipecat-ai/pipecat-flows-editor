@@ -68,7 +68,7 @@ export default function MessagesForm({ label, messages, onChange }: Props) {
             </Button>
           </div>
           <Textarea
-            className="h-16 text-xs"
+            className="h-32 min-h-16 max-h-64 text-xs"
             value={msg.content}
             onChange={(e) => updateItem(i, { content: e.target.value })}
             placeholder="Message content"

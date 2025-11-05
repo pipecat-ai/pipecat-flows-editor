@@ -22,6 +22,16 @@ interface EditorState {
   showJson: boolean;
   jsonEditorHeight: number;
 
+  // Inspector panel state
+  inspectorPanelWidth: number;
+  isInspectorResizing: boolean;
+
+  // Code panel state
+  isCodePanelResizing: boolean;
+
+  // Nodes panel state
+  showNodesPanel: boolean;
+
   // React Flow instance
   rfInstance: any | null;
 
@@ -35,6 +45,10 @@ interface EditorState {
   setScrollTarget: (target: ScrollTarget | null) => void;
   setShowJson: (show: boolean) => void;
   setJsonEditorHeight: (height: number) => void;
+  setInspectorPanelWidth: (width: number) => void;
+  setIsInspectorResizing: (isResizing: boolean) => void;
+  setIsCodePanelResizing: (isResizing: boolean) => void;
+  setShowNodesPanel: (show: boolean) => void;
   setRfInstance: (instance: any | null) => void;
 
   // Selection actions (with validation and logic)
@@ -76,6 +90,10 @@ export const useEditorStore = create<EditorState>((set, get) => {
     scrollTarget: null,
     showJson: false,
     jsonEditorHeight: 400,
+    inspectorPanelWidth: 384,
+    isInspectorResizing: false,
+    isCodePanelResizing: false,
+    showNodesPanel: true,
     rfInstance: null,
     _isDeletingFunction: false,
 
@@ -107,6 +125,10 @@ export const useEditorStore = create<EditorState>((set, get) => {
 
     setShowJson: (show) => set({ showJson: show }),
     setJsonEditorHeight: (height) => set({ jsonEditorHeight: height }),
+    setInspectorPanelWidth: (width) => set({ inspectorPanelWidth: width }),
+    setIsInspectorResizing: (isResizing) => set({ isInspectorResizing: isResizing }),
+    setIsCodePanelResizing: (isResizing) => set({ isCodePanelResizing: isResizing }),
+    setShowNodesPanel: (show) => set({ showNodesPanel: show }),
     setRfInstance: (instance) => set({ rfInstance: instance }),
 
     // Selection actions with validation

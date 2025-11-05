@@ -1,9 +1,11 @@
 "use client";
 
+import { ChevronLeft } from "lucide-react";
 import type { Node } from "reactflow";
 
 import { Button } from "@/components/ui/button";
 import { NODE_TEMPLATES } from "@/lib/nodes/templates";
+import { useEditorStore } from "@/lib/store/editorStore";
 import { deriveNodeType } from "@/lib/utils/nodeType";
 
 type Props = {
@@ -11,6 +13,8 @@ type Props = {
 };
 
 export default function NodePalette({ nodes }: Props) {
+  const setShowNodesPanel = useEditorStore((state) => state.setShowNodesPanel);
+
   // Check if an initial node already exists
   const hasInitialNode = nodes.some(
     (n) => deriveNodeType(n.data as Record<string, unknown>, n.type as string) === "initial"
@@ -18,7 +22,19 @@ export default function NodePalette({ nodes }: Props) {
 
   return (
     <aside className="w-56 shrink-0 border-r bg-white/70 p-2 text-sm backdrop-blur dark:bg-black/40 flex flex-col overflow-hidden h-full">
-      <div className="mb-2 px-2 text-xs font-semibold uppercase opacity-70 shrink-0">Nodes</div>
+      <div className="mb-2 px-2 flex items-center justify-between text-xs font-semibold uppercase opacity-70 shrink-0">
+        <span>Nodes</span>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-6 w-6 p-0"
+          onClick={() => setShowNodesPanel(false)}
+          title="Hide nodes panel"
+          aria-label="Hide nodes panel"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+      </div>
       <div className="flex flex-col gap-2 overflow-y-auto flex-1 min-h-0 pr-1">
         {NODE_TEMPLATES.map((t) => {
           const isInitial = t.type === "initial";

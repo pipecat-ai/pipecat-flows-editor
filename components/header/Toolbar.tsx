@@ -1,7 +1,8 @@
 "use client";
 
-import { Download, FileText } from "lucide-react";
+import { ChevronRight, Download, FileText, Redo2, Undo2 } from "lucide-react";
 import { useRef } from "react";
+import { Edge, Node } from "reactflow";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -12,6 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { showToast } from "@/components/ui/Toast";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { generatePythonCode } from "@/lib/codegen/pythonGenerator";
 import { flowJsonToReactFlow, reactFlowToFlowJson } from "@/lib/convert/flowAdapters";
 import { EXAMPLES } from "@/lib/examples";
@@ -19,9 +21,9 @@ import { useEditorStore } from "@/lib/store/editorStore";
 import { customGraphChecks, validateFlowJson } from "@/lib/validation/validator";
 
 type Props = {
-  nodes: any[];
-  edges: any[];
-  setNodes: (fn: any) => void;
+  nodes: Node[];
+  edges: Edge[];
+  setNodes: (nodes: Node[]) => void;
   setEdges: (fn: any) => void;
   canUndo: boolean;
   canRedo: boolean;
@@ -43,9 +45,11 @@ export default function Toolbar({
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const rfInstance = useEditorStore((state) => state.rfInstance);
+  const showNodesPanel = useEditorStore((state) => state.showNodesPanel);
+  const setShowNodesPanel = useEditorStore((state) => state.setShowNodesPanel);
 
   function onExport() {
-    const json = reactFlowToFlowJson(nodes as any, edges as any);
+    const json = reactFlowToFlowJson(nodes, edges);
     const blob = new Blob([JSON.stringify(json, null, 2)], { type: "application/json" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
@@ -55,7 +59,7 @@ export default function Toolbar({
   }
 
   function onExportPython() {
-    const json = reactFlowToFlowJson(nodes as any, edges as any);
+    const json = reactFlowToFlowJson(nodes, edges);
     const r = validateFlowJson(json);
     if (!r.valid) {
       showToast("Flow must be valid before exporting Python code", "error");
@@ -108,78 +112,110 @@ export default function Toolbar({
   }
 
   return (
-    <div className="absolute left-1/2 top-4 z-10 -translate-x-1/2 flex gap-2 rounded-md bg-white/80 p-2 text-sm shadow backdrop-blur dark:bg-black/40">
-      <Button variant="secondary" size="sm" onClick={onNewFlow} title="Create a new flow">
-        New Flow
-      </Button>
-      <div className="w-px bg-neutral-300 dark:bg-neutral-700" />
-      <Button
-        variant="secondary"
-        size="sm"
-        onClick={onUndo}
-        disabled={!canUndo}
-        title="Undo (Cmd/Ctrl+Z)"
+    <TooltipProvider>
+      <div
+        className={`absolute top-4 z-10 flex gap-2 rounded-md bg-white/80 p-2 text-sm shadow backdrop-blur dark:bg-black/40 transition-all duration-300 ${
+          showNodesPanel ? "left-[240px]" : "left-[16px]"
+        }`}
       >
-        Undo
-      </Button>
-      <Button
-        variant="secondary"
-        size="sm"
-        onClick={onRedo}
-        disabled={!canRedo}
-        title="Redo (Cmd/Ctrl+Shift+Z)"
-      >
-        Redo
-      </Button>
-      <div className="w-px bg-neutral-300 dark:bg-neutral-700" />
-      <Input
-        ref={inputRef}
-        type="file"
-        accept="application/json"
-        className="hidden"
-        onChange={(e) => e.target.files && onImport(e.target.files[0], e.target)}
-      />
-      <Button variant="secondary" size="sm" onClick={() => inputRef.current?.click()}>
-        Import
-      </Button>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="secondary" size="sm">
-            <Download />
-            Export…
+        {!showNodesPanel && (
+          <Button
+            variant="secondary"
+            size="sm"
+            className="h-8 w-8 p-0"
+            onClick={() => setShowNodesPanel(true)}
+            title="Show nodes panel"
+            aria-label="Show nodes panel"
+          >
+            <ChevronRight className="h-4 w-4" />
           </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start">
-          <DropdownMenuItem onClick={onExport}>Export JSON</DropdownMenuItem>
-          <DropdownMenuItem onClick={onExportPython}>Export Python</DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="secondary" size="sm">
-            <FileText />
-            Load Example…
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start">
-          {EXAMPLES.map((ex) => (
-            <DropdownMenuItem
-              key={ex.id}
-              onClick={() => {
-                const rf = flowJsonToReactFlow(ex.json as any);
-                setNodes(rf.nodes);
-                setEdges(rf.edges);
-                // Center the view after a short delay to ensure nodes are rendered
-                setTimeout(() => {
-                  rfInstance?.fitView?.({ padding: 0.2, duration: 300 });
-                }, 100);
-              }}
+        )}
+        <Button variant="secondary" size="sm" onClick={onNewFlow} title="Create a new flow">
+          New Flow
+        </Button>
+        <div className="w-px bg-neutral-300 dark:bg-neutral-700" />
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={onUndo}
+              disabled={!canUndo}
+              className="px-2"
             >
-              {ex.name}
-            </DropdownMenuItem>
-          ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
+              <Undo2 className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Undo (Cmd/Ctrl+Z)</p>
+          </TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={onRedo}
+              disabled={!canRedo}
+              className="px-2"
+            >
+              <Redo2 className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Redo (Cmd/Ctrl+Shift+Z)</p>
+          </TooltipContent>
+        </Tooltip>
+        <div className="w-px bg-neutral-300 dark:bg-neutral-700" />
+        <Input
+          ref={inputRef}
+          type="file"
+          accept="application/json"
+          className="hidden"
+          onChange={(e) => e.target.files && onImport(e.target.files[0], e.target)}
+        />
+        <Button variant="secondary" size="sm" onClick={() => inputRef.current?.click()}>
+          Import
+        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="secondary" size="sm">
+              <Download />
+              Export…
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            <DropdownMenuItem onClick={onExport}>Export JSON</DropdownMenuItem>
+            <DropdownMenuItem onClick={onExportPython}>Export Python</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="secondary" size="sm">
+              <FileText />
+              Load Example…
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            {EXAMPLES.map((ex) => (
+              <DropdownMenuItem
+                key={ex.id}
+                onClick={() => {
+                  const rf = flowJsonToReactFlow(ex.json as any);
+                  setNodes(rf.nodes);
+                  setEdges(rf.edges);
+                  // Center the view after a short delay to ensure nodes are rendered
+                  setTimeout(() => {
+                    rfInstance?.fitView?.({ padding: 0.2, duration: 300 });
+                  }, 100);
+                }}
+              >
+                {ex.name}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </TooltipProvider>
   );
 }

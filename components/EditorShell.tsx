@@ -138,6 +138,9 @@ export default function EditorShell() {
     (state) => state.validateFunctionIndexAfterUpdate
   );
   const clearSelection = useEditorStore((state) => state.clearSelection);
+  const showNodesPanel = useEditorStore((state) => state.showNodesPanel);
+  const inspectorPanelWidth = useEditorStore((state) => state.inspectorPanelWidth);
+  const isInspectorResizing = useEditorStore((state) => state.isInspectorResizing);
 
   const undoManagerRef = useRef(new UndoManager({ nodes: initial.nodes, edges: initial.edges }));
   const skipUndoPushRef = useRef(false);
@@ -242,10 +245,18 @@ export default function EditorShell() {
   return (
     <div className="h-screen w-screen flex overflow-hidden">
       <div
-        className="flex flex-col overflow-hidden"
+        className={`flex flex-col overflow-hidden transition-all duration-300 ease-in-out ${
+          showNodesPanel ? "w-56" : "w-0"
+        }`}
         style={{ height: `calc(100vh - ${showJson ? jsonEditorHeight : 0}px)` }}
       >
-        <NodePalette nodes={nodes as any} />
+        <div
+          className={`w-56 shrink-0 h-full transition-transform duration-300 ease-in-out ${
+            showNodesPanel ? "translate-x-0" : "-translate-x-full"
+          }`}
+        >
+          <NodePalette nodes={nodes as any} />
+        </div>
       </div>
       <Toolbar
         nodes={nodes as any}
@@ -289,7 +300,7 @@ export default function EditorShell() {
         }}
       />
       <div
-        className="flex-1 min-w-0 relative"
+        className="flex-1 min-w-0 relative overflow-hidden"
         style={{ height: `calc(100vh - ${showJson ? jsonEditorHeight : 0}px)` }}
       >
         <ReactFlow
@@ -388,73 +399,84 @@ export default function EditorShell() {
         </ReactFlow>
       </div>
       <div
-        className="flex flex-col overflow-hidden"
-        style={{ height: `calc(100vh - ${showJson ? jsonEditorHeight : 0}px)` }}
+        className={`flex flex-col overflow-hidden ${
+          isInspectorResizing ? "" : "transition-all duration-300 ease-in-out"
+        } ${selectedNodeId ? "" : "w-0"}`}
+        style={{
+          height: `calc(100vh - ${showJson ? jsonEditorHeight : 0}px)`,
+          width: selectedNodeId ? `${inspectorPanelWidth}px` : "0px",
+        }}
       >
-        <InspectorPanel
-          nodes={nodes as any}
-          availableNodeIds={nodes.map((n) => n.id)}
-          onChange={(next) => {
-            if (!selectedNodeId || selectedNodeId !== next.id) return;
+        {selectedNodeId && (
+          <div className="shrink-0 h-full" style={{ width: `${inspectorPanelWidth}px` }}>
+            <InspectorPanel
+              nodes={nodes as any}
+              availableNodeIds={nodes.map((n) => n.id)}
+              onChange={(next) => {
+                if (!selectedNodeId || selectedNodeId !== next.id) return;
 
-            const currentNode = nodes.find((n) => n.id === selectedNodeId);
-            const oldFunctions = ((currentNode?.data as any)?.functions as any[] | undefined) ?? [];
+                const currentNode = nodes.find((n) => n.id === selectedNodeId);
+                const oldFunctions =
+                  ((currentNode?.data as any)?.functions as any[] | undefined) ?? [];
 
-            handleNodeDataUpdate(next.id, next.data, oldFunctions);
-          }}
-          onDelete={(id, kind) => {
-            if (kind === "edge") {
-              const edge = edges.find((e) => e.id === id);
-              if (!edge) return;
+                handleNodeDataUpdate(next.id, next.data, oldFunctions);
+              }}
+              onDelete={(id, kind) => {
+                if (kind === "edge") {
+                  const edge = edges.find((e) => e.id === id);
+                  if (!edge) return;
 
-              const sourceNode = nodes.find((n) => n.id === edge.source);
-              if (!sourceNode) return;
+                  const sourceNode = nodes.find((n) => n.id === edge.source);
+                  if (!sourceNode) return;
 
-              const functions = ((sourceNode.data as any)?.functions as any[] | undefined) ?? [];
-              const functionIndex = functions.findIndex(
-                (f) => f.next_node_id === edge.target && f.name === (edge.label as string)
-              );
+                  const functions =
+                    ((sourceNode.data as any)?.functions as any[] | undefined) ?? [];
+                  const functionIndex = functions.findIndex(
+                    (f) => f.next_node_id === edge.target && f.name === (edge.label as string)
+                  );
 
-              if (functionIndex >= 0) {
-                const updatedFunctions = [...functions];
-                updatedFunctions[functionIndex] = {
-                  ...updatedFunctions[functionIndex],
-                  next_node_id: undefined,
-                };
+                  if (functionIndex >= 0) {
+                    const updatedFunctions = [...functions];
+                    updatedFunctions[functionIndex] = {
+                      ...updatedFunctions[functionIndex],
+                      next_node_id: undefined,
+                    };
 
-                handleNodeDataUpdate(edge.source, { functions: updatedFunctions }, functions);
+                    handleNodeDataUpdate(edge.source, { functions: updatedFunctions }, functions);
 
-                if (selectedNodeId === edge.source && selectedFunctionIndex === functionIndex) {
-                  useEditorStore.getState().clearFunctionSelection();
+                    if (selectedNodeId === edge.source && selectedFunctionIndex === functionIndex) {
+                      useEditorStore.getState().clearFunctionSelection();
+                    }
+                  }
+                } else {
+                  setNodes((nds) => nds.filter((n) => n.id !== id));
+                  clearSelection();
                 }
-              }
-            } else {
-              setNodes((nds) => nds.filter((n) => n.id !== id));
-              clearSelection();
-            }
-          }}
-          onRenameNode={(oldId, newId) => {
-            // Update node ID
-            setNodes((nds) => nds.map((n) => (n.id === oldId ? { ...n, id: newId } : n)));
+              }}
+              onRenameNode={(oldId, newId) => {
+                // Update node ID
+                setNodes((nds) => nds.map((n) => (n.id === oldId ? { ...n, id: newId } : n)));
 
-            // Update edge references
-            setEdges((eds) =>
-              eds.map((e) => ({
-                ...e,
-                source: e.source === oldId ? newId : e.source,
-                target: e.target === oldId ? newId : e.target,
-              }))
-            );
+                // Update edge references
+                setEdges((eds) =>
+                  eds.map((e) => ({
+                    ...e,
+                    source: e.source === oldId ? newId : e.source,
+                    target: e.target === oldId ? newId : e.target,
+                  }))
+                );
 
-            // Update function references (including decision conditions)
-            setNodes((nds) => updateFunctionReferences(nds, oldId, newId));
+                // Update function references (including decision conditions)
+                setNodes((nds) => updateFunctionReferences(nds, oldId, newId));
 
-            // Update selected ID if this node was selected
-            if (selectedNodeId === oldId) {
-              selectNode(newId, selectedFunctionIndex);
-            }
-          }}
-        />
+                // Update selected ID if this node was selected
+                if (selectedNodeId === oldId) {
+                  selectNode(newId, selectedFunctionIndex);
+                }
+              }}
+            />
+          </div>
+        )}
       </div>
       <CodePanel nodes={nodes as any} edges={edges as any} />
       <ToastContainer />
