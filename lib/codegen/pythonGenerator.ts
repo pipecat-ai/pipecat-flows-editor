@@ -92,6 +92,16 @@ function generateFunction(func: FlowFunctionJson): {
 
   const requiredBlock = `,\n        required=${JSON.stringify(required)}`;
 
+  // Generate schema code (used for both decision and non-decision functions)
+  const schemaCode = `    ${funcName}_func = FlowsFunctionSchema(
+        name="${funcName}",
+        handler=handle_${funcName},
+        description="${escapePythonString(func.description)}"${propertiesBlock}${requiredBlock}
+    )`;
+
+  // Generate type definition (used for both decision and non-decision functions)
+  const typeDefCode = hasType ? generateTypeDefinition(func) : undefined;
+
   // Generate typed argument extraction
   const argExtraction =
     Object.keys(props).length > 0
@@ -117,7 +127,56 @@ function generateFunction(func: FlowFunctionJson): {
       : "";
 
   let nextNodeRouting: string;
+  let decisionCode = "";
 
+  // Handle decision logic
+  if (func.decision) {
+    // Execute action first
+    decisionCode = `        # Execute action and store result\n        result = ${func.decision.action}\n\n`;
+
+    // Generate if/elif/else chain if there are conditions
+    if (func.decision.conditions.length > 0) {
+      decisionCode += "        # Conditional routing\n";
+      func.decision.conditions.forEach((condition, index) => {
+        const indent = index === 0 ? "if" : "elif";
+        // Handle special operators like "not", "in", "not in"
+        let conditionExpr: string;
+        if (condition.operator === "not") {
+          conditionExpr = `not result`;
+        } else if (condition.operator === "in") {
+          conditionExpr = `result in ${condition.value}`;
+        } else if (condition.operator === "not in") {
+          conditionExpr = `result not in ${condition.value}`;
+        } else {
+          // For comparison operators, try to parse value as appropriate type
+          // For now, keep as string comparison - user can wrap in quotes if needed
+          conditionExpr = `result ${condition.operator} ${condition.value}`;
+        }
+        decisionCode += `        ${indent} ${conditionExpr}:\n            return result, create_${condition.next_node_id}_node()\n`;
+      });
+      decisionCode += `        else:\n            return result, create_${func.decision.default_next_node_id}_node()\n`;
+    } else {
+      // No conditions, just return default
+      decisionCode += `        return result, create_${func.decision.default_next_node_id}_node()\n`;
+    }
+
+    // Return type for decision: result is Any (action result)
+    const returnTypeAnnotation = `tuple[Any, NodeConfig]`;
+
+    const handlerCode = `
+    async def ${handlerName}(args: FlowArgs, flow_manager: FlowManager) -> ${returnTypeAnnotation}:
+        """Handler for ${funcName} function"""
+${argExtraction}${decisionCode}
+`;
+
+    return {
+      handler: handlerCode,
+      schema: schemaCode,
+      typeDef: typeDefCode,
+    };
+  }
+
+  // Original logic for non-decision functions
   if (!hasType) {
     // No properties, return None
     if (func.next_node_id) {
@@ -151,14 +210,6 @@ ${argExtraction}        # TODO: Implement function logic
         # Update flow_manager.state as needed
 ${nextNodeRouting}
 `;
-
-  const schemaCode = `    ${funcName}_func = FlowsFunctionSchema(
-        name="${funcName}",
-        handler=${handlerName},
-        description="${escapePythonString(func.description)}"${propertiesBlock}${requiredBlock}
-    )`;
-
-  const typeDefCode = hasType ? generateTypeDefinition(func) : undefined;
 
   return {
     handler: handlerCode,
@@ -358,6 +409,12 @@ export function generatePythonCode(flow: FlowJson): string {
     (node) => node.data?.context_strategy && node.data.context_strategy.strategy !== "APPEND"
   );
 
+  // Check if any function has a decision (needs Any type)
+  const hasDecision = flow.nodes.some((node) => {
+    const functions = (node.data?.functions as FlowFunctionJson[] | undefined) || [];
+    return functions.some((func) => func.decision !== undefined);
+  });
+
   const nodes = flow.nodes || [];
   const initialNode = nodes.find((n) => n.type === "initial");
   const globalFuncs = flow.global_functions || [];
@@ -390,7 +447,7 @@ This file was generated from the visual flow editor.
 Customize the function handlers to implement your flow logic.
 """
 
-from pipecat_flows import (
+${hasDecision ? "from typing import Any\n\n" : ""}from pipecat_flows import (
     FlowArgs,
     FlowManager,
     FlowResult,

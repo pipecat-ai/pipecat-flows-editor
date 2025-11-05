@@ -25,13 +25,39 @@ export const FunctionProperty = Type.Object({
   maximum: Type.Optional(Type.Number()),
 });
 
+// Decision condition structure
+export const DecisionCondition = Type.Object({
+  operator: Type.Union([
+    Type.Literal("<"),
+    Type.Literal("<="),
+    Type.Literal("=="),
+    Type.Literal(">="),
+    Type.Literal(">"),
+    Type.Literal("!="),
+    Type.Literal("not"),
+    Type.Literal("in"),
+    Type.Literal("not in"),
+  ]),
+  value: Type.String(), // Value to compare against
+  next_node_id: Type.String({ minLength: 1 }), // Next node ID for this condition
+});
+
+// Decision structure for conditional routing
+export const Decision = Type.Object({
+  action: Type.String({ minLength: 1 }), // Python code snippet that executes and stores result in 'result'
+  conditions: Type.Array(DecisionCondition), // Array of condition+next_node pairs
+  default_next_node_id: Type.String({ minLength: 1 }), // Default next node (always required)
+  decision_node_position: Type.Optional(Type.Object({ x: Type.Number(), y: Type.Number() })), // Optional position for the decision node visualization
+});
+
 // FlowsFunctionSchema structure
 export const FlowFunction = Type.Object({
   name: Type.String({ minLength: 1 }),
   description: Type.String(),
   properties: Type.Optional(Type.Record(Type.String(), FunctionProperty)),
   required: Type.Optional(Type.Array(Type.String())),
-  next_node_id: Type.Optional(Type.String()), // Next node ID this function routes to
+  next_node_id: Type.Optional(Type.String()), // Next node ID this function routes to (or default when decision exists)
+  decision: Type.Optional(Decision), // Optional decision for conditional routing
 });
 
 // Pre/Post action structure
@@ -117,6 +143,8 @@ export type FlowEdgeJson = Static<typeof FlowEdge>;
 export type FlowFunctionJson = Static<typeof FlowFunction>;
 export type MessageJson = Static<typeof Message>;
 export type ActionJson = Static<typeof Action>;
+export type DecisionJson = Static<typeof Decision>;
+export type DecisionConditionJson = Static<typeof DecisionCondition>;
 export type ContextStrategyConfigJson = Static<typeof ContextStrategyConfig>;
 export type GlobalFunctionJson = Static<typeof GlobalFunction>;
 

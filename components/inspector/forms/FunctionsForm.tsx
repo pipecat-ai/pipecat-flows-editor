@@ -1,8 +1,11 @@
 "use client";
 
+import { ChevronDown, ChevronRight } from "lucide-react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -10,11 +13,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { FlowFunctionJson } from "@/lib/schema/flow.schema";
-import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { Textarea } from "@/components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import type { DecisionConditionJson, FlowFunctionJson } from "@/lib/schema/flow.schema";
 import { useEditorStore } from "@/lib/store/editorStore";
-import { Checkbox } from "../../ui/checkbox";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../ui/tooltip";
 
 /**
  * Generate a Python-safe function name from input
@@ -99,6 +101,9 @@ export default function FunctionsForm({
   const functionRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const selectedNodeId = useEditorStore((state) => state.selectedNodeId);
   const selectedFunctionIndex = useEditorStore((state) => state.selectedFunctionIndex);
+  const selectedConditionIndex = useEditorStore((state) => state.selectedConditionIndex);
+  const scrollTarget = useEditorStore((state) => state.scrollTarget);
+  const setScrollTarget = useEditorStore((state) => state.setScrollTarget);
 
   // Derive highlighted function index from store for scroll-into-view
   const highlightedFunctionIndex = selectedNodeId === currentNodeId ? selectedFunctionIndex : null;
@@ -120,21 +125,40 @@ export default function FunctionsForm({
     // This will be handled by the parent component through the onChange callback
   };
 
-  // Scroll to highlighted function when it changes
+  // Check if we should scroll to a function based on scroll target
   useEffect(() => {
-    if (highlightedFunctionIndex !== null && highlightedFunctionIndex !== undefined) {
-      // Use requestAnimationFrame to ensure DOM is ready, then scroll
-      const frameId = requestAnimationFrame(() => {
+    if (
+      scrollTarget &&
+      scrollTarget.nodeId === currentNodeId &&
+      scrollTarget.functionIndex !== null &&
+      scrollTarget.functionIndex === highlightedFunctionIndex
+    ) {
+      // Scroll target matches this form - scroll to the function
+      const element = functionRefs.current.get(scrollTarget.functionIndex);
+      if (element) {
+        // Use requestAnimationFrame to ensure DOM is ready
         requestAnimationFrame(() => {
-          const element = functionRefs.current.get(highlightedFunctionIndex);
-          if (element) {
+          requestAnimationFrame(() => {
             element.scrollIntoView({ behavior: "smooth", block: "center" });
-          }
+            // Clear scroll target after scrolling
+            setScrollTarget(null);
+          });
         });
-      });
-      return () => cancelAnimationFrame(frameId);
+      } else {
+        // Element not found yet, try again after a delay
+        const timeoutId = setTimeout(() => {
+          if (scrollTarget.functionIndex !== null) {
+            const retryElement = functionRefs.current.get(scrollTarget.functionIndex);
+            if (retryElement) {
+              retryElement.scrollIntoView({ behavior: "smooth", block: "center" });
+              setScrollTarget(null);
+            }
+          }
+        }, 100);
+        return () => clearTimeout(timeoutId);
+      }
     }
-  }, [highlightedFunctionIndex, items.length]);
+  }, [scrollTarget, currentNodeId, highlightedFunctionIndex, setScrollTarget]);
 
   const setFunctionRef = (index: number, element: HTMLDivElement | null) => {
     if (element) {
@@ -162,6 +186,11 @@ export default function FunctionsForm({
           availableNodeIds={availableNodeIds}
           currentNodeId={currentNodeId}
           functionIndex={i}
+          selectedConditionIndex={
+            selectedNodeId === currentNodeId && selectedFunctionIndex === i
+              ? selectedConditionIndex
+              : null
+          }
         />
       ))}
       {items.length === 0 && (
@@ -180,16 +209,33 @@ interface FunctionItemProps {
   availableNodeIds: string[];
   currentNodeId?: string;
   functionIndex: number;
+  selectedConditionIndex: number | null; // -1 for default, 0+ for condition index
 }
 
 const FunctionItem = React.forwardRef<HTMLDivElement, FunctionItemProps>(
-  ({ func, onChange, onRemove, availableNodeIds, functionIndex }, ref) => {
+  (
+    {
+      func,
+      onChange,
+      onRemove,
+      availableNodeIds,
+      functionIndex,
+      selectedConditionIndex,
+      currentNodeId,
+    },
+    ref
+  ) => {
     // Check if next_node_id is invalid (pointing to a deleted node)
     const hasInvalidNextNode =
       func.next_node_id !== undefined && !availableNodeIds.includes(func.next_node_id);
     const [functionName, setFunctionName] = useState(func.name);
     const [nameError, setNameError] = useState<string | null>(null);
     const nameInputRef = useRef<HTMLInputElement>(null);
+    const [showDecision, setShowDecision] = useState(func.decision !== undefined);
+    const conditionRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+    const defaultNextNodeRef = useRef<HTMLElement | null>(null);
+    const scrollTarget = useEditorStore((state) => state.scrollTarget);
+    const setScrollTarget = useEditorStore((state) => state.setScrollTarget);
 
     // Removed auto-focus - selectedFunctionIndex should only control highlighting
     // Focus should be managed by user interaction (tabbing, clicking)
@@ -200,7 +246,7 @@ const FunctionItem = React.forwardRef<HTMLDivElement, FunctionItemProps>(
     const updateProperties = useCallback(
       (newProperties: Record<string, FunctionProperty>) => {
         onChange({
-          properties: Object.keys(newProperties).length > 0 ? (newProperties as any) : undefined,
+          properties: Object.keys(newProperties).length > 0 ? newProperties : undefined,
         });
       },
       [onChange]
@@ -212,6 +258,65 @@ const FunctionItem = React.forwardRef<HTMLDivElement, FunctionItemProps>(
         : required.filter((r) => r !== propName);
       onChange({ required: newRequired.length > 0 ? newRequired : undefined });
     };
+
+    // Ensure decision section is expanded when a condition is selected or scroll target requires it
+    const needsExpansion =
+      (selectedConditionIndex !== null || (scrollTarget && scrollTarget.conditionIndex !== null)) &&
+      func.decision &&
+      !showDecision;
+
+    useEffect(() => {
+      if (needsExpansion) {
+        // Use setTimeout to avoid setState in effect warning
+        const timeoutId = setTimeout(() => {
+          setShowDecision(true);
+        }, 0);
+        return () => clearTimeout(timeoutId);
+      }
+    }, [needsExpansion]);
+
+    // Check if we should scroll to a condition based on scroll target
+    useEffect(() => {
+      if (
+        scrollTarget &&
+        currentNodeId &&
+        scrollTarget.nodeId === currentNodeId &&
+        scrollTarget.functionIndex === functionIndex &&
+        scrollTarget.conditionIndex !== null
+      ) {
+        // Wait for decision section to expand if needed
+        const delay = showDecision ? 50 : 150;
+        const timeoutId = setTimeout(() => {
+          const conditionIndex = scrollTarget.conditionIndex;
+          if (conditionIndex === -1) {
+            // Scroll to default next node
+            if (defaultNextNodeRef.current) {
+              defaultNextNodeRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+              setScrollTarget(null);
+            }
+          } else if (conditionIndex !== null && conditionIndex >= 0) {
+            // Scroll to specific condition
+            const element = conditionRefs.current.get(conditionIndex);
+            if (element) {
+              element.scrollIntoView({ behavior: "smooth", block: "center" });
+              setScrollTarget(null);
+            } else {
+              // Element not found yet, try again
+              const retryTimeoutId = setTimeout(() => {
+                const retryElement = conditionRefs.current.get(conditionIndex);
+                if (retryElement) {
+                  retryElement.scrollIntoView({ behavior: "smooth", block: "center" });
+                  setScrollTarget(null);
+                }
+              }, 100);
+              return () => clearTimeout(retryTimeoutId);
+            }
+          }
+        }, delay);
+
+        return () => clearTimeout(timeoutId);
+      }
+    }, [scrollTarget, currentNodeId, functionIndex, showDecision, func.decision, setScrollTarget]);
 
     const addProperty = useCallback(() => {
       const newKey = `property_${Date.now()}`;
@@ -371,8 +476,13 @@ const FunctionItem = React.forwardRef<HTMLDivElement, FunctionItemProps>(
         </div>
         <div>
           <div className="mb-1 flex items-center justify-between">
-            <span className="text-[10px] opacity-60 flex items-center gap-1">
-              Next Node
+            <span
+              ref={(el) => {
+                defaultNextNodeRef.current = el;
+              }}
+              className="text-[10px] opacity-60 flex items-center gap-1"
+            >
+              {func.decision ? "Default Next Node" : "Next Node"}
               {hasInvalidNextNode && (
                 <span
                   className="text-orange-600 dark:text-orange-400 text-[9px]"
@@ -382,7 +492,7 @@ const FunctionItem = React.forwardRef<HTMLDivElement, FunctionItemProps>(
                 </span>
               )}
             </span>
-            {func.next_node_id && (
+            {func.next_node_id && !func.decision && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -400,13 +510,24 @@ const FunctionItem = React.forwardRef<HTMLDivElement, FunctionItemProps>(
           )}
           {availableNodeIds.length > 0 ? (
             <Select
-              value={func.next_node_id ?? undefined}
+              value={
+                func.decision
+                  ? func.decision.default_next_node_id
+                  : (func.next_node_id ?? undefined)
+              }
               onValueChange={(v) => {
-                onChange({ next_node_id: v });
-                // Edge will be auto-generated from the function's next_node_id
+                if (func.decision) {
+                  onChange({
+                    decision: {
+                      ...func.decision,
+                      default_next_node_id: v,
+                    },
+                  });
+                } else {
+                  onChange({ next_node_id: v });
+                }
               }}
               onOpenChange={(open) => {
-                // When select opens, update selection
                 if (open) {
                   handleFocus();
                 }
@@ -428,6 +549,253 @@ const FunctionItem = React.forwardRef<HTMLDivElement, FunctionItemProps>(
             </Select>
           ) : (
             <div className="text-[10px] opacity-40 italic">No other nodes available</div>
+          )}
+        </div>
+
+        {/* Decision Section */}
+        <div className="mt-3 pt-3 border-t border-neutral-200 dark:border-neutral-700">
+          <div className="mb-2 flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => {
+                if (!func.decision) {
+                  // Create decision with current next_node_id as default
+                  onChange({
+                    decision: {
+                      action: "",
+                      conditions: [],
+                      default_next_node_id: func.next_node_id || "",
+                    },
+                  });
+                  setShowDecision(true);
+                } else {
+                  setShowDecision(!showDecision);
+                }
+              }}
+              className="flex items-center gap-1 text-[10px] opacity-60 hover:opacity-100"
+            >
+              {showDecision ? (
+                <ChevronDown className="h-3 w-3" />
+              ) : (
+                <ChevronRight className="h-3 w-3" />
+              )}
+              Decision
+            </button>
+            {func.decision && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-4 text-[9px] px-1"
+                onClick={() => {
+                  onChange({ decision: undefined });
+                  setShowDecision(false);
+                }}
+              >
+                Remove
+              </Button>
+            )}
+          </div>
+          {func.decision && showDecision && (
+            <div className="space-y-3">
+              {/* Action Input */}
+              <div>
+                <div className="mb-1 text-[10px] opacity-60">Action (Python code)</div>
+                <Textarea
+                  className="h-20 text-xs font-mono"
+                  value={func.decision.action}
+                  onChange={(e) => {
+                    onChange({
+                      decision: {
+                        ...func.decision!,
+                        action: e.target.value,
+                      },
+                    });
+                  }}
+                  onFocus={handleFocus}
+                  placeholder="some_action()"
+                />
+                <div className="mt-0.5 text-[9px] opacity-40 italic">
+                  Enter Python expression (e.g., <code className="font-mono">some_action()</code>).
+                  Result will be stored in <code className="font-mono">result</code>.
+                </div>
+              </div>
+
+              {/* Conditions */}
+              <div>
+                <div className="mb-1 flex items-center justify-between">
+                  <div className="text-[10px] opacity-60">Conditions</div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-4 text-[9px] px-1"
+                    onClick={() => {
+                      onChange({
+                        decision: {
+                          ...func.decision!,
+                          conditions: [
+                            ...func.decision!.conditions,
+                            {
+                              operator: "==" as const,
+                              value: "",
+                              next_node_id: "",
+                            },
+                          ],
+                        },
+                      });
+                    }}
+                  >
+                    + Add
+                  </Button>
+                </div>
+                {func.decision.conditions.length === 0 ? (
+                  <div className="text-[10px] opacity-40 italic py-2">
+                    No conditions. Default next node will always be used.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {func.decision.conditions.map((condition, condIndex) => {
+                      const hasInvalidConditionNode =
+                        condition.next_node_id &&
+                        !availableNodeIds.includes(condition.next_node_id);
+                      return (
+                        <div
+                          key={condIndex}
+                          ref={(el) => {
+                            if (el) {
+                              conditionRefs.current.set(condIndex, el);
+                            } else {
+                              conditionRefs.current.delete(condIndex);
+                            }
+                          }}
+                          className="rounded border p-2 space-y-2 bg-neutral-50 dark:bg-neutral-900/50"
+                        >
+                          <div className="flex items-center gap-2">
+                            <Select
+                              value={condition.operator}
+                              onValueChange={(v) => {
+                                const newConditions = [...func.decision!.conditions];
+                                newConditions[condIndex] = {
+                                  ...condition,
+                                  operator: v as DecisionConditionJson["operator"],
+                                };
+                                onChange({
+                                  decision: {
+                                    ...func.decision!,
+                                    conditions: newConditions,
+                                  },
+                                });
+                              }}
+                              onOpenChange={(open) => {
+                                if (open) handleFocus();
+                              }}
+                            >
+                              <SelectTrigger className="h-6 text-xs w-24" onFocus={handleFocus}>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="<">&lt;</SelectItem>
+                                <SelectItem value="<=">&lt;=</SelectItem>
+                                <SelectItem value="==">==</SelectItem>
+                                <SelectItem value=">=">&gt;=</SelectItem>
+                                <SelectItem value=">">&gt;</SelectItem>
+                                <SelectItem value="!=">!=</SelectItem>
+                                <SelectItem value="not">not</SelectItem>
+                                <SelectItem value="in">in</SelectItem>
+                                <SelectItem value="not in">not in</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <Input
+                              className="h-6 text-xs flex-1"
+                              value={condition.value}
+                              onChange={(e) => {
+                                const newConditions = [...func.decision!.conditions];
+                                newConditions[condIndex] = {
+                                  ...condition,
+                                  value: e.target.value,
+                                };
+                                onChange({
+                                  decision: {
+                                    ...func.decision!,
+                                    conditions: newConditions,
+                                  },
+                                });
+                              }}
+                              onFocus={handleFocus}
+                              placeholder="Value"
+                            />
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 text-xs px-2"
+                              onClick={() => {
+                                const newConditions = func.decision!.conditions.filter(
+                                  (_, i) => i !== condIndex
+                                );
+                                onChange({
+                                  decision: {
+                                    ...func.decision!,
+                                    conditions: newConditions,
+                                  },
+                                });
+                              }}
+                            >
+                              ×
+                            </Button>
+                          </div>
+                          <div>
+                            <div className="mb-1 text-[10px] opacity-60">Next Node</div>
+                            {hasInvalidConditionNode && (
+                              <div className="mb-1 text-[9px] text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-orange-950/40 px-1.5 py-0.5 rounded">
+                                Invalid: Target node "{condition.next_node_id}" was deleted
+                              </div>
+                            )}
+                            {availableNodeIds.length > 0 ? (
+                              <Select
+                                value={condition.next_node_id || undefined}
+                                onValueChange={(v) => {
+                                  const newConditions = [...func.decision!.conditions];
+                                  newConditions[condIndex] = {
+                                    ...condition,
+                                    next_node_id: v,
+                                  };
+                                  onChange({
+                                    decision: {
+                                      ...func.decision!,
+                                      conditions: newConditions,
+                                    },
+                                  });
+                                }}
+                                onOpenChange={(open) => {
+                                  if (open) handleFocus();
+                                }}
+                              >
+                                <SelectTrigger
+                                  className={`h-6 text-xs ${hasInvalidConditionNode ? "border-orange-400 dark:border-orange-500" : ""}`}
+                                  onFocus={handleFocus}
+                                >
+                                  <SelectValue placeholder="Select next node..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {availableNodeIds.map((nodeId) => (
+                                    <SelectItem key={nodeId} value={nodeId}>
+                                      {nodeId}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            ) : (
+                              <div className="text-[10px] opacity-40 italic">
+                                No other nodes available
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
           )}
         </div>
       </div>

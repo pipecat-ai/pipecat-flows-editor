@@ -1,21 +1,31 @@
 "use client";
 
+import "reactflow/dist/style.css";
+
+import { extractDecisionNodeFromChange, useDecisionNodes } from "hooks/useDecisionNodes";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { Background, Controls, MiniMap, ReactFlow, useEdgesState, useNodesState } from "reactflow";
-import "reactflow/dist/style.css";
-import { loadCurrent, saveCurrent } from "@/lib/storage/localStore";
+
+import Toolbar from "@/components/header/Toolbar";
+import InspectorPanel from "@/components/inspector/InspectorPanel";
+import CodePanel from "@/components/json/CodePanel";
+import BaseNode from "@/components/nodes/BaseNode";
+import DecisionNode from "@/components/nodes/DecisionNode";
 import NodePalette from "@/components/palette/NodePalette";
+import ToastContainer from "@/components/ui/Toast";
+import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { getTemplateByType } from "@/lib/nodes/templates";
+import { loadCurrent, saveCurrent } from "@/lib/storage/localStore";
+import { useEditorStore } from "@/lib/store/editorStore";
+import { UndoManager } from "@/lib/undo/undoManager";
+import {
+  handleDecisionNodeConnection,
+  handleRegularConnection,
+} from "@/lib/utils/connectionHandlers";
+import { deriveEdgesFromNodes, edgesChanged } from "@/lib/utils/edgeDerivation";
 import { generateNodeIdFromLabel } from "@/lib/utils/nodeId";
 import { deriveNodeType } from "@/lib/utils/nodeType";
-import InspectorPanel from "@/components/inspector/InspectorPanel";
-import Toolbar from "@/components/header/Toolbar";
-import JsonEditor from "@/components/json/JsonEditor";
-import { UndoManager } from "@/lib/undo/undoManager";
-import ToastContainer from "@/components/ui/Toast";
-import { Button } from "@/components/ui/button";
-import { useEditorStore } from "@/lib/store/editorStore";
-import BaseNode from "@/components/nodes/BaseNode";
+import { updateFunctionReferences, updateNodeData } from "@/lib/utils/nodeUpdates";
 
 function useInitialGraph() {
   return useMemo(() => {
@@ -55,8 +65,65 @@ function useInitialGraph() {
 
 export default function EditorShell() {
   const initial = useInitialGraph();
-  const [nodes, setNodes, onNodesChange] = useNodesState(initial.nodes);
+  const [nodes, setNodes, onNodesChangeBase] = useNodesState(initial.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initial.edges);
+
+  // Wrap onNodesChange to capture decision node position changes
+  const onNodesChange = useCallback(
+    (changes: any[]) => {
+      onNodesChangeBase(changes);
+
+      const positionChanges = changes.filter(
+        (change) => change.type === "position" && change.dragging === false && change.position
+      );
+
+      if (positionChanges.length > 0) {
+        setNodes((currentNodes) => {
+          let needsUpdate = false;
+          const updatedNodes = currentNodes.map((n) => ({ ...n }));
+
+          positionChanges.forEach((change) => {
+            const decisionInfo = extractDecisionNodeFromChange(change, currentNodes);
+            if (!decisionInfo) return;
+
+            const sourceNodeIndex = updatedNodes.findIndex(
+              (n) => n.id === decisionInfo.sourceNodeId
+            );
+            if (sourceNodeIndex < 0) return;
+
+            const sourceNode = updatedNodes[sourceNodeIndex];
+            const functions = ((sourceNode.data as any)?.functions as any[] | undefined) ?? [];
+            const functionIndex = functions.findIndex(
+              (f: any) => f.name === decisionInfo.functionName && f.decision !== undefined
+            );
+
+            if (functionIndex >= 0) {
+              const updatedFunctions = [...functions];
+              updatedFunctions[functionIndex] = {
+                ...updatedFunctions[functionIndex],
+                decision: {
+                  ...updatedFunctions[functionIndex].decision,
+                  decision_node_position: decisionInfo.position,
+                },
+              };
+
+              updatedNodes[sourceNodeIndex] = {
+                ...sourceNode,
+                data: {
+                  ...sourceNode.data,
+                  functions: updatedFunctions,
+                },
+              };
+              needsUpdate = true;
+            }
+          });
+
+          return needsUpdate ? updatedNodes : currentNodes;
+        });
+      }
+    },
+    [onNodesChangeBase, setNodes]
+  );
 
   // Use Zustand store for UI state with proper selectors
   const selectedNodeId = useEditorStore((state) => state.selectedNodeId);
@@ -64,8 +131,6 @@ export default function EditorShell() {
   const showJson = useEditorStore((state) => state.showJson);
   const jsonEditorHeight = useEditorStore((state) => state.jsonEditorHeight);
   const rfInstance = useEditorStore((state) => state.rfInstance);
-  const setShowJson = useEditorStore((state) => state.setShowJson);
-  const setJsonEditorHeight = useEditorStore((state) => state.setJsonEditorHeight);
   const setRfInstance = useEditorStore((state) => state.setRfInstance);
   const selectNode = useEditorStore((state) => state.selectNode);
   const selectNodeFromCanvas = useEditorStore((state) => state.selectNodeFromCanvas);
@@ -83,29 +148,18 @@ export default function EditorShell() {
       initial: BaseNode,
       llm_task: BaseNode,
       end: BaseNode,
+      decision: DecisionNode,
     }),
     []
   );
 
   // Helper: Update node data and validate function index
-  const updateNodeData = useCallback(
+  const handleNodeDataUpdate = useCallback(
     (nodeId: string, updates: Partial<any>, previousFunctions?: any[]) => {
       const newFunctions = updates.functions as any[] | undefined;
 
-      // Update nodes
-      setNodes((nds) => {
-        return nds.map((n) => {
-          if (n.id === nodeId) {
-            const newData = { ...n.data, ...updates };
-            // Derive node type from updated data (especially post_actions)
-            const derivedType = deriveNodeType(newData, n.type as string);
-            return { ...n, type: derivedType, data: newData };
-          }
-          return n;
-        });
-      });
+      setNodes((nds) => updateNodeData(nds, nodeId, updates));
 
-      // Validate function index after update (store handles all logic)
       if (previousFunctions !== undefined && newFunctions !== undefined) {
         validateFunctionIndexAfterUpdate(nodeId, previousFunctions, newFunctions);
       }
@@ -123,48 +177,15 @@ export default function EditorShell() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Derive edges from functions whenever nodes change (structure only, not selection)
+  // Manage decision nodes lifecycle
+  useDecisionNodes(nodes, setNodes);
+
+  // Derive edges from functions whenever nodes change
   useEffect(() => {
-    const derivedEdges: any[] = [];
-    nodes.forEach((node) => {
-      const functions = ((node.data as any)?.functions as any[] | undefined) ?? [];
-      functions.forEach((func) => {
-        if (func.next_node_id && func.name) {
-          const edgeId = `func-${node.id}-${func.name}-${func.next_node_id}`;
-          derivedEdges.push({
-            id: edgeId,
-            source: node.id,
-            target: func.next_node_id,
-            label: func.name,
-            type: "default", // Use default bezier curves for natural-looking edges
-            selected: false, // Selection will be updated separately
-            style: undefined, // Style will be updated separately
-          });
-        }
-      });
-    });
-
-    // Always update edges to ensure they're rendered
-    // The setEdges function will handle deduplication internally
+    const derivedEdges = deriveEdgesFromNodes(nodes);
     setEdges((currentEdges) => {
-      // Quick check: if lengths differ, structure changed
-      if (currentEdges.length !== derivedEdges.length) {
-        return derivedEdges;
-      }
-
-      // Check if any edge was added or removed
-      const currentIds = new Set(currentEdges.map((e) => e.id));
-      const derivedIds = new Set(derivedEdges.map((e) => e.id));
-
-      if (
-        currentIds.size !== derivedIds.size ||
-        ![...currentIds].every((id) => derivedIds.has(id))
-      ) {
-        return derivedEdges;
-      }
-
-      // Structure unchanged, preserve current edges (including selection state)
-      return currentEdges;
+      const { newEdges } = edgesChanged(currentEdges, derivedEdges);
+      return newEdges;
     });
   }, [nodes, setEdges]);
 
@@ -207,101 +228,16 @@ export default function EditorShell() {
     return () => clearTimeout(id);
   }, [nodes, edges]);
 
-  // keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
-      const modKey = isMac ? e.metaKey : e.ctrlKey;
-      const target = e.target as HTMLElement | null;
-      const isTyping =
-        !!target &&
-        (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable);
-
-      if (modKey && e.key === "z" && !e.shiftKey) {
-        e.preventDefault();
-        const state = undoManagerRef.current.undo();
-        if (state) {
-          skipUndoPushRef.current = true;
-          setNodes(state.nodes as any);
-          setEdges(state.edges as any);
-        }
-      } else if ((modKey && e.key === "z" && e.shiftKey) || (modKey && e.key === "y")) {
-        e.preventDefault();
-        const state = undoManagerRef.current.redo();
-        if (state) {
-          skipUndoPushRef.current = true;
-          setNodes(state.nodes as any);
-          setEdges(state.edges as any);
-        }
-      } else if ((e.key === "Delete" || e.key === "Backspace") && !isTyping) {
-        e.preventDefault();
-        // Check if we have a selected edge (via selectedFunctionIndex)
-        if (selectedNodeId && selectedFunctionIndex !== null) {
-          // Delete the edge by removing the function's next_node_id
-          const node = nodes.find((n) => n.id === selectedNodeId);
-          if (node) {
-            const functions = ((node.data as any)?.functions as any[] | undefined) ?? [];
-            if (functions[selectedFunctionIndex]) {
-              const updatedFunctions = [...functions];
-              updatedFunctions[selectedFunctionIndex] = {
-                ...updatedFunctions[selectedFunctionIndex],
-                next_node_id: undefined,
-              };
-
-              setNodes((nds) =>
-                nds.map((n) =>
-                  n.id === selectedNodeId
-                    ? {
-                        ...n,
-                        data: {
-                          ...n.data,
-                          functions: updatedFunctions,
-                        },
-                      }
-                    : n
-                )
-              );
-
-              // Clear function highlight but keep inspector open
-              const clearFunctionSelection = useEditorStore.getState().clearFunctionSelection;
-              clearFunctionSelection();
-            }
-          }
-        } else if (selectedNodeId) {
-          // Delete the entire node
-          setNodes((nds) => nds.filter((n) => n.id !== selectedNodeId));
-          clearSelection();
-        }
-      } else if (modKey && e.key === "d") {
-        e.preventDefault();
-        if (selectedNodeId) {
-          const selected = nodes.find((n) => n.id === selectedNodeId);
-          if (selected) {
-            const id = `${selected.type}-${Math.random().toString(36).slice(2, 8)}`;
-            const newNode = {
-              ...selected,
-              id,
-              position: { x: selected.position.x + 50, y: selected.position.y + 50 },
-            };
-            setNodes((nds) => nds.concat(newNode as any));
-            selectNode(id);
-          }
-        }
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [
-    clearSelection,
-    edges,
+  // Keyboard shortcuts (excluding undo/redo which is handled by Toolbar)
+  useKeyboardShortcuts({
     nodes,
-    selectedFunctionIndex,
+    edges,
     selectedNodeId,
-    selectNode,
-    setEdges,
+    selectedFunctionIndex,
     setNodes,
-  ]);
+    clearSelection,
+    selectNode,
+  });
 
   return (
     <div className="h-screen w-screen flex overflow-hidden">
@@ -363,54 +299,43 @@ export default function EditorShell() {
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={(params) => {
-            // When connecting nodes, create a function in the source node instead of an edge
-            const sourceNode = nodes.find((n) => n.id === params.source);
-            if (sourceNode) {
-              const functions = ((sourceNode.data as any)?.functions as any[] | undefined) ?? [];
-              const existingFunctionNames = functions.map((f) => f.name).filter(Boolean);
-              const defaultFunctionName = `function_${existingFunctionNames.length + 1}`;
+            if (!params.source || !params.target) return;
 
-              // Generate a valid function name
-              const functionName = generateNodeIdFromLabel(
-                defaultFunctionName,
-                existingFunctionNames
-              );
+            // Try decision node connection first, fallback to regular connection
+            const handled = handleDecisionNodeConnection(
+              params,
+              nodes,
+              setNodes,
+              (nodeId, functionIndex, conditionIndex) => {
+                selectNode(nodeId, functionIndex, conditionIndex);
+                // Update React Flow visual selection
+                setTimeout(() => {
+                  if (rfInstance) {
+                    rfInstance.setNodes((nds: any[]) =>
+                      nds.map((node: any) => ({
+                        ...node,
+                        selected: node.id === nodeId,
+                      }))
+                    );
+                  }
+                }, 0);
+              }
+            );
 
-              const newFunction = {
-                name: functionName,
-                description: "",
-                next_node_id: params.target,
-              };
-
-              // Update nodes with the new function
-              setNodes((nds) =>
-                nds.map((n) =>
-                  n.id === params.source
-                    ? {
-                        ...n,
-                        data: {
-                          ...n.data,
-                          functions: [...functions, newFunction],
-                        },
-                      }
-                    : n
-                )
-              );
-
-              // Select the source node and function after state update
-              selectNode(params.source, functions.length);
-
-              // Also update React Flow selection to ensure the node is visually selected
-              setTimeout(() => {
-                if (rfInstance) {
-                  rfInstance.setNodes((nodes: any[]) =>
-                    nodes.map((node) => ({
-                      ...node,
-                      selected: node.id === params.source,
-                    }))
-                  );
-                }
-              }, 0);
+            if (!handled) {
+              handleRegularConnection(params, nodes, setNodes, (nodeId, functionIndex) => {
+                selectNode(nodeId, functionIndex);
+                setTimeout(() => {
+                  if (rfInstance) {
+                    rfInstance.setNodes((nds: any[]) =>
+                      nds.map((node: any) => ({
+                        ...node,
+                        selected: node.id === nodeId,
+                      }))
+                    );
+                  }
+                }, 0);
+              });
             }
           }}
           onSelectionChange={(sel) => {
@@ -472,16 +397,13 @@ export default function EditorShell() {
           onChange={(next) => {
             if (!selectedNodeId || selectedNodeId !== next.id) return;
 
-            // Get current node to compare functions before update
             const currentNode = nodes.find((n) => n.id === selectedNodeId);
             const oldFunctions = ((currentNode?.data as any)?.functions as any[] | undefined) ?? [];
 
-            // Update node data (updateNodeData handles function index adjustment)
-            updateNodeData(next.id, next.data, oldFunctions);
+            handleNodeDataUpdate(next.id, next.data, oldFunctions);
           }}
           onDelete={(id, kind) => {
             if (kind === "edge") {
-              // Edge deletion: remove the function's next_node_id
               const edge = edges.find((e) => e.id === id);
               if (!edge) return;
 
@@ -494,32 +416,28 @@ export default function EditorShell() {
               );
 
               if (functionIndex >= 0) {
-                // Remove next_node_id from the function (this removes the edge)
                 const updatedFunctions = [...functions];
                 updatedFunctions[functionIndex] = {
                   ...updatedFunctions[functionIndex],
                   next_node_id: undefined,
                 };
 
-                // Update node (preserves selectedNodeId to keep inspector open)
-                updateNodeData(edge.source, { functions: updatedFunctions }, functions);
+                handleNodeDataUpdate(edge.source, { functions: updatedFunctions }, functions);
 
-                // Clear function highlight if this was the selected function
                 if (selectedNodeId === edge.source && selectedFunctionIndex === functionIndex) {
                   useEditorStore.getState().clearFunctionSelection();
                 }
               }
             } else {
-              // Node deletion: remove node and clear selection
               setNodes((nds) => nds.filter((n) => n.id !== id));
               clearSelection();
             }
           }}
           onRenameNode={(oldId, newId) => {
-            // Update the node ID
+            // Update node ID
             setNodes((nds) => nds.map((n) => (n.id === oldId ? { ...n, id: newId } : n)));
 
-            // Update all edges that reference this node
+            // Update edge references
             setEdges((eds) =>
               eds.map((e) => ({
                 ...e,
@@ -528,30 +446,8 @@ export default function EditorShell() {
               }))
             );
 
-            // Update all function next_node_id references across all nodes
-            setNodes((nds) =>
-              nds.map((node) => {
-                const nodeData = node.data as any;
-                const functions = (nodeData?.functions || []) as any[];
-                const updatedFunctions = functions.map((func: any) => {
-                  if (func.next_node_id === oldId) {
-                    return { ...func, next_node_id: newId };
-                  }
-                  return func;
-                });
-
-                if (updatedFunctions.some((f, i) => f !== functions[i])) {
-                  return {
-                    ...node,
-                    data: {
-                      ...nodeData,
-                      functions: updatedFunctions,
-                    },
-                  };
-                }
-                return node;
-              })
-            );
+            // Update function references (including decision conditions)
+            setNodes((nds) => updateFunctionReferences(nds, oldId, newId));
 
             // Update selected ID if this node was selected
             if (selectedNodeId === oldId) {
@@ -560,47 +456,7 @@ export default function EditorShell() {
           }}
         />
       </div>
-      {showJson && (
-        <div
-          className="absolute bottom-0 left-0 right-0 z-10 border-t bg-white dark:bg-neutral-900"
-          style={{ height: `${jsonEditorHeight}px` }}
-        >
-          <div className="relative h-full flex flex-col">
-            <div
-              className="absolute top-0 left-0 right-0 h-1 cursor-ns-resize hover:bg-blue-500 bg-transparent z-20"
-              onMouseDown={(e) => {
-                e.preventDefault();
-                const startY = e.clientY;
-                const startHeight = jsonEditorHeight;
-
-                const handleMouseMove = (moveEvent: MouseEvent) => {
-                  const delta = startY - moveEvent.clientY; // Inverted because we're dragging up
-                  const newHeight = Math.max(200, Math.min(800, startHeight + delta));
-                  setJsonEditorHeight(newHeight);
-                };
-
-                const handleMouseUp = () => {
-                  document.removeEventListener("mousemove", handleMouseMove);
-                  document.removeEventListener("mouseup", handleMouseUp);
-                };
-
-                document.addEventListener("mousemove", handleMouseMove);
-                document.addEventListener("mouseup", handleMouseUp);
-              }}
-            />
-            <JsonEditor nodes={nodes as any} edges={edges as any} />
-          </div>
-        </div>
-      )}
-      <Button
-        variant="secondary"
-        size="sm"
-        className="absolute z-20"
-        style={{ bottom: showJson ? `${jsonEditorHeight + 16}px` : "16px", right: "288px" }}
-        onClick={() => setShowJson(!showJson)}
-      >
-        {showJson ? "Hide Code" : "Show Code"}
-      </Button>
+      <CodePanel nodes={nodes as any} edges={edges as any} />
       <ToastContainer />
     </div>
   );

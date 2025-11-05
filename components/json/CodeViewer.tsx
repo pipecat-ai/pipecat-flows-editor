@@ -2,9 +2,10 @@
 
 import Editor from "@monaco-editor/react";
 import { useMemo, useState } from "react";
+
+import { generatePythonCode } from "@/lib/codegen/pythonGenerator";
 import { reactFlowToFlowJson } from "@/lib/convert/flowAdapters";
 import { validateFlowJson } from "@/lib/validation/validator";
-import { generatePythonCode } from "@/lib/codegen/pythonGenerator";
 
 type ViewMode = "json" | "python";
 
@@ -13,7 +14,7 @@ type Props = {
   edges: any[];
 };
 
-export default function JsonEditor({ nodes, edges }: Props) {
+export default function CodeViewer({ nodes, edges }: Props) {
   const [viewMode, setViewMode] = useState<ViewMode>("json");
 
   // Generate JSON from current graph state
