@@ -47,9 +47,7 @@ export default function CodePanel({ nodes, edges }: Props) {
     <>
       <div
         className={`absolute bottom-0 left-0 right-0 z-10 border-t bg-white dark:bg-neutral-900 overflow-hidden pointer-events-none ${
-          isCodePanelResizing
-            ? ""
-            : "transition-transform duration-300 ease-in-out"
+          isCodePanelResizing ? "" : "transition-transform duration-300 ease-in-out"
         } ${showJson ? "translate-y-0 pointer-events-auto" : "translate-y-full"}`}
         style={{ height: `${jsonEditorHeight}px` }}
       >
