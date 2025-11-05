@@ -1,6 +1,7 @@
 "use client";
 
 import { RotateCcw } from "lucide-react";
+import { useId } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -22,6 +23,8 @@ type Props = {
 export default function ContextStrategyForm({ contextStrategy, onChange }: Props) {
   const strategy = contextStrategy?.strategy ?? "APPEND";
   const summaryPrompt = contextStrategy?.summary_prompt ?? "";
+  const contextStrategyId = useId();
+  const summaryPromptId = useId();
 
   const handleStrategyChange = (newStrategy: string) => {
     if (newStrategy === "APPEND") {
@@ -51,7 +54,9 @@ export default function ContextStrategyForm({ contextStrategy, onChange }: Props
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <div className="text-xs opacity-60">Context Strategy</div>
+        <label htmlFor={contextStrategyId} className="text-xs opacity-60">
+          Context Strategy
+        </label>
         {contextStrategy && (
           <TooltipProvider>
             <Tooltip>
@@ -72,7 +77,7 @@ export default function ContextStrategyForm({ contextStrategy, onChange }: Props
         )}
       </div>
       <Select value={strategy} onValueChange={handleStrategyChange}>
-        <SelectTrigger className="h-8 text-xs">
+        <SelectTrigger id={contextStrategyId} className="h-8 text-xs">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -83,8 +88,11 @@ export default function ContextStrategyForm({ contextStrategy, onChange }: Props
       </Select>
       {strategy === "RESET_WITH_SUMMARY" && (
         <div className="space-y-2">
-          <div className="text-xs opacity-60">Summary Prompt</div>
+          <label htmlFor={summaryPromptId} className="text-xs opacity-60">
+            Summary Prompt
+          </label>
           <Textarea
+            id={summaryPromptId}
             className="min-h-20 text-xs"
             value={summaryPrompt}
             onChange={(e) => handleSummaryPromptChange(e.target.value)}

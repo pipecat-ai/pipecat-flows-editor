@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronDown, ChevronRight, Plus, X } from "lucide-react";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,6 +54,9 @@ export const FunctionItem = React.forwardRef<HTMLDivElement, FunctionItemProps>(
     const nameInputRef = useRef<HTMLInputElement>(null);
     const [isExpanded, setIsExpanded] = useState(isSelected);
     const defaultNextNodeRef = useRef<HTMLElement | null>(null);
+    const functionNameId = useId();
+    const functionDescriptionId = useId();
+    const nextNodeId = useId();
 
     const properties = useMemo(() => func.properties ?? {}, [func.properties]);
     const required = func.required ?? [];
@@ -230,9 +233,12 @@ export const FunctionItem = React.forwardRef<HTMLDivElement, FunctionItemProps>(
             {/* Basic Info Section */}
             <div className="space-y-4">
               <div className="space-y-2">
-                <div className="text-xs opacity-60">Function name</div>
+                <label htmlFor={functionNameId} className="text-xs opacity-60">
+                  Function name
+                </label>
                 <Input
                   ref={nameInputRef}
+                  id={functionNameId}
                   className={`h-8 text-xs ${nameError ? "border-red-500" : ""}`}
                   value={functionName}
                   onChange={(e) => handleNameChange(e.target.value)}
@@ -248,8 +254,11 @@ export const FunctionItem = React.forwardRef<HTMLDivElement, FunctionItemProps>(
                 {nameError && <div className="mt-1 text-xs text-red-600">{nameError}</div>}
               </div>
               <div className="space-y-2">
-                <div className="text-xs opacity-60">Description</div>
+                <label htmlFor={functionDescriptionId} className="text-xs opacity-60">
+                  Description
+                </label>
                 <Textarea
+                  id={functionDescriptionId}
                   className="min-h-20 text-xs"
                   value={func.description}
                   onChange={(e) => onChange({ description: e.target.value })}
@@ -293,10 +302,11 @@ export const FunctionItem = React.forwardRef<HTMLDivElement, FunctionItemProps>(
             {/* Next Node Section */}
             <div className="pt-3 border-t border-neutral-200 dark:border-neutral-700">
               <div className="mb-2 flex items-center justify-between">
-                <span
+                <label
                   ref={(el) => {
                     defaultNextNodeRef.current = el;
                   }}
+                  htmlFor={nextNodeId}
                   className="text-xs font-medium opacity-80 flex items-center gap-1"
                 >
                   {func.decision ? "Default Next Node" : "Next Node"}
@@ -308,7 +318,7 @@ export const FunctionItem = React.forwardRef<HTMLDivElement, FunctionItemProps>(
                       ⚠
                     </span>
                   )}
-                </span>
+                </label>
                 {func.next_node_id && !func.decision && (
                   <Button
                     variant="ghost"
@@ -351,6 +361,7 @@ export const FunctionItem = React.forwardRef<HTMLDivElement, FunctionItemProps>(
                   }}
                 >
                   <SelectTrigger
+                    id={nextNodeId}
                     className={`h-8 text-xs ${hasInvalidNextNode ? "border-orange-400 dark:border-orange-500" : ""}`}
                     onFocus={handleFocus}
                   >

@@ -1,7 +1,7 @@
 "use client";
 
 import { HelpCircle, X } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -55,6 +55,15 @@ export function PropertyItem({
   const [nameError, setNameError] = useState<string | null>(null);
   const [enumValues, setEnumValues] = useState(() => (property.enum || []).join("\n"));
   const [patternValue, setPatternValue] = useState(() => property.pattern ?? "");
+  const propertyNameId = useId();
+  const propertyTypeId = useId();
+  const propertyValidationId = useId();
+  const propertyMinimumId = useId();
+  const propertyMaximumId = useId();
+  const propertyDescriptionId = useId();
+  const propertyEnumId = useId();
+  const propertyPatternId = useId();
+  const requiredCheckboxId = useId();
 
   // Derive current validation type from property values
   // Check for enum array existence (even if empty) or pattern string existence (even if empty)
@@ -158,10 +167,13 @@ export function PropertyItem({
   return (
     <div className="rounded-md border border-neutral-200 dark:border-neutral-700 p-3 space-y-3 bg-white dark:bg-neutral-900">
       <div className="space-y-2">
-        <div className="text-xs opacity-60">Property name</div>
+        <label htmlFor={propertyNameId} className="text-xs opacity-60">
+          Property name
+        </label>
         <div className="flex items-start gap-2">
           <div className="flex-1">
             <Input
+              id={propertyNameId}
               className={`h-8 text-xs flex-1 ${nameError ? "border-red-500" : ""}`}
               value={name}
               onChange={(e) => handleNameChange(e.target.value)}
@@ -193,15 +205,17 @@ export function PropertyItem({
           <Checkbox
             checked={isRequired}
             onCheckedChange={(checked: boolean) => onRequiredChange(checked)}
-            id={`required-${propName}`}
+            id={requiredCheckboxId}
           />
-          <label htmlFor={`required-${propName}`} className="text-xs opacity-60 cursor-pointer">
+          <label htmlFor={requiredCheckboxId} className="text-xs opacity-60 cursor-pointer">
             Required
           </label>
         </div>
       </div>
       <div className="space-y-2">
-        <div className="text-xs opacity-60">Type</div>
+        <label htmlFor={propertyTypeId} className="text-xs opacity-60">
+          Type
+        </label>
         <Select
           value={property.type}
           onValueChange={(v) => onUpdate({ type: v as FunctionProperty["type"] })}
@@ -211,7 +225,7 @@ export function PropertyItem({
             }
           }}
         >
-          <SelectTrigger className="h-8 text-xs" onFocus={onFocus}>
+          <SelectTrigger id={propertyTypeId} className="h-8 text-xs" onFocus={onFocus}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -225,7 +239,9 @@ export function PropertyItem({
       {property.type === "string" && (
         <div className="space-y-2">
           <div className="flex items-center gap-1.5">
-            <div className="text-xs opacity-60">Validation</div>
+            <label htmlFor={propertyValidationId} className="text-xs opacity-60">
+              Validation
+            </label>
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -257,7 +273,7 @@ export function PropertyItem({
               }
             }}
           >
-            <SelectTrigger className="h-8 text-xs" onFocus={onFocus}>
+            <SelectTrigger id={propertyValidationId} className="h-8 text-xs" onFocus={onFocus}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -269,10 +285,13 @@ export function PropertyItem({
         </div>
       )}
       {property.type === "integer" || property.type === "number" ? (
-        <div className="space-y-2">
-          <div className="text-xs opacity-60">Range</div>
-          <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2">
+          <div className="space-y-2">
+            <label htmlFor={propertyMinimumId} className="text-xs opacity-60">
+              Min
+            </label>
             <Input
+              id={propertyMinimumId}
               type="number"
               className="h-8 text-xs"
               value={property.minimum ?? ""}
@@ -282,7 +301,13 @@ export function PropertyItem({
               onFocus={onFocus}
               placeholder="Min"
             />
+          </div>
+          <div className="space-y-2">
+            <label htmlFor={propertyMaximumId} className="text-xs opacity-60">
+              Max
+            </label>
             <Input
+              id={propertyMaximumId}
               type="number"
               className="h-8 text-xs"
               value={property.maximum ?? ""}
@@ -296,8 +321,11 @@ export function PropertyItem({
         </div>
       ) : null}
       <div className="space-y-2">
-        <div className="text-xs opacity-60">Description</div>
+        <label htmlFor={propertyDescriptionId} className="text-xs opacity-60">
+          Description
+        </label>
         <Textarea
+          id={propertyDescriptionId}
           className="min-h-16 text-xs"
           value={property.description ?? ""}
           onChange={(e) => onUpdate({ description: e.target.value || undefined })}
@@ -307,8 +335,11 @@ export function PropertyItem({
       </div>
       {validationType === "enum" && property.type === "string" && (
         <div className="space-y-2">
-          <div className="text-xs opacity-60">Enum values (one per line)</div>
+          <label htmlFor={propertyEnumId} className="text-xs opacity-60">
+            Enum values (one per line)
+          </label>
           <Textarea
+            id={propertyEnumId}
             className="min-h-20 text-xs font-mono"
             value={currentEnumValues}
             onChange={(e) => handleEnumChange(e.target.value)}
@@ -319,8 +350,11 @@ export function PropertyItem({
       )}
       {validationType === "pattern" && property.type === "string" && (
         <div className="space-y-2">
-          <div className="text-xs opacity-60">Regex pattern</div>
+          <label htmlFor={propertyPatternId} className="text-xs opacity-60">
+            Regex pattern
+          </label>
           <Input
+            id={propertyPatternId}
             className="h-8 text-xs font-mono"
             value={currentPatternValue}
             onChange={(e) => handlePatternChange(e.target.value)}

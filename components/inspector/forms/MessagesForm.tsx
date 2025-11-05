@@ -1,18 +1,11 @@
 "use client";
 
-import { Plus, X } from "lucide-react";
+import { Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { MessageJson } from "@/lib/schema/flow.schema";
+
+import { MessageItem } from "./MessageItem";
 
 type Props = {
   label: string;
@@ -47,44 +40,13 @@ export default function MessagesForm({ label, messages, onChange }: Props) {
         </Button>
       </div>
       {items.map((msg, i) => (
-        <div key={i} className="space-y-2 rounded border p-3">
-          <div className="flex items-center gap-2">
-            <Select
-              value={msg.role}
-              onValueChange={(v: "system" | "user" | "assistant") => updateItem(i, { role: v })}
-            >
-              <SelectTrigger className="h-8 text-xs w-32">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="system">System</SelectItem>
-                <SelectItem value="user">User</SelectItem>
-                <SelectItem value="assistant">Assistant</SelectItem>
-              </SelectContent>
-            </Select>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 w-8"
-                    onClick={() => removeItem(i)}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Remove message</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
-          <Textarea
-            className="min-h-20 text-xs"
-            value={msg.content}
-            onChange={(e) => updateItem(i, { content: e.target.value })}
-            placeholder="Message content"
-          />
-        </div>
+        <MessageItem
+          key={i}
+          message={msg}
+          index={i}
+          onUpdate={(updates) => updateItem(i, updates)}
+          onRemove={() => removeItem(i)}
+        />
       ))}
       {items.length === 0 && (
         <div className="text-xs opacity-40 italic py-2">

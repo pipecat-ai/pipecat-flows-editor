@@ -1,18 +1,11 @@
 "use client";
 
-import { Plus, X } from "lucide-react";
+import { Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { ActionJson } from "@/lib/schema/flow.schema";
+
+import { ActionItem } from "./ActionItem";
 
 type Props = {
   label: string;
@@ -47,44 +40,13 @@ export default function ActionsForm({ label, actions, onChange }: Props) {
         </Button>
       </div>
       {items.map((action, i) => (
-        <div key={i} className="flex items-center gap-2 rounded border p-3">
-          <Select value={action.type} onValueChange={(v) => updateItem(i, { type: v })}>
-            <SelectTrigger className="h-8 text-xs flex-1">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="function">Function</SelectItem>
-              <SelectItem value="end_conversation">End Conversation</SelectItem>
-              <SelectItem value="tts_say">TTS Say</SelectItem>
-            </SelectContent>
-          </Select>
-          {action.type === "function" && (
-            <Input
-              className="h-8 text-xs w-32"
-              value={action.handler ?? ""}
-              onChange={(e) => updateItem(i, { handler: e.target.value })}
-              placeholder="Handler"
-            />
-          )}
-          {action.type === "tts_say" && (
-            <Input
-              className="h-8 text-xs flex-1"
-              value={action.text ?? ""}
-              onChange={(e) => updateItem(i, { text: e.target.value })}
-              placeholder="Text to say"
-            />
-          )}
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-8 w-8" onClick={() => removeItem(i)}>
-                  <X className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Remove action</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
+        <ActionItem
+          key={i}
+          action={action}
+          index={i}
+          onUpdate={(updates) => updateItem(i, updates)}
+          onRemove={() => removeItem(i)}
+        />
       ))}
       {items.length === 0 && (
         <div className="text-xs opacity-40 italic py-2">No actions. Click "Add" to create one.</div>
