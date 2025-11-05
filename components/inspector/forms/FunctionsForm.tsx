@@ -139,7 +139,7 @@ export default function FunctionsForm({
         // Use requestAnimationFrame to ensure DOM is ready
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
-            element.scrollIntoView({ behavior: "smooth", block: "center" });
+            element.scrollIntoView({ behavior: "smooth", block: "nearest" });
             // Clear scroll target after scrolling
             setScrollTarget(null);
           });
@@ -150,7 +150,7 @@ export default function FunctionsForm({
           if (scrollTarget.functionIndex !== null) {
             const retryElement = functionRefs.current.get(scrollTarget.functionIndex);
             if (retryElement) {
-              retryElement.scrollIntoView({ behavior: "smooth", block: "center" });
+              retryElement.scrollIntoView({ behavior: "smooth", block: "nearest" });
               setScrollTarget(null);
             }
           }
@@ -291,21 +291,21 @@ const FunctionItem = React.forwardRef<HTMLDivElement, FunctionItemProps>(
           if (conditionIndex === -1) {
             // Scroll to default next node
             if (defaultNextNodeRef.current) {
-              defaultNextNodeRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+              defaultNextNodeRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
               setScrollTarget(null);
             }
           } else if (conditionIndex !== null && conditionIndex >= 0) {
             // Scroll to specific condition
             const element = conditionRefs.current.get(conditionIndex);
             if (element) {
-              element.scrollIntoView({ behavior: "smooth", block: "center" });
+              element.scrollIntoView({ behavior: "smooth", block: "nearest" });
               setScrollTarget(null);
             } else {
               // Element not found yet, try again
               const retryTimeoutId = setTimeout(() => {
                 const retryElement = conditionRefs.current.get(conditionIndex);
                 if (retryElement) {
-                  retryElement.scrollIntoView({ behavior: "smooth", block: "center" });
+                  retryElement.scrollIntoView({ behavior: "smooth", block: "nearest" });
                   setScrollTarget(null);
                 }
               }, 100);
