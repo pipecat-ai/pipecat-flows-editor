@@ -66,6 +66,7 @@ export default function CodeViewer({ nodes, edges }: Props) {
               fontSize: 12,
               wordWrap: "on",
               readOnly: true,
+              scrollBeyondLastLine: false,
             }}
           />
         </TabsContent>
@@ -80,6 +81,7 @@ export default function CodeViewer({ nodes, edges }: Props) {
               fontSize: 12,
               wordWrap: "on",
               readOnly: true,
+              scrollBeyondLastLine: false,
             }}
           />
         </TabsContent>
