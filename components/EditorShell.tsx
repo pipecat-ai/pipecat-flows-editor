@@ -157,7 +157,7 @@ export default function EditorShell() {
   const nodeTypes = useMemo(
     () => ({
       initial: BaseNode,
-      llm_task: BaseNode,
+      node: BaseNode,
       end: BaseNode,
       decision: DecisionNode,
     }),

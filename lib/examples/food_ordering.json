@@ -1,6 +1,10 @@
 {
   "$id": "https://flows.pipecat.ai/schema/flow.json",
-  "meta": { "name": "Food Ordering", "version": "0.1.0", "description": "Initial -> Pizza/Sushi Branch -> Confirm -> End" },
+  "meta": {
+    "name": "Food Ordering",
+    "version": "0.1.0",
+    "description": "Initial -> Pizza/Sushi Branch -> Confirm -> End"
+  },
   "nodes": [
     {
       "id": "initial",
@@ -9,33 +13,58 @@
       "data": {
         "label": "Initial",
         "role_messages": [
-          { "role": "system", "content": "You are a helpful food ordering assistant. You must ALWAYS use the available functions to progress the conversation." }
+          {
+            "role": "system",
+            "content": "You are a helpful food ordering assistant. You must ALWAYS use the available functions to progress the conversation."
+          }
         ],
         "task_messages": [
-          { "role": "system", "content": "Welcome! Greet the user warmly and ask if they would like to order pizza or sushi today." }
+          {
+            "role": "system",
+            "content": "Welcome! Greet the user warmly and ask if they would like to order pizza or sushi today."
+          }
         ],
         "functions": [
-          { "name": "choose_pizza", "description": "User wants to order pizza", "next_node_id": "pizza_task" },
-          { "name": "choose_sushi", "description": "User wants to order sushi", "next_node_id": "sushi_task" }
+          {
+            "name": "choose_pizza",
+            "description": "User wants to order pizza",
+            "next_node_id": "pizza_task"
+          },
+          {
+            "name": "choose_sushi",
+            "description": "User wants to order sushi",
+            "next_node_id": "sushi_task"
+          }
         ]
       }
     },
     {
       "id": "pizza_task",
-      "type": "llm_task",
+      "type": "node",
       "position": { "x": 400, "y": 50 },
       "data": {
         "label": "Pizza Task",
         "task_messages": [
-          { "role": "system", "content": "Ask the user what size and type of pizza they want. Use the select_pizza_order function when they provide both size AND type. Pricing: Small $10, Medium $15, Large $20." }
+          {
+            "role": "system",
+            "content": "Ask the user what size and type of pizza they want. Use the select_pizza_order function when they provide both size AND type. Pricing: Small $10, Medium $15, Large $20."
+          }
         ],
         "functions": [
           {
             "name": "select_pizza_order",
             "description": "Record pizza order details",
             "properties": {
-              "size": { "type": "string", "enum": ["small", "medium", "large"], "description": "Pizza size" },
-              "type": { "type": "string", "enum": ["pepperoni", "cheese", "supreme", "vegetarian"], "description": "Pizza type" }
+              "size": {
+                "type": "string",
+                "enum": ["small", "medium", "large"],
+                "description": "Pizza size"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["pepperoni", "cheese", "supreme", "vegetarian"],
+                "description": "Pizza type"
+              }
             },
             "required": ["size", "type"],
             "next_node_id": "confirm"
@@ -45,20 +74,32 @@
     },
     {
       "id": "sushi_task",
-      "type": "llm_task",
+      "type": "node",
       "position": { "x": 400, "y": 150 },
       "data": {
         "label": "Sushi Task",
         "task_messages": [
-          { "role": "system", "content": "Ask the user how many rolls and what type of sushi they want. Use the select_sushi_order function when they provide both count AND type. Pricing: $8 per roll." }
+          {
+            "role": "system",
+            "content": "Ask the user how many rolls and what type of sushi they want. Use the select_sushi_order function when they provide both count AND type. Pricing: $8 per roll."
+          }
         ],
         "functions": [
           {
             "name": "select_sushi_order",
             "description": "Record sushi order details",
             "properties": {
-              "count": { "type": "integer", "minimum": 1, "maximum": 10, "description": "Number of rolls" },
-              "type": { "type": "string", "enum": ["california", "spicy tuna", "rainbow", "dragon"], "description": "Sushi type" }
+              "count": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 10,
+                "description": "Number of rolls"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["california", "spicy tuna", "rainbow", "dragon"],
+                "description": "Sushi type"
+              }
             },
             "required": ["count", "type"],
             "next_node_id": "confirm"
@@ -68,16 +109,27 @@
     },
     {
       "id": "confirm",
-      "type": "llm_task",
+      "type": "node",
       "position": { "x": 700, "y": 100 },
       "data": {
         "label": "Confirm",
         "task_messages": [
-          { "role": "system", "content": "Read back the order details to the user. Use complete_order if they confirm it's correct, or revise_order if they want to make changes (which will bring them back to choose pizza or sushi again)." }
+          {
+            "role": "system",
+            "content": "Read back the order details to the user. Use complete_order if they confirm it's correct, or revise_order if they want to make changes (which will bring them back to choose pizza or sushi again)."
+          }
         ],
         "functions": [
-          { "name": "complete_order", "description": "User confirms the order is correct", "next_node_id": "end" },
-          { "name": "revise_order", "description": "User wants to change the order", "next_node_id": "initial" }
+          {
+            "name": "complete_order",
+            "description": "User confirms the order is correct",
+            "next_node_id": "end"
+          },
+          {
+            "name": "revise_order",
+            "description": "User wants to change the order",
+            "next_node_id": "initial"
+          }
         ]
       }
     },
@@ -88,7 +140,10 @@
       "data": {
         "label": "End",
         "task_messages": [
-          { "role": "system", "content": "Thank the user for their order and end the conversation politely." }
+          {
+            "role": "system",
+            "content": "Thank the user for their order and end the conversation politely."
+          }
         ],
         "post_actions": [{ "type": "end_conversation" }]
       }

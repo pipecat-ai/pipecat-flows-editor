@@ -31,10 +31,10 @@ export const NODE_TEMPLATES: NodeTemplate[] = [
     },
   },
   {
-    type: "llm_task",
-    label: "LLM Task",
+    type: "node",
+    label: "Node",
     data: {
-      label: "LLM Task",
+      label: "Node",
       task_messages: [
         {
           role: "system",

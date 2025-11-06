@@ -4,7 +4,7 @@ import { type Static, Type } from "@sinclair/typebox";
 // These provide sensible defaults for common use cases
 export const NodeType = Type.Union([
   Type.Literal("initial"), // Entry point with role_messages and task_messages
-  Type.Literal("llm_task"), // Interactive LLM node with task_messages and functions
+  Type.Literal("node"), // Interactive node with task_messages and functions
   Type.Literal("end"), // End node with post_actions: end_conversation
 ]);
 
