@@ -2,6 +2,7 @@
 
 import { ChevronDown, ChevronUp, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Node } from "reactflow";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -20,7 +21,7 @@ import FunctionsForm from "./forms/FunctionsForm";
 import MessagesForm from "./forms/MessagesForm";
 
 type Props = {
-  nodes: any[];
+  nodes: Node[];
   onChange: (next: { id: string; data: any }) => void;
   onDelete: (id: string, kind: "node" | "edge") => void;
   onRenameNode?: (oldId: string, newId: string) => void;
@@ -47,38 +48,9 @@ export default function InspectorPanel({
   // Derive the displayed type from the node data (especially post_actions)
   const displayedType = deriveNodeType(data, selected?.type);
 
-  // Local state for label input to prevent focus loss during typing
-  // Initialize with current label, sync only when node ID changes (not label)
-  const [labelValue, setLabelValue] = useState<string>("");
   const [showJson, setShowJson] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("general");
-  const prevIdRef = useRef<string | undefined>(id);
   const prevSelectedNodeIdRef = useRef<string | null>(selectedNodeId);
-  const isRenamingRef = useRef(false);
-
-  // Sync labelValue when the node ID changes (user selected a different node)
-  // This prevents losing focus while typing in the same node
-  useEffect(() => {
-    // Sync if the node ID changed (user selected different node) or on initial mount
-    // Don't sync if we're in the middle of a rename - keep the user's input
-    if (prevIdRef.current === undefined || id !== prevIdRef.current) {
-      if (!isRenamingRef.current) {
-        // Node changed or initial mount, sync from data
-        setLabelValue((data?.label as string) ?? "");
-      }
-      prevIdRef.current = id;
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]); // Only sync when node ID changes
-
-  // After rename completes, reset the flag when data.label matches our input
-  useEffect(() => {
-    if (isRenamingRef.current && data?.label === labelValue) {
-      // Rename completed successfully, reset the flag
-      isRenamingRef.current = false;
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data?.label]); // Only check data?.label, not labelValue
 
   // Automatically switch to Functions tab when a function is selected (decision nodes/edges)
   // Reset to General tab when node changes and no function is selected
@@ -92,26 +64,21 @@ export default function InspectorPanel({
     prevSelectedNodeIdRef.current = selectedNodeId;
   }, [selectedFunctionIndex, selectedConditionIndex, selectedNodeId]);
 
-  // All hooks must be called before any conditional returns
   const update = useCallback(
     (partial: Partial<{ label: string; [k: string]: unknown }>) => {
-      if (!selected || !id) return; // Guard against null selected
+      if (!selected || !id) return;
 
       const next = { ...(data ?? {}), ...partial };
 
-      // If label changed, auto-update the ID
-      if (partial.label !== undefined && partial.label !== data?.label && onRenameNode) {
+      if (partial.label !== undefined && partial.label !== data?.label) {
         const newLabel = partial.label as string;
         if (newLabel && newLabel.trim() !== "") {
           const otherNodeIds = availableNodeIds.filter((nodeId) => nodeId !== id);
           const newId = generateNodeIdFromLabel(newLabel, otherNodeIds);
 
-          // Only rename if the generated ID is different from current
           if (newId !== id) {
-            // Update the node ID first (this handles all references)
-            onRenameNode(id, newId);
-            // Then update the data with the new ID
-            onChange({ id: newId, data: next });
+            onChange({ id, data: next });
+            onRenameNode?.(id, newId);
             return;
           }
         }
@@ -190,7 +157,7 @@ export default function InspectorPanel({
                 variant="secondary"
                 size="sm"
                 className="h-6 w-6"
-                onClick={() => onDelete(id, "node")}
+                onClick={() => onDelete(id as string, "node")}
               >
                 <Trash2 />
               </Button>
@@ -233,17 +200,9 @@ export default function InspectorPanel({
               </label>
               <Input
                 id="node-label"
-                value={labelValue}
-                onChange={(e) => {
-                  setLabelValue(e.target.value);
-                }}
-                onBlur={() => {
-                  // Update the label and potentially rename the node ID on blur
-                  if (labelValue !== (data?.label as string)) {
-                    // Set flag to indicate we're renaming, so useEffect won't reset the value
-                    isRenamingRef.current = true;
-                    update({ label: labelValue });
-                  }
+                defaultValue={data?.label ?? ""}
+                onBlur={(ev) => {
+                  update({ label: ev.target.value });
                 }}
                 placeholder="Label"
                 className="text-sm"
