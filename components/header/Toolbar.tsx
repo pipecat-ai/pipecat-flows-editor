@@ -1,6 +1,14 @@
 "use client";
 
-import { ChevronRight, Download, FileText, Redo2, Undo2 } from "lucide-react";
+import {
+  ChevronRight,
+  Download,
+  FileText,
+  MoreHorizontal,
+  Redo2,
+  Undo2,
+  Upload,
+} from "lucide-react";
 import { useRef } from "react";
 
 import { ThemeSwitch } from "@/components/ThemeSwitch";
@@ -116,8 +124,8 @@ export default function Toolbar({
   return (
     <TooltipProvider>
       <div
-        className={`absolute top-4 z-10 flex gap-2 rounded-md bg-white/80 p-2 text-sm shadow backdrop-blur dark:bg-black/40 transition-all duration-300 ${
-          showNodesPanel ? "left-[240px]" : "left-[16px]"
+        className={`absolute top-2 sm:top-4 left-2 z-10 flex gap-2 rounded-md bg-white/80 p-2 text-sm shadow backdrop-blur dark:bg-black/40 transition-all duration-300 ${
+          showNodesPanel ? "left-[232px]" : ""
         }`}
       >
         {!showNodesPanel && (
@@ -174,49 +182,60 @@ export default function Toolbar({
           </TooltipContent>
         </Tooltip>
         <div className="w-px bg-neutral-300 dark:bg-neutral-700" />
-        <Input
-          ref={inputRef}
-          type="file"
-          accept="application/json"
-          className="hidden"
-          onChange={(e) => e.target.files && onImport(e.target.files[0], e.target)}
-        />
-        <Button variant="secondary" size="sm" onClick={() => inputRef.current?.click()}>
-          Import
-        </Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="secondary" size="sm">
-              <Download />
-              Export…
+            <Button variant="secondary" size="sm" className="gap-1.5">
+              <MoreHorizontal className="h-4 w-4" />
+              <span className="hidden sm:inline">More</span>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start">
-            <DropdownMenuItem onClick={onExport}>Export JSON</DropdownMenuItem>
-            <DropdownMenuItem onClick={onExportPython}>Export Python</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="secondary" size="sm">
-              <FileText />
-              Load Example…
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start">
-            {EXAMPLES.map((ex) => (
+          <DropdownMenuContent align="end">
+            <Input
+              ref={inputRef}
+              type="file"
+              accept="application/json"
+              className="hidden"
+              onChange={(e) => e.target.files && onImport(e.target.files[0], e.target)}
+            />
+            <DropdownMenuItem onClick={() => inputRef.current?.click()}>
+              <Upload className="mr-2 h-4 w-4" />
+              Import
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onExport}>
+              <Download className="mr-2 h-4 w-4" />
+              Export JSON
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onExportPython}>
+              <Download className="mr-2 h-4 w-4" />
+              Export Python
+            </DropdownMenuItem>
+            <div className="my-1 h-px bg-neutral-200 dark:bg-neutral-700" />
+            <DropdownMenuItem
+              onClick={() => {
+                const rf = flowJsonToReactFlow(EXAMPLES[0].json as FlowJson);
+                setNodes(rf.nodes as FlowNode[]);
+                setEdges(rf.edges as FlowEdge[]);
+                setTimeout(() => {
+                  rfInstance?.fitView?.({ padding: 0.2, duration: 300 });
+                }, 100);
+              }}
+            >
+              <FileText className="mr-2 h-4 w-4" />
+              {EXAMPLES[0].name}
+            </DropdownMenuItem>
+            {EXAMPLES.slice(1).map((ex) => (
               <DropdownMenuItem
                 key={ex.id}
                 onClick={() => {
                   const rf = flowJsonToReactFlow(ex.json as FlowJson);
                   setNodes(rf.nodes as FlowNode[]);
                   setEdges(rf.edges as FlowEdge[]);
-                  // Center the view after a short delay to ensure nodes are rendered
                   setTimeout(() => {
                     rfInstance?.fitView?.({ padding: 0.2, duration: 300 });
                   }, 100);
                 }}
               >
+                <FileText className="mr-2 h-4 w-4" />
                 {ex.name}
               </DropdownMenuItem>
             ))}

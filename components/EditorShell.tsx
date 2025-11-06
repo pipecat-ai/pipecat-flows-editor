@@ -436,10 +436,14 @@ export default function EditorShell() {
         style={{
           height: `calc(100vh - ${showJson ? jsonEditorHeight : 0}px)`,
           width: selectedNodeId ? `${inspectorPanelWidth}px` : "0px",
+          maxWidth: selectedNodeId ? "min(100vw, 800px)" : "0px",
         }}
       >
         {selectedNodeId && (
-          <div className="shrink-0 h-full" style={{ width: `${inspectorPanelWidth}px` }}>
+          <div
+            className="shrink-0 h-full"
+            style={{ width: `${inspectorPanelWidth}px`, maxWidth: "min(100vw, 800px)" }}
+          >
             <InspectorPanel
               nodes={nodes}
               availableNodeIds={nodes.map((n) => n.id)}

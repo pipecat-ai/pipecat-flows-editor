@@ -1,7 +1,7 @@
 "use client";
 
 import { Node } from "@xyflow/react";
-import { ChevronDown, ChevronUp, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -41,6 +41,8 @@ export default function InspectorPanel({
   const inspectorPanelWidth = useEditorStore((state) => state.inspectorPanelWidth);
   const setInspectorPanelWidth = useEditorStore((state) => state.setInspectorPanelWidth);
   const setIsInspectorResizing = useEditorStore((state) => state.setIsInspectorResizing);
+  const selectNode = useEditorStore((state) => state.selectNode);
+  const rfInstance = useEditorStore((state) => state.rfInstance);
 
   const selected = selectedNodeId ? (nodes.find((n) => n.id === selectedNodeId) ?? null) : null;
   const id = selected?.id;
@@ -84,7 +86,9 @@ export default function InspectorPanel({
 
     const handleMouseMove = (moveEvent: MouseEvent) => {
       const delta = startX - moveEvent.clientX; // Inverted because we're dragging left
-      const newWidth = Math.max(320, Math.min(800, startWidth + delta));
+      // Limit max width to viewport width minus some padding
+      const maxWidth = Math.min(800, window.innerWidth - 32);
+      const newWidth = Math.max(280, Math.min(maxWidth, startWidth + delta));
       setInspectorPanelWidth(newWidth);
     };
 
@@ -111,8 +115,8 @@ export default function InspectorPanel({
   if (!selected) {
     return (
       <aside
-        className="relative shrink-0 border-l bg-white/70 backdrop-blur dark:bg-black/40 flex flex-col overflow-hidden h-full"
-        style={{ width: `${inspectorPanelWidth}px` }}
+        className="relative shrink-0 border-l bg-white/70 backdrop-blur dark:bg-black/40 flex flex-col overflow-hidden h-full max-w-full"
+        style={{ width: `${inspectorPanelWidth}px`, maxWidth: "min(100vw, 800px)" }}
       >
         <div
           className="absolute left-0 top-0 bottom-0 w-1 cursor-ew-resize hover:bg-blue-500 bg-transparent z-20"
@@ -130,8 +134,8 @@ export default function InspectorPanel({
 
   return (
     <aside
-      className="relative z-20 shrink-0 border-l bg-white/70 backdrop-blur dark:bg-black/40 flex flex-col overflow-hidden h-full"
-      style={{ width: `${inspectorPanelWidth}px` }}
+      className="relative z-20 shrink-0 border-l bg-white/70 backdrop-blur dark:bg-black/40 flex flex-col overflow-hidden h-full max-w-full"
+      style={{ width: `${inspectorPanelWidth}px`, maxWidth: "min(100vw, 800px)" }}
     >
       {/* Resize handle */}
       <div
@@ -144,24 +148,51 @@ export default function InspectorPanel({
 
       {/* Header */}
       <div className="mb-2 flex items-center justify-between px-3 pt-3 text-xs font-semibold uppercase opacity-70 shrink-0">
-        <span>
+        <span className="truncate flex-1 min-w-0">
           Inspector: <code className="text-xs font-mono lowercase">{id}</code>
         </span>
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="secondary"
-                size="sm"
-                className="h-6 w-6"
-                onClick={() => onDelete(id as string, "node")}
-              >
-                <Trash2 />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="left">Delete node</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <div className="flex items-center gap-1 shrink-0">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    selectNode(null);
+                    rfInstance?.setNodes((nds) =>
+                      nds.map((node) => ({
+                        ...node,
+                        selected: false,
+                      }))
+                    );
+                  }}
+                  aria-label="Close inspector"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="left">Close inspector</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="h-6 w-6 p-0"
+                  onClick={() => onDelete(id as string, "node")}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="left">Delete node</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
       </div>
 
       <Tabs

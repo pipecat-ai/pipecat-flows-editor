@@ -31,7 +31,7 @@ export default function NodePalette({ nodes }: Props) {
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-6 w-6 p-0"
+                className="h-6 w-6"
                 onClick={() => setShowNodesPanel(false)}
               >
                 <ChevronLeft className="h-4 w-4" />
