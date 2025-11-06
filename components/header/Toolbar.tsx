@@ -121,16 +121,21 @@ export default function Toolbar({
         }`}
       >
         {!showNodesPanel && (
-          <Button
-            variant="secondary"
-            size="sm"
-            className="h-8 w-8 p-0"
-            onClick={() => setShowNodesPanel(true)}
-            title="Show nodes panel"
-            aria-label="Show nodes panel"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                  onClick={() => setShowNodesPanel(true)}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent align="start">Show nodes panel</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         )}
         <Button variant="secondary" size="sm" onClick={onNewFlow} title="Create a new flow">
           New Flow

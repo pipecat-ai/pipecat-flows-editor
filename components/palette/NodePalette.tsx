@@ -4,6 +4,7 @@ import type { Node } from "@xyflow/react";
 import { ChevronLeft } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { NODE_TEMPLATES } from "@/lib/nodes/templates";
 import { useEditorStore } from "@/lib/store/editorStore";
 import { deriveNodeType } from "@/lib/utils/nodeType";
@@ -24,16 +25,21 @@ export default function NodePalette({ nodes }: Props) {
     <aside className="w-56 shrink-0 border-r bg-white/70 p-2 text-sm backdrop-blur dark:bg-black/40 flex flex-col overflow-hidden h-full">
       <div className="mb-2 px-2 flex items-center justify-between text-xs font-semibold uppercase opacity-70 shrink-0">
         <span>Nodes</span>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-6 w-6 p-0"
-          onClick={() => setShowNodesPanel(false)}
-          title="Hide nodes panel"
-          aria-label="Hide nodes panel"
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 w-6 p-0"
+                onClick={() => setShowNodesPanel(false)}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Hide nodes panel</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
       <div className="flex flex-col gap-2 overflow-y-auto flex-1 min-h-0 pr-1">
         {NODE_TEMPLATES.map((t) => {
