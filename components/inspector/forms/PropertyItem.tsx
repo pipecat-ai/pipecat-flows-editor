@@ -82,6 +82,7 @@ export function PropertyItem({
   // Derive enumValues and patternValue from property when validation type changes
   const currentEnumValues = useMemo(() => {
     if (validationType === "enum" && property.enum !== undefined) {
+      // Join with newlines, preserving empty strings as empty lines
       return property.enum.join("\n");
     }
     return enumValues;
@@ -122,10 +123,33 @@ export function PropertyItem({
 
   const handleEnumChange = (value: string) => {
     setEnumValues(value);
-    const enumArray = value
-      .split("\n")
-      .map((v) => v.trim())
-      .filter((v) => v.length > 0);
+    // Split by newlines, preserving leading and trailing empty strings
+    const lines = value.split("\n");
+    // Find the first and last non-empty lines to determine where actual content starts/ends
+    let firstNonEmptyIndex = -1;
+    let lastNonEmptyIndex = -1;
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].trim().length > 0) {
+        if (firstNonEmptyIndex === -1) firstNonEmptyIndex = i;
+        lastNonEmptyIndex = i;
+      }
+    }
+    
+    // Process lines: preserve leading/trailing empty lines, trim and filter middle empty lines
+    const enumArray: string[] = [];
+    for (let i = 0; i < lines.length; i++) {
+      const trimmed = lines[i].trim();
+      const isBeforeContent = firstNonEmptyIndex !== -1 && i < firstNonEmptyIndex;
+      const isAfterContent = lastNonEmptyIndex !== -1 && i > lastNonEmptyIndex;
+      
+      // Preserve leading and trailing empty lines (to allow leading/trailing newlines)
+      if (isBeforeContent || isAfterContent) {
+        enumArray.push(""); // Preserve as empty string to maintain newline
+      } else if (trimmed.length > 0) {
+        enumArray.push(trimmed); // Trim middle lines but keep non-empty ones
+      }
+      // Skip middle empty lines (they're just extra blank lines between options)
+    }
     // Keep empty array if in enum mode, otherwise undefined (switches to none)
     const enumValue = validationType === "enum" ? enumArray : undefined;
     onUpdate({ enum: enumValue, pattern: undefined });
