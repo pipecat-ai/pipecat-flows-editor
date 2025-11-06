@@ -134,14 +134,14 @@ export function PropertyItem({
         lastNonEmptyIndex = i;
       }
     }
-    
+
     // Process lines: preserve leading/trailing empty lines, trim and filter middle empty lines
     const enumArray: string[] = [];
     for (let i = 0; i < lines.length; i++) {
       const trimmed = lines[i].trim();
       const isBeforeContent = firstNonEmptyIndex !== -1 && i < firstNonEmptyIndex;
       const isAfterContent = lastNonEmptyIndex !== -1 && i > lastNonEmptyIndex;
-      
+
       // Preserve leading and trailing empty lines (to allow leading/trailing newlines)
       if (isBeforeContent || isAfterContent) {
         enumArray.push(""); // Preserve as empty string to maintain newline

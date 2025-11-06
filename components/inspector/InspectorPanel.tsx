@@ -2,7 +2,7 @@
 
 import { Node } from "@xyflow/react";
 import { ChevronDown, ChevronUp, Trash2, X } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -49,6 +49,12 @@ export default function InspectorPanel({
   const data = selected?.data as FlowNodeData;
   // Derive the displayed type from the node data (especially post_actions)
   const displayedType = deriveNodeType(data, selected?.type);
+
+  const labelInputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (!labelInputRef.current) return;
+    labelInputRef.current.value = data.label ?? "";
+  }, [data.label]);
 
   const [showJson, setShowJson] = useState(false);
 
@@ -225,6 +231,7 @@ export default function InspectorPanel({
                 Label
               </label>
               <Input
+                ref={labelInputRef}
                 id="node-label"
                 defaultValue={data?.label ?? ""}
                 onBlur={(ev) => {
