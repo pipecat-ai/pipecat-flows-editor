@@ -45,7 +45,7 @@ export const DecisionCondition = Type.Object({
 
 // Decision structure for conditional routing
 export const Decision = Type.Object({
-  action: Type.String({ minLength: 1 }), // Python code snippet that executes and stores result in 'result'
+  action: Type.String({ minLength: 1 }), // Python code block that must set the 'result' variable
   conditions: Type.Array(DecisionCondition), // Array of condition+next_node pairs
   default_next_node_id: Type.String({ minLength: 1 }), // Default next node (always required)
   decision_node_position: Type.Optional(Type.Object({ x: Type.Number(), y: Type.Number() })), // Optional position for the decision node visualization

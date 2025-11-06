@@ -1,10 +1,11 @@
 "use client";
 
-import { ChevronDown, ChevronRight, Plus } from "lucide-react";
+import { ChevronDown, ChevronRight, HelpCircle, Info, Plus } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { FlowFunctionJson } from "@/lib/schema/flow.schema";
 import { useEditorStore } from "@/lib/store/editorStore";
 
@@ -171,12 +172,29 @@ export function DecisionSection({
         <div className="space-y-3">
           {/* Action Input */}
           <div className="space-y-2">
-            <label htmlFor={decisionActionId} className="text-xs opacity-60">
-              Action (Python code)
-            </label>
+            <div className="flex items-center gap-1">
+              <label htmlFor={decisionActionId} className="text-xs opacity-60">
+                Action (Python code block)
+              </label>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger>
+                    <HelpCircle size={16} className="text-neutral-500" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <p>
+                      Enter Python code that sets the <code className="font-mono">result</code>{" "}
+                      variable. For example:{" "}
+                      <code className="font-mono">result = my_function()</code> or{" "}
+                      <code className="font-mono">result, error = await my_function()</code>.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
             <Textarea
               id={decisionActionId}
-              className="min-h-20 text-xs font-mono"
+              className="min-h-32 text-xs font-mono"
               value={func.decision.action}
               onChange={(e) => {
                 onChange({
@@ -187,12 +205,8 @@ export function DecisionSection({
                 });
               }}
               onFocus={onFocus}
-              placeholder="some_action()"
+              placeholder="result = my_function()"
             />
-            <div className="text-xs opacity-40 italic">
-              Enter Python expression (e.g., <code className="font-mono">some_action()</code>).
-              Result will be stored in <code className="font-mono">result</code>.
-            </div>
           </div>
 
           {/* Conditions */}

@@ -132,8 +132,11 @@ function generateFunction(func: FlowFunctionJson): {
 
   // Handle decision logic
   if (func.decision) {
-    // Execute action first
-    decisionCode = `        # Execute action and store result\n        result = ${func.decision.action}\n\n`;
+    // Execute action code block (user must set result variable)
+    decisionCode = `        # Execute action (must set 'result' variable)\n${func.decision.action
+      .split("\n")
+      .map((line) => `        ${line}`)
+      .join("\n")}\n\n`;
 
     // Generate if/elif/else chain if there are conditions
     if (func.decision.conditions.length > 0) {
