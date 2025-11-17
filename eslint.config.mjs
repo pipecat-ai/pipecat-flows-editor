@@ -17,8 +17,6 @@ export default [
       "dist/**",
       "build/**",
       ".next/**",
-      "playwright-report/**",
-      "test-results/**",
     ],
   },
   js.configs.recommended,
