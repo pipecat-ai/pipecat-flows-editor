@@ -23,7 +23,7 @@ const resources = [
 export default function HomePage() {
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
-      <header className="border-b bg-background/80 backdrop-blur">
+      <header className="border-b bg-background/80 backdrop-blur-lg z-20">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-6 px-6 py-6">
           <div className="flex items-center gap-3">
             <PipecatLogo height={28} />
@@ -56,6 +56,11 @@ export default function HomePage() {
         </div>
       </header>
 
+      <iframe
+        src="/editor"
+        className="w-dvw h-dvh z-0 absolute inset-0 pointer-events-none opacity-10"
+      />
+
       <main className="flex flex-1 items-center justify-center px-6 py-16">
         <div className="mx-auto flex max-w-4xl flex-col items-center gap-8 text-center">
           <div className="space-y-4">
@@ -73,7 +78,9 @@ export default function HomePage() {
           </div>
           <div className="flex flex-col gap-3 sm:flex-row">
             <Button size="lg" className="w-full sm:w-auto" asChild>
-              <Link href="/editor">Launch the editor</Link>
+              <Link href="/editor" prefetch>
+                Launch the editor
+              </Link>
             </Button>
             <Button variant="secondary" size="lg" className="w-full sm:w-auto" asChild>
               <a
@@ -89,7 +96,7 @@ export default function HomePage() {
         </div>
       </main>
 
-      <footer className="border-t bg-muted/30">
+      <footer className="border-t bg-muted/30 backdrop-blur-lg z-20">
         <div className="mx-auto flex max-w-5xl flex-col gap-6 px-6 py-8 md:flex-row md:items-center md:justify-between">
           <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
             {resources.map((link) => (
