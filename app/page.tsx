@@ -5,7 +5,6 @@ import { DailyLogo } from "@/components/icons/DailyLogo";
 import PipecatLogo from "@/components/icons/PipecatLogo";
 import { ThemeSwitch } from "@/components/ThemeSwitch";
 import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const resources = [
   { label: "Pipecat", href: "https://pipecat.ai" },
@@ -29,30 +28,7 @@ export default function HomePage() {
             <PipecatLogo height={28} />
             <h1 className="text-2xl font-semibold">Pipecat Flows Editor</h1>
           </div>
-          <div className="hidden sm:flex gap-3">
-            <Button asChild>
-              <Link href="/editor">Open Editor</Link>
-            </Button>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="secondary" asChild>
-                    <a
-                      href="https://github.com/pipecat-ai/pipecat-flows-editor"
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      <span className="sr-only">Visit repository</span>
-                      <IconBrandGithub />
-                    </a>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" align="end">
-                  Visit repository
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
+          <ThemeSwitch />
         </div>
       </header>
 
@@ -113,10 +89,6 @@ export default function HomePage() {
             ))}
           </div>
           <div className="flex flex-col gap-4 text-sm text-muted-foreground md:flex-row md:items-center">
-            <div className="flex items-center gap-2">
-              <span className="text-xs uppercase tracking-wide">Theme</span>
-              <ThemeSwitch />
-            </div>
             <div className="flex items-center gap-2">
               <span>Maintained by</span>
               <a
