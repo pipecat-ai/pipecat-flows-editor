@@ -62,7 +62,7 @@ export default function HomePage() {
       />
 
       <main className="flex flex-1 items-center justify-center px-6 py-16">
-        <div className="mx-auto flex max-w-4xl flex-col items-center gap-8 text-center">
+        <div className="mx-auto flex max-w-4xl flex-col items-center gap-8 text-center backdrop-blur-xs">
           <div className="space-y-4">
             <p className="text-base font-medium uppercase tracking-[0.2em] text-purple-400">
               Build conversational AI faster
