@@ -53,8 +53,8 @@ export default function InspectorPanel({
   const labelInputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     if (!labelInputRef.current) return;
-    labelInputRef.current.value = data.label ?? "";
-  }, [data.label]);
+    labelInputRef.current.value = data?.label ?? "";
+  }, [data?.label]);
 
   const [showJson, setShowJson] = useState(false);
 
