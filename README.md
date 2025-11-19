@@ -1,9 +1,10 @@
-# Pipecat Flows Visual Editor
+# Pipecat Flows Editor
 
 Next.js + TypeScript + Tailwind + React Flow visual editor tailored to Pipecat Flows. The editor runs entirely in the browser, syncs state to `localStorage`, and exports Pipecat-ready JSON _and_ Python code.
 
 ## References
 
+- Online editor: https://flows.pipecat.ai
 - Pipecat Flows repo: https://github.com/pipecat-ai/pipecat-flows
 - Feature guide: https://docs.pipecat.ai/guides/features/pipecat-flows
 - API reference: https://reference-flows.pipecat.ai/en/latest/
