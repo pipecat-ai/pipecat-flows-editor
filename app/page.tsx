@@ -41,16 +41,15 @@ export default function HomePage() {
         <div className="mx-auto flex max-w-4xl flex-col items-center gap-8 text-center backdrop-blur-xs">
           <div className="space-y-4">
             <p className="text-base font-medium uppercase tracking-[0.2em] text-purple-400">
-              Build conversational AI faster
+              Conversational AI at your fingertips
             </p>
             <p className="text-balance text-3xl font-semibold sm:text-4xl lg:text-5xl">
-              Design, validate, and share <span className="whitespace-nowrap">Pipecat Flows</span>{" "}
-              without touching code.
+              Design and launch <span className="whitespace-nowrap">Pipecat Flows</span> in minutes
             </p>
             <p className="text-balance text-lg text-muted-foreground">
-              Instantly create, validate, and export conversational flows with a visual editor — no
-              coding required. Runs fully in your browser for effortless, private, and
-              lightning-fast workflow.
+              Pipecat Flows Editor is the low-code entry point into Pipecat. Design your
+              conversational flow in the browser and export ready-to-run Pipecat Flows Python code
+              for your Pipecat application.
             </p>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row">
