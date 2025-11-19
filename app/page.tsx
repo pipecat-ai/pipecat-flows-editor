@@ -48,8 +48,8 @@ export default function HomePage() {
             </p>
             <p className="text-balance text-lg text-muted-foreground">
               Pipecat Flows Editor is the low-code entry point into Pipecat. Design your
-              conversational flow in the browser and export ready-to-run Pipecat Flows Python code
-              for your Pipecat application.
+              conversational flow in the browser and export ready-to-run Python code for your
+              Pipecat application.
             </p>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row">
