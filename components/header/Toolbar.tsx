@@ -1,5 +1,6 @@
 "use client";
 
+import { IconBook, IconBrandGithub, IconDots, IconHome } from "@tabler/icons-react";
 import {
   ChevronRight,
   Download,
@@ -10,14 +11,17 @@ import {
   Undo2,
   Upload,
 } from "lucide-react";
+import Link from "next/link";
 import { useRef } from "react";
 
+import PipecatLogo from "@/components/icons/PipecatLogo";
 import { ThemeSwitch } from "@/components/ThemeSwitch";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
@@ -122,10 +126,47 @@ export default function Toolbar({
     reader.readAsText(file);
   }
 
+  const moreLinks = (
+    <>
+      <DropdownMenuItem asChild>
+        <Link href="/">
+          <IconHome size={16} />
+          Home
+        </Link>
+      </DropdownMenuItem>
+      <DropdownMenuItem asChild>
+        <a
+          href="https://github.com/pipecat-ai/pipecat-flows-editor"
+          target="_blank"
+          rel="noreferrer"
+        >
+          <IconBrandGithub size={16} />
+          Repository
+        </a>
+      </DropdownMenuItem>
+      <DropdownMenuItem asChild>
+        <a
+          href="https://docs.pipecat.ai/guides/features/pipecat-flows"
+          target="_blank"
+          rel="noreferrer"
+        >
+          <IconBook size={16} />
+          Pipecat Flows
+        </a>
+      </DropdownMenuItem>
+      <DropdownMenuItem asChild>
+        <a href="https://pipecat.ai" target="_blank" rel="noreferrer">
+          <PipecatLogo height={16} />
+          Pipecat
+        </a>
+      </DropdownMenuItem>
+    </>
+  );
+
   return (
     <TooltipProvider>
       <div
-        className={`absolute top-2 sm:top-4 left-2 z-10 flex gap-2 rounded-md bg-white/80 p-2 text-sm shadow backdrop-blur dark:bg-black/40 transition-all duration-300 ${
+        className={`absolute top-2 md:top-4 left-2 z-10 flex gap-2 rounded-md bg-white/80 p-2 text-sm shadow backdrop-blur dark:bg-black/40 transition-all duration-300 ${
           showNodesPanel ? "left-[232px]" : ""
         }`}
       >
@@ -148,7 +189,7 @@ export default function Toolbar({
         )}
         <Button variant="secondary" size="sm" onClick={onNewFlow} title="Create a new flow">
           <FilePlusCorner className="h-4 w-4" />
-          <span className="sr-only sm:not-sr-only">New Flow</span>
+          <span className="sr-only lg:not-sr-only">New Flow</span>
         </Button>
         <div className="w-px bg-neutral-300 dark:bg-neutral-700" />
         <Tooltip>
@@ -161,7 +202,7 @@ export default function Toolbar({
               className="px-2"
             >
               <Undo2 className="h-4 w-4" />
-              <span className="sr-only md:not-sr-only">Undo</span>
+              <span className="sr-only lg:not-sr-only">Undo</span>
             </Button>
           </TooltipTrigger>
           <TooltipContent>
@@ -178,7 +219,7 @@ export default function Toolbar({
               className="px-2"
             >
               <Redo2 className="h-4 w-4" />
-              <span className="sr-only md:not-sr-only">Redo</span>
+              <span className="sr-only lg:not-sr-only">Redo</span>
             </Button>
           </TooltipTrigger>
           <TooltipContent>
@@ -198,17 +239,17 @@ export default function Toolbar({
           variant="secondary"
           size="sm"
           onClick={() => inputRef.current?.click()}
-          className="hidden sm:flex"
+          className="hidden md:flex"
         >
-          <Upload className="h-4 w-4 sm:mr-1.5" />
-          <span className="sr-only sm:not-sr-only">Import</span>
+          <Upload className="h-4 w-4 md:mr-1.5" />
+          <span className="sr-only lg:not-sr-only">Import</span>
         </Button>
         {/* Export dropdown - hidden on mobile, shown on larger screens */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="secondary" size="sm" className="hidden sm:flex gap-1.5">
+            <Button variant="secondary" size="sm" className="hidden md:flex gap-1.5">
               <Download className="h-4 w-4" />
-              <span className="sr-only sm:not-sr-only">Export</span>
+              <span className="sr-only lg:not-sr-only">Export</span>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
@@ -219,7 +260,7 @@ export default function Toolbar({
         {/* More menu - shown on mobile only, contains Import, Export, and Examples */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="secondary" size="sm" className="gap-1.5 sm:hidden">
+            <Button variant="secondary" size="sm" className="gap-1.5 md:hidden">
               <MoreHorizontal className="h-4 w-4" />
               <span className="sr-only">More</span>
             </Button>
@@ -267,14 +308,16 @@ export default function Toolbar({
                 {ex.name}
               </DropdownMenuItem>
             ))}
+            <DropdownMenuSeparator />
+            {moreLinks}
           </DropdownMenuContent>
         </DropdownMenu>
         {/* Load Examples dropdown - shown on larger screens only */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="secondary" size="sm" className="hidden sm:flex gap-1.5">
+            <Button variant="secondary" size="sm" className="hidden md:flex gap-1.5">
               <FileText className="h-4 w-4" />
-              <span className="hidden sm:inline">Load Example</span>
+              <span className="hidden md:inline">Load Example</span>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
@@ -297,6 +340,16 @@ export default function Toolbar({
         </DropdownMenu>
         <div className="w-px bg-neutral-300 dark:bg-neutral-700" />
         <ThemeSwitch />
+        <div className="hidden md:block w-px bg-neutral-300 dark:bg-neutral-700" />
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="secondary" size="sm" className="hidden md:flex gap-1.5">
+              <IconDots className="h-4 w-4" />
+              <span className="hidden lg:inline">More</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">{moreLinks}</DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </TooltipProvider>
   );
