@@ -13,7 +13,7 @@ import {
   useNodesState,
 } from "@xyflow/react";
 import { useTheme } from "next-themes";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import SelfLoopEdge from "@/components/edges/SelfLoopEdge";
 import Toolbar from "@/components/header/Toolbar";
@@ -21,6 +21,7 @@ import InspectorPanel from "@/components/inspector/InspectorPanel";
 import CodePanel from "@/components/json/CodePanel";
 import BaseNode from "@/components/nodes/BaseNode";
 import DecisionNode from "@/components/nodes/DecisionNode";
+import NodeContextMenu from "@/components/nodes/NodeContextMenu";
 import NodePalette from "@/components/palette/NodePalette";
 import ToastContainer from "@/components/ui/Toast";
 import { extractDecisionNodeFromChange, useDecisionNodes } from "@/hooks/useDecisionNodes";
@@ -36,9 +37,15 @@ import {
   handleRegularConnection,
 } from "@/lib/utils/connectionHandlers";
 import { deriveEdgesFromNodes, edgesChanged } from "@/lib/utils/edgeDerivation";
+import { canDeleteNode, deleteNode } from "@/lib/utils/nodeDeletion";
+import { duplicateNode } from "@/lib/utils/nodeDuplication";
 import { generateNodeIdFromLabel } from "@/lib/utils/nodeId";
 import { deriveNodeType } from "@/lib/utils/nodeType";
-import { updateFunctionReferences, updateNodeData } from "@/lib/utils/nodeUpdates";
+import {
+  clearFunctionConnection,
+  updateFunctionReferences,
+  updateNodeData,
+} from "@/lib/utils/nodeUpdates";
 
 function useInitialGraph() {
   return useMemo(() => {
@@ -80,6 +87,13 @@ export default function EditorShell() {
   const initial = useInitialGraph();
   const [nodes, setNodes, onNodesChangeBase] = useNodesState(initial.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(initial.edges);
+
+  // Context menu state
+  const [contextMenuOpen, setContextMenuOpen] = useState(false);
+  const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number; y: number } | null>(
+    null
+  );
+  const [contextMenuNodeId, setContextMenuNodeId] = useState<string | null>(null);
 
   // Wrap onNodesChange to capture decision node position changes
   const onNodesChange = useCallback(
@@ -267,6 +281,58 @@ export default function EditorShell() {
     selectNode,
   });
 
+  // Handle node context menu
+  const handleNodeContextMenu = useCallback(
+    (event: React.MouseEvent, node: FlowNode) => {
+      event.preventDefault();
+
+      // Don't show context menu for decision nodes
+      if (node.type === "decision") {
+        return;
+      }
+
+      const bounds = (event.currentTarget as HTMLElement).getBoundingClientRect();
+      const position = rfInstance?.screenToFlowPosition
+        ? rfInstance.screenToFlowPosition({
+            x: event.clientX - bounds.left,
+            y: event.clientY - bounds.top,
+          })
+        : { x: event.clientX, y: event.clientY };
+
+      setContextMenuPosition({ x: event.clientX, y: event.clientY });
+      setContextMenuNodeId(node.id);
+      setContextMenuOpen(true);
+    },
+    [rfInstance]
+  );
+
+  // Handle duplicate action
+  const handleDuplicateNode = useCallback(() => {
+    if (!contextMenuNodeId) return;
+
+    const nodeToDuplicate = nodes.find((n) => n.id === contextMenuNodeId);
+    if (!nodeToDuplicate || nodeToDuplicate.type === "decision") return;
+
+    const duplicatedNode = duplicateNode(nodeToDuplicate, nodes);
+    setNodes((nds) => nds.concat(duplicatedNode));
+    selectNode(duplicatedNode.id);
+    setContextMenuOpen(false);
+  }, [contextMenuNodeId, nodes, setNodes, selectNode]);
+
+  // Handle delete action
+  const handleDeleteNode = useCallback(() => {
+    if (!contextMenuNodeId) return;
+
+    const nodeToDelete = nodes.find((n) => n.id === contextMenuNodeId);
+    if (!canDeleteNode(nodeToDelete)) return;
+
+    setNodes((nds) => deleteNode(nds, contextMenuNodeId));
+    if (selectedNodeId === contextMenuNodeId) {
+      clearSelection();
+    }
+    setContextMenuOpen(false);
+  }, [contextMenuNodeId, nodes, setNodes, selectedNodeId, clearSelection]);
+
   const { theme } = useTheme();
 
   return (
@@ -433,11 +499,24 @@ export default function EditorShell() {
             );
           }}
           onInit={(instance) => setRfInstance(instance as unknown as ReactFlowInstance)}
+          onNodeContextMenu={handleNodeContextMenu}
           fitView
         >
           <Controls />
           <Background />
         </ReactFlow>
+        <NodeContextMenu
+          open={contextMenuOpen}
+          onOpenChange={setContextMenuOpen}
+          position={contextMenuPosition}
+          onDuplicate={handleDuplicateNode}
+          onDelete={handleDeleteNode}
+          isDecisionNode={
+            contextMenuNodeId
+              ? nodes.find((n) => n.id === contextMenuNodeId)?.type === "decision"
+              : false
+          }
+        />
       </div>
       <div
         className={`flex flex-col overflow-hidden ${
@@ -479,21 +558,31 @@ export default function EditorShell() {
                   );
 
                   if (functionIndex >= 0) {
-                    const updatedFunctions = [...functions];
-                    updatedFunctions[functionIndex] = {
-                      ...updatedFunctions[functionIndex],
-                      next_node_id: undefined,
-                    };
-
-                    handleNodeDataUpdate(edge.source, { functions: updatedFunctions }, functions);
+                    const previousFunctions = functions;
+                    setNodes((nds) => {
+                      const updatedNodes = clearFunctionConnection(nds, edge.source, functionIndex);
+                      // Validate function index after update
+                      const updatedNode = updatedNodes.find((n) => n.id === edge.source);
+                      const newFunctions = (updatedNode?.data?.functions ??
+                        []) as FlowFunctionJson[];
+                      validateFunctionIndexAfterUpdate(
+                        edge.source,
+                        previousFunctions,
+                        newFunctions
+                      );
+                      return updatedNodes;
+                    });
 
                     if (selectedNodeId === edge.source && selectedFunctionIndex === functionIndex) {
                       useEditorStore.getState().clearFunctionSelection();
                     }
                   }
                 } else {
-                  setNodes((nds) => nds.filter((n) => n.id !== id));
-                  clearSelection();
+                  const nodeToDelete = nodes.find((n) => n.id === id);
+                  if (canDeleteNode(nodeToDelete)) {
+                    setNodes((nds) => deleteNode(nds, id));
+                    clearSelection();
+                  }
                 }
               }}
               onRenameNode={(oldId, newId) => {

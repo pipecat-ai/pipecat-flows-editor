@@ -59,6 +59,7 @@ export const FunctionItem = React.forwardRef<HTMLDivElement, FunctionItemProps>(
     const nextNodeId = useId();
 
     useEffect(() => {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFunctionName(func.name);
     }, [func.name]);
 

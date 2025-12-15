@@ -3,6 +3,9 @@ import { useEffect } from "react";
 import type { FlowFunctionJson } from "@/lib/schema/flow.schema";
 import { useEditorStore } from "@/lib/store/editorStore";
 import type { FlowEdge, FlowNode } from "@/lib/types/flowTypes";
+import { canDeleteNode, deleteNode } from "@/lib/utils/nodeDeletion";
+import { duplicateNode } from "@/lib/utils/nodeDuplication";
+import { clearFunctionConnection } from "@/lib/utils/nodeUpdates";
 
 interface KeyboardShortcutsProps {
   nodes: FlowNode[];
@@ -44,51 +47,25 @@ export function useKeyboardShortcuts({
         e.preventDefault();
         if (selectedNodeId && selectedFunctionIndex !== null) {
           // Delete edge by clearing next_node_id
-          const node = nodes.find((n) => n.id === selectedNodeId);
-          if (node) {
-            const functions = (node.data?.functions ?? []) as FlowFunctionJson[];
-            if (functions[selectedFunctionIndex]) {
-              setNodes((nds) =>
-                nds.map((n) => {
-                  if (n.id === selectedNodeId) {
-                    const updatedFunctions = [...functions];
-                    updatedFunctions[selectedFunctionIndex] = {
-                      ...updatedFunctions[selectedFunctionIndex],
-                      next_node_id: undefined,
-                    };
-                    return {
-                      ...n,
-                      data: {
-                        ...n.data,
-                        functions: updatedFunctions,
-                      },
-                    };
-                  }
-                  return n;
-                })
-              );
-              useEditorStore.getState().clearFunctionSelection();
-            }
-          }
+          setNodes((nds) => clearFunctionConnection(nds, selectedNodeId, selectedFunctionIndex));
+          useEditorStore.getState().clearFunctionSelection();
         } else if (selectedNodeId) {
           // Delete node
-          setNodes((nds) => nds.filter((n) => n.id !== selectedNodeId));
-          clearSelection();
+          const nodeToDelete = nodes.find((n) => n.id === selectedNodeId);
+          if (canDeleteNode(nodeToDelete)) {
+            setNodes((nds) => deleteNode(nds, selectedNodeId));
+            clearSelection();
+          }
         }
       } else if (modKey && e.key === "d") {
         // Duplicate node
         e.preventDefault();
         if (selectedNodeId) {
           const selected = nodes.find((n) => n.id === selectedNodeId);
-          if (selected) {
-            const id = `${selected.type}-${Math.random().toString(36).slice(2, 8)}`;
-            const newNode: FlowNode = {
-              ...selected,
-              id,
-              position: { x: selected.position.x + 50, y: selected.position.y + 50 },
-            };
-            setNodes((nds) => nds.concat(newNode));
-            selectNode(id);
+          if (selected && canDeleteNode(selected)) {
+            const duplicatedNode = duplicateNode(selected, nodes);
+            setNodes((nds) => nds.concat(duplicatedNode));
+            selectNode(duplicatedNode.id);
           }
         }
       }

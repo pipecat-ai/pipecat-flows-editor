@@ -22,6 +22,39 @@ export function updateNodeData(
 }
 
 /**
+ * Clear the next_node_id connection for a specific function
+ * Returns updated nodes array
+ */
+export function clearFunctionConnection(
+  nodes: FlowNode[],
+  nodeId: string,
+  functionIndex: number
+): FlowNode[] {
+  return nodes.map((node) => {
+    if (node.id !== nodeId) return node;
+
+    const nodeData = node.data as FlowNodeData;
+    const functions = (nodeData?.functions || []) as FlowFunctionJson[];
+
+    if (functionIndex < 0 || functionIndex >= functions.length) return node;
+
+    const updatedFunctions = [...functions];
+    updatedFunctions[functionIndex] = {
+      ...updatedFunctions[functionIndex],
+      next_node_id: undefined,
+    };
+
+    return {
+      ...node,
+      data: {
+        ...nodeData,
+        functions: updatedFunctions,
+      },
+    };
+  });
+}
+
+/**
  * Update function references when a node ID changes
  */
 export function updateFunctionReferences(
