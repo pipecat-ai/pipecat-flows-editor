@@ -1,6 +1,7 @@
 import type { FlowNode } from "@/lib/types/flowTypes";
 
 import { generateNodeIdFromLabel } from "./nodeId";
+import { deriveNodeType } from "./nodeType";
 
 /**
  * Generate a label with "copy" suffix, handling multiple copies
@@ -38,10 +39,18 @@ function generateCopyLabel(originalLabel: string, existingLabels: string[]): str
 /**
  * Deep clone a node with all its data, creating a new node with "copy" suffix
  * Preserves all function references (next_node_id) so duplicated nodes maintain connections
+ * If duplicating an initial node, converts it to a regular node (removes role_messages)
  */
 export function duplicateNode(node: FlowNode, allNodes: FlowNode[]): FlowNode {
   // Deep clone the node data using JSON parse/stringify
   const clonedData = JSON.parse(JSON.stringify(node.data));
+
+  // If this is an initial node, convert it to a regular node by removing role_messages
+  // There can only be one initial node in the flow
+  if (node.type === "initial") {
+    clonedData.role_messages = undefined;
+    // Keep task_messages if they exist, but remove role_messages
+  }
 
   // Generate new label with copy suffix
   const existingLabels = allNodes.map((n) => n.data?.label || "").filter(Boolean);
@@ -55,6 +64,9 @@ export function duplicateNode(node: FlowNode, allNodes: FlowNode[]): FlowNode {
   // Update label in cloned data
   clonedData.label = newLabel;
 
+  // Derive the new node type from the cloned data
+  const newType = deriveNodeType(clonedData, node.type) as FlowNode["type"];
+
   // Offset position
   const newPosition = {
     x: node.position.x + 100,
@@ -66,6 +78,7 @@ export function duplicateNode(node: FlowNode, allNodes: FlowNode[]): FlowNode {
   return {
     ...node,
     id: newId,
+    type: newType,
     position: newPosition,
     data: clonedData,
   };
