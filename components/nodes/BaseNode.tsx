@@ -73,7 +73,7 @@ export default function BaseNode({ id, data, selected, type }: NodeProps<ConfigC
         selected ? "border-blue-500" : "border-neutral-300 dark:border-neutral-600"
       }`}
       style={{ width: NODE_CARD.width }}
-      onMouseEnter={() => setHovering(true)}
+      onMouseOver={() => setHovering(true)}
       onMouseLeave={() => setHovering(false)}
     >
       <Handle
@@ -145,7 +145,7 @@ export default function BaseNode({ id, data, selected, type }: NodeProps<ConfigC
         // pointer reaches it, and the trip down to it stays inside the node.
         <div
           aria-hidden
-          className="nodrag nopan absolute inset-x-0 top-full h-12"
+          className="nodrag nopan absolute inset-x-0 top-full h-14"
           onClick={(e) => e.stopPropagation()}
         />
       )}
@@ -159,7 +159,6 @@ export default function BaseNode({ id, data, selected, type }: NodeProps<ConfigC
             }
           }}
           title="Add a function"
-          onHoverChange={setHovering}
         />
       )}
     </div>

@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
  * from an element to a control rendered beside it without the control
  * disappearing on the way.
  */
-export function useHoverWithGrace(delayMs = 200) {
+export function useHoverWithGrace(delayMs = 300) {
   const [hovering, setHovering] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
