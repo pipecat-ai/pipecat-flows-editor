@@ -64,7 +64,7 @@ Toolbar actions let you:
 - **Open** – Read a `FlowConfig` file as YAML or JSON, validate it, and lay it out. A file in the editor's old JSON format is converted; what cannot convert (tool schemas, decisions) is reported by name.
 - **Save** – Download the flow as `<name>.yaml`, merged into the document it was opened from so comments are preserved.
 - **Layout** – Lay the nodes out automatically, the way a freshly opened file is.
-- **Flow** – Edit the flow's name and global functions, and see the tools, action handlers, and variables the config refers to.
+- **Sidebar** – Always open: it shows the selected node, or the flow when nothing is selected, with the flow's name, its global functions, and the tools, action handlers, and variables the config refers to. It collapses from its header and reopens from the toolbar.
 - **Show YAML** – Edit the document itself, with parse, schema, and reference problems marked inline.
 
 ### Example Flows

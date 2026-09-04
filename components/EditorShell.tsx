@@ -11,6 +11,7 @@ import {
   useEdgesState,
   useNodesState,
 } from "@xyflow/react";
+import { PanelRightOpen } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -20,6 +21,7 @@ import InspectorPanel from "@/components/inspector/InspectorPanel";
 import BaseNode from "@/components/nodes/BaseNode";
 import { type CanvasActions, CanvasActionsContext } from "@/components/nodes/canvasActions";
 import NodeContextMenu from "@/components/nodes/NodeContextMenu";
+import { Button } from "@/components/ui/button";
 import ToastContainer, { showToast } from "@/components/ui/Toast";
 import YamlPanel from "@/components/yaml/YamlPanel";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
@@ -157,7 +159,8 @@ export default function EditorShell() {
     (state) => state.validateFunctionIndexAfterUpdate
   );
   const clearSelection = useEditorStore((state) => state.clearSelection);
-  const showFlowPanel = useEditorStore((state) => state.showFlowPanel);
+  const sidebarCollapsed = useEditorStore((state) => state.sidebarCollapsed);
+  const setSidebarCollapsed = useEditorStore((state) => state.setSidebarCollapsed);
   const inspectorPanelWidth = useEditorStore((state) => state.inspectorPanelWidth);
   const isInspectorResizing = useEditorStore((state) => state.isInspectorResizing);
   const loadFlow = useFlowStore((state) => state.loadFlow);
@@ -285,6 +288,11 @@ export default function EditorShell() {
     resetFlow();
     fitViewSoon();
   }, [replaceCanvas, resetFlow, fitViewSoon]);
+
+  // Selecting a node opens the sidebar on it, even if it was collapsed
+  useEffect(() => {
+    if (selectedNodeId) useEditorStore.getState().setSidebarCollapsed(false);
+  }, [selectedNodeId]);
 
   // Restore the autosaved flow on mount, converting one left by the old
   // editor if that is all there is, or start a new one
@@ -533,7 +541,7 @@ export default function EditorShell() {
   }, [setNodes, edges, fitViewSoon]);
 
   const { theme } = useTheme();
-  const showInspector = Boolean(selectedNodeId) || showFlowPanel;
+  const showInspector = !sidebarCollapsed;
   const columnHeight = `calc(100vh - ${showYaml ? yamlPanelHeight : 0}px)`;
 
   return (
@@ -605,6 +613,18 @@ export default function EditorShell() {
             <Background />
           </ReactFlow>
         </CanvasActionsContext.Provider>
+        {sidebarCollapsed && (
+          <Button
+            variant="secondary"
+            size="sm"
+            className="absolute top-2 right-2 z-10 h-8 w-8 p-0 shadow md:top-4"
+            onClick={() => setSidebarCollapsed(false)}
+            title="Show the sidebar"
+            aria-label="Show the sidebar"
+          >
+            <PanelRightOpen className="h-4 w-4" />
+          </Button>
+        )}
         <NodeContextMenu
           open={contextMenuOpen}
           onOpenChange={setContextMenuOpen}

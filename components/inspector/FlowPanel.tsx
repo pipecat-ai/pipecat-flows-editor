@@ -1,6 +1,6 @@
 "use client";
 
-import { Copy, Plus, X } from "lucide-react";
+import { Copy, PanelRightClose, Plus } from "lucide-react";
 import { useId, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -24,7 +24,7 @@ import { FunctionItem } from "./forms/FunctionItem";
 
 type Props = {
   nodes: CanvasNode[];
-  onClose: () => void;
+  onCollapse: () => void;
 };
 
 /**
@@ -32,7 +32,7 @@ type Props = {
  * the config asks of the code: the tools and handlers the tools module must
  * define and the variables the Flow must be given.
  */
-export default function FlowPanel({ nodes, onClose }: Props) {
+export default function FlowPanel({ nodes, onCollapse }: Props) {
   const flowName = useFlowStore((state) => state.flowName);
   const setFlowName = useFlowStore((state) => state.setFlowName);
   const globalFunctions = useFlowStore((state) => state.globalFunctions);
@@ -61,13 +61,13 @@ export default function FlowPanel({ nodes, onClose }: Props) {
                 variant="ghost"
                 size="sm"
                 className="h-6 w-6 p-0"
-                onClick={onClose}
-                aria-label="Close flow panel"
+                onClick={onCollapse}
+                aria-label="Hide the sidebar"
               >
-                <X className="h-4 w-4" />
+                <PanelRightClose className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="left">Close</TooltipContent>
+            <TooltipContent side="left">Hide the sidebar</TooltipContent>
           </Tooltip>
         </TooltipProvider>
       </div>
@@ -178,7 +178,10 @@ function ReferenceList({
   return (
     <section className="rounded-lg border bg-neutral-50/50 dark:bg-neutral-900/30 p-3 space-y-2">
       <div className="flex items-center justify-between">
-        <div className="text-xs font-medium opacity-80">{title}</div>
+        <div className="text-xs font-medium opacity-80">
+          {title}
+          {items.length > 0 && <span className="ml-1 opacity-60">· {items.length}</span>}
+        </div>
         {items.length > 0 && (
           <Button variant="ghost" size="sm" className="h-6 gap-1 text-[10px]" onClick={copy}>
             <Copy className="h-3 w-3" /> Copy
