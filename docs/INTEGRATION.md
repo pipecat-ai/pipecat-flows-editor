@@ -1,117 +1,190 @@
 # Pipecat Integration Guide
 
-This document explains how to take a flow built in the visual editor and run it inside a Pipecat application.
+This document explains how a flow built in the editor runs inside a Pipecat application.
 
-## Flow Lifecycle
+## The seam
 
-1. **Design** – Build and validate the flow inside the editor. Nodes map directly to Pipecat `NodeConfig` objects.
-2. **Export** – Use the toolbar to export either:
-   - `flow.json` (schema-compliant Pipecat Flow JSON)
-   - `<flow_name>_flow.py` (generated Python scaffolding produced by `lib/codegen/pythonGenerator.ts`)
-3. **Implement handlers** – Fill in the TODO sections in the generated Python file (or write your own implementation if consuming JSON manually).
-4. **Run in Pipecat** – Load the generated node factories, instantiate a `FlowManager`, and call `initialize` with the initial node when your transport connects.
+Pipecat Flows splits a configured conversation along one line:
 
-## Export Formats
+- **The YAML owns the graph.** Which nodes exist, what each one says, which tools each offers, where each tool leads, the pre and post actions, and the template variables for personalization. This is what the editor edits.
+- **Python owns the tools.** Every function the LLM can call is a direct function in a tools module: its signature and docstring define what the LLM sees, and its body does the work. Action handlers and custom action types live there too.
 
-### JSON
+The YAML references tools by name and never contains a description or a parameter. That is why the editor has no tool schema forms: the tool's description and parameters come from the code.
 
-`flow.json` is the canonical data model used in the editor and contains:
+## Flow lifecycle
 
-- `meta`, `context`, `global_functions`
-- `nodes[]` with Pipecat `NodeConfig` fields (messages, functions, actions, context strategy, respond_immediately)
-- Function-level routing via `next_node_id` or `decision`
-- Visualization edges derived from the routing data
+1. **Design** – Build the flow in the editor. Use the Flow panel to see which tool names, action handlers, and `{{ variables }}` the config refers to.
+2. **Save** – Download `<name>.yaml`.
+3. **Write the tools** – Implement each referenced name as a direct function in a Python module.
+4. **Run** – Load the config, join it to the tools with `Flow`, and hand the result to `FlowManager`.
 
-Use JSON if you want to plug the editor into a custom runtime, build your own generator, or version the declarative representation of the flow.
+## The format
 
-### Generated Python
+The same graph as Pipecat's `examples/flows/food_ordering.py`, as data:
 
-Selecting **Export → Export Python** downloads a ready-to-run scaffold targeting **pipecat-flows 1.3.0+**:
+```yaml
+initial_node: initial
 
-- One `create_<node_id>_node()` factory per node
-- [Direct functions](https://reference-flows.pipecat.ai/en/latest/) — `async def name(flow_manager, ...)` stubs whose schema is derived automatically from the type hints and docstring. JSON-Schema constraints (enum / minimum / maximum / pattern) are folded into the docstring `Args:` section.
-- Result types as plain `TypedDict`s (the deprecated `FlowResult` is no longer used)
-- A `@flows_tool_options(...)` decorator when a function sets call options (cancel-on-interruption and/or a per-tool timeout)
-- Decision routing rendered as Python `if / elif / else` blocks
-- Optional context strategy wiring (adds `ContextStrategyConfig` imports only when needed)
-- Placeholder FlowManager setup showing where to plug in your Pipecat pipeline and transport events
+nodes:
+  initial:
+    role_message: >
+      You are an order-taking assistant for {{ restaurant_name }}. This is a
+      phone call, so keep replies short and avoid special characters.
+    task_messages:
+      - role: developer
+        content: Greet the caller and ask whether they want pizza or sushi.
+    pre_actions:
+      - type: function
+        handler: check_kitchen_status # action handler in the tools module
+    functions:
+      - name: choose_pizza # tool in the tools module
+        transition_to: choose_pizza
+      - name: choose_sushi
+        transition_to: choose_sushi
 
-Each direct function takes `flow_manager` first, followed by its parameters as typed arguments, and returns `(result, next_node)` — where `result` is any JSON-serializable value (or `None`) and `next_node` is the `NodeConfig` to transition to (or `None`).
+  choose_pizza:
+    task_messages:
+      - role: developer
+        content: Take a pizza order. Call select_pizza_order once you have size and type.
+    functions:
+      - name: select_pizza_order
+        transition_to: confirm
 
-## Using the Generated Python
+  confirm:
+    task_messages:
+      - role: developer
+        content: Read the order back and ask whether anything should change.
+    functions:
+      - name: complete_order
+        transition_to: end
+      - name: revise_order
+        transition_to: initial
 
-1. **Install Pipecat Flows** (and your preferred transports/services):
+  end:
+    task_messages:
+      - role: developer
+        content: Thank the caller and end the conversation.
+    post_actions:
+      - type: end_conversation
 
-```bash
-pip install pipecat pipecat-ai-flows
+global_functions:
+  - name: get_delivery_estimate # no transition_to: stays on the current node
 ```
 
-2. **Save the generated file** (e.g., `food_ordering_flow.py`) somewhere importable by your bot.
+| Key                                | Meaning                                                                                                                                |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `initial_node`                     | Name of the node the flow starts in.                                                                                                   |
+| `nodes.<name>.role_message`        | The bot's role, sent as the system instruction on entering the node. Persists until another node sets its own.                         |
+| `nodes.<name>.task_messages`       | What the LLM should do at this node. Roles are `developer`, `user`, or `assistant`; Pipecat maps `developer` to `system` where needed. |
+| `nodes.<name>.functions`           | Tools offered at this node, each a `name` and an optional `transition_to`.                                                             |
+| `nodes.<name>.pre_actions`         | Actions run before the LLM responds. Built-in types are `tts_say` and `end_conversation`; `function` names a `handler`.                |
+| `nodes.<name>.post_actions`        | Actions run after the LLM responds.                                                                                                    |
+| `nodes.<name>.context_strategy`    | `append` or `reset`. Omitted, the `FlowManager`'s strategy applies.                                                                    |
+| `nodes.<name>.respond_immediately` | Whether the LLM responds as soon as the node is entered. Defaults to true.                                                             |
+| `global_functions`                 | Tools offered at every node.                                                                                                           |
 
-3. **Wire it into your Pipecat entrypoint**:
+### Branches
+
+A destination is a node name or a table keyed on a field of the tool's result. The tool reports a fact it knows; the config decides where it leads.
+
+```yaml
+- name: check_availability
+  transition_to:
+    field: status # key of the tool's result
+    cases:
+      available: confirm
+      unavailable: no_availability
+    default: no_availability # optional; unmatched values stay on the node
+```
+
+Non-string values match a case by their string form, so `flag: true` matches a `"True"` case. A result without the named field is an error.
+
+### Variables
+
+`{{ name }}` placeholders in `role_message`, `task_messages[].content`, and action `text` are substituted when the `Flow` is constructed. Substitution only, no logic; a missing variable raises at construction.
+
+The authoritative definition of the format is Pipecat's JSON Schema, generated from the `FlowConfig` model and vendored in this repo at `lib/schema/flow_config.schema.json`.
+
+## The tools module
+
+Tools are ordinary Flows direct functions. They return `(result, None)`: the config owns every transition, so a tool in a configured flow never returns a node. A pure transition is a tool with nothing in it.
 
 ```python
-from pipecat.transports.base_transport import BaseTransport
-from pipecat_flows import FlowManager
+# tools.py
+from datetime import datetime, timedelta
 
-from food_ordering_flow import (
-    create_initial_node,
-    # ...any other helpers you want to reference directly
-)
+from pipecat.flows import FlowManager
 
-flow_manager = FlowManager(
-    worker=worker,  # PipelineWorker; `task=` is deprecated
-    llm=llm,
-    context_aggregator=context_aggregator,
-    transport=transport,
-    # global_functions=[...],  # uncomment if your flow defines them
-)
 
-@transport.event_handler("on_client_connected")
-async def on_client_connected(transport: BaseTransport, client):
-    await flow_manager.initialize(create_initial_node())
+async def choose_pizza(flow_manager: FlowManager) -> tuple[None, None]:
+    """User wants to order pizza."""
+    return None, None
+
+
+async def select_pizza_order(
+    flow_manager: FlowManager, size: str, pizza_type: str
+) -> tuple[dict, None]:
+    """Record the pizza order details.
+
+    Args:
+        size (str): One of "small", "medium", or "large".
+        pizza_type (str): One of "pepperoni", "cheese", "supreme", or "vegetarian".
+    """
+    price = {"small": 10.0, "medium": 15.0, "large": 20.0}[size]
+    flow_manager.state["order"] = {"type": "pizza", "size": size, "price": price}
+    return {"size": size, "type": pizza_type, "price": price}, None
+
+
+async def get_delivery_estimate(flow_manager: FlowManager) -> tuple[dict, None]:
+    """Get a delivery estimate for the current order."""
+    eta = datetime.now() + timedelta(minutes=30)
+    return {"time": eta.isoformat()}, None
+
+
+async def check_kitchen_status(action: dict, flow_manager: FlowManager) -> None:
+    """Pre-action: check the kitchen is open."""
+    ...
 ```
 
-4. **Implement the direct functions** generated in the file. Each receives `flow_manager` plus its typed parameters, so you can:
-   - Read the user-provided arguments directly as named parameters
-   - Store intermediate data in `flow_manager.state`
-   - Decide what node to visit next by returning its `NodeConfig` (or rely on decisions/`next_node_id`)
+The Flow panel in the editor lists exactly the names this module must define.
 
-### Decision Handling
+## Running it
 
-If a function in the editor contains a decision:
+```python
+import tools  # the module above
+from pipecat.flows import Flow, FlowConfig, FlowManager
 
-- The generated direct function includes the `action` block (your expression, evaluated server-side) and returns `Any` as the result.
-- Conditions become `if/elif/else` checks that route to `create_<node_id>_node()` functions.
-- The editor also stores optional `decision_node_position` so re-importing Python-exported JSON maintains the layout of helper decision nodes in the UI.
+config = FlowConfig.from_file("food_ordering.yaml")  # structure validated here
+flow = Flow(
+    config,
+    tools=tools,  # only names the YAML references are resolved
+    variables={"restaurant_name": "Luigi's"},
+)  # references and signatures validated here
 
-## Using JSON Directly
+flow_manager = FlowManager(
+    llm=llm,
+    context_aggregator=context_aggregator,
+    worker=worker,
+    global_functions=flow.global_functions,
+)
 
-If you prefer to consume the JSON yourself:
 
-| JSON Field                               | Pipecat Usage                                        |
-| ---------------------------------------- | ---------------------------------------------------- |
-| `node.id`                                | `NodeConfig.name`                                    |
-| `node.data.role_messages`                | `NodeConfig.role_message` (collapsed to a string)    |
-| `node.data.task_messages`                | `NodeConfig.task_messages`                           |
-| `node.data.functions[]`                  | Direct functions (auto-derived schema)               |
-| `node.data.functions[].next_node_id`     | Return value `(…, create_<id>_node())`               |
-| `node.data.functions[].decision`         | Direct function body with `if/elif/else` routing     |
-| `node.data.pre_actions` / `post_actions` | Passed directly into `NodeConfig`                    |
-| `node.data.context_strategy`             | Adds `ContextStrategyConfig`                         |
-| `global_functions`                       | Optional functions registered on every node          |
-| `edges`                                  | Visualization only (derived from the routing fields) |
+@transport.event_handler("on_client_connected")
+async def on_client_connected(transport, client):
+    await flow_manager.initialize(flow.initial_node)
+```
 
-The TypeBox schema is documented in [docs/SCHEMA.md](./SCHEMA.md).
+`FlowConfig.from_yaml(text)` loads from a string, for a config fetched from a database or CMS at session start, and `FlowConfig.from_file` also accepts `.json`. `Flow` takes a module or a mapping of names to callables; anything in the module the YAML does not mention is left alone.
 
-## Validation & Tooling
+Validation happens in two passes, both before the bot takes a call:
 
-- JSON exports are validated via Ajv and custom graph checks before they leave the editor.
-- Python exports run the same validation first; generation is blocked until the flow passes.
-- Re-importing either JSON or edited Python (converted back to JSON) keeps decision positions, function metadata, and context strategy aligned with the UI.
+- **Loading** validates structure: the initial node exists, every destination names a node, every branch has a field and at least one case. The editor makes the same checks, against the same schema.
+- **Constructing the `Flow`** validates references to code: every tool and handler resolves, every tool passes signature validation, every template variable is supplied.
+
+For a complete bot, see `examples/flows/food_ordering_yaml.py` and `food_ordering_tools.py` in the Pipecat repository.
 
 ## References
 
 - [Pipecat Flows API Reference](https://reference-flows.pipecat.ai/en/latest/)
-- [Official Food Ordering Example](https://github.com/pipecat-ai/pipecat-flows/blob/main/examples/food_ordering.py)
 - [Feature Guide](https://docs.pipecat.ai/guides/features/pipecat-flows)
+- [Pipecat Flows examples](https://github.com/pipecat-ai/pipecat/tree/main/examples/flows)
