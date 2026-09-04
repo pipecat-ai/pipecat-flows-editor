@@ -25,11 +25,22 @@ import YamlPanel from "@/components/yaml/YamlPanel";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { deriveCanvasGraph, reconcileEdges } from "@/lib/convert/canvasGraph";
 import { configToCanvas, nodeFunctions } from "@/lib/convert/configToCanvas";
-import { type FlowProblem, parseFlowYaml } from "@/lib/document/flowDocument";
+import {
+  createFlowDocument,
+  DEFAULT_FLOW_NAME,
+  type FlowProblem,
+  parseFlowYaml,
+  stringifyFlowDocument,
+} from "@/lib/document/flowDocument";
+import {
+  convertLegacyFlow,
+  describeLegacyDrops,
+  isLegacyFlowJson,
+} from "@/lib/document/legacyImport";
 import { serializeFlow } from "@/lib/document/serializeFlow";
 import { getTemplateByType } from "@/lib/nodes/templates";
 import type { FlowConfig } from "@/lib/schema/flowConfig";
-import { loadCurrentFlow, saveCurrentFlow } from "@/lib/storage/localStore";
+import { LEGACY_STORAGE_KEY, loadCurrentFlow, saveCurrentFlow } from "@/lib/storage/localStore";
 import { loadPositions, positionsFromNodes, savePositions } from "@/lib/storage/positionStore";
 import { useEditorStore } from "@/lib/store/editorStore";
 import { useFlowStore } from "@/lib/store/flowStore";
@@ -62,6 +73,39 @@ function stableStringify(value: unknown): string {
     .filter(([, v]) => v !== undefined)
     .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
   return `{${entries.map(([k, v]) => `${JSON.stringify(k)}:${stableStringify(v)}`).join(",")}}`;
+}
+
+/**
+ * If `text` is a document in the editor's old JSON format, the same flow as
+ * YAML, with its canvas positions stored under `flowName` and an account of
+ * what did not convert. Otherwise null.
+ */
+function convertLegacyText(
+  text: string,
+  flowName: string
+): { yaml: string; dropped: string } | null {
+  let data: unknown;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    return null;
+  }
+  if (!isLegacyFlowJson(data)) return null;
+  const { config, positions, dropped } = convertLegacyFlow(data);
+  savePositions(flowName, positions);
+  return {
+    yaml: stringifyFlowDocument(createFlowDocument(config)),
+    dropped: describeLegacyDrops(dropped),
+  };
+}
+
+/** The old editor's autosave, as text, when present. */
+function readLegacyAutosave(): string | null {
+  try {
+    return localStorage.getItem(LEGACY_STORAGE_KEY);
+  } catch {
+    return null;
+  }
 }
 
 /** The canvas for a new flow: one initial node from its template. */
@@ -168,6 +212,14 @@ export default function EditorShell() {
    */
   const openFlow = useCallback(
     (text: string, flowName: string, options: { silent?: boolean } = {}): boolean => {
+      const legacy = convertLegacyText(text, flowName);
+      if (legacy) {
+        text = legacy.yaml;
+        showToast(
+          `Converted ${flowName} from the old JSON format. ${legacy.dropped}`.trim(),
+          "info"
+        );
+      }
       const parsed = parseFlowYaml(text);
       if (parsed.yamlErrors.length > 0) {
         showToast(`Could not parse YAML: ${parsed.yamlErrors[0]}`, "error");
@@ -215,10 +267,14 @@ export default function EditorShell() {
     fitViewSoon();
   }, [replaceCanvas, resetFlow, fitViewSoon]);
 
-  // Restore the autosaved flow on mount, or start a new one
+  // Restore the autosaved flow on mount, converting one left by the old
+  // editor if that is all there is, or start a new one
   useEffect(() => {
     const saved = loadCurrentFlow();
-    if (!saved || !openFlow(saved.yaml, saved.flowName, { silent: true })) {
+    const legacy = saved ? null : readLegacyAutosave();
+    if (saved) {
+      if (!openFlow(saved.yaml, saved.flowName, { silent: true })) startNewFlow();
+    } else if (!legacy || !openFlow(legacy, DEFAULT_FLOW_NAME)) {
       startNewFlow();
     }
     hydratedRef.current = true;
