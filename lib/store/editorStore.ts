@@ -169,10 +169,8 @@ export const useEditorStore = create<EditorState>((set, get) => {
       }
       const sourceNode = nodes.find((n) => n.id === data.sourceNodeId);
       if (!sourceNode) return;
-      const functionIndex = nodeFunctions(sourceNode).findIndex(
-        (fn) => fn.name === data.functionName
-      );
-      if (functionIndex < 0) {
+      const functionIndex = data.functionIndex;
+      if (!nodeFunctions(sourceNode)[functionIndex]) {
         get().selectNode(sourceNode.id, null, null);
         return;
       }

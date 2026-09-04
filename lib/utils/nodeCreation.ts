@@ -17,12 +17,16 @@ import { addCase } from "./branchEdits";
 import { generateNodeIdFromLabel } from "./nodeId";
 import { deriveNodeType } from "./nodeType";
 
-/** What the new destination is: a node, an end node, or a branch whose first case leads to a new node. */
-export type DestinationKind = "node" | "end" | "branch";
+/**
+ * What the new destination is: a node, an end node, a branch whose first
+ * case leads to a new node, or none, for a function that stays on its node.
+ */
+export type DestinationKind = "node" | "end" | "branch" | "stay";
 
 export interface Added {
   nodes: CanvasNode[];
-  newNodeId: string;
+  /** Null when a function was added that stays on its node. */
+  newNodeId: string | null;
   /** The function on the source node that routes to the new node. */
   sourceNodeId: string;
   functionIndex: number;
@@ -71,7 +75,7 @@ function withFunctions(
   return nodes.map((n) => (n.id === sourceId ? { ...n, data: { ...n.data, functions } } : n));
 }
 
-/** Adds a new node and a new function on `sourceId` leading to it. */
+/** Adds a new function on `sourceId`, with a new node it leads to unless it stays. */
 export function addDestination(
   nodes: CanvasNode[],
   sourceId: string,
@@ -80,6 +84,15 @@ export function addDestination(
   const source = nodes.find((n) => n.id === sourceId);
   if (!source) return null;
   const functions = nodeFunctions(source);
+  if (kind === "stay") {
+    const fn: FlowConfigFunction = { name: "" };
+    return {
+      nodes: withFunctions(nodes, sourceId, [...functions, fn]),
+      newNodeId: null,
+      sourceNodeId: sourceId,
+      functionIndex: functions.length,
+    };
+  }
   const node = newNode(
     kind === "end" ? "end" : "node",
     placeBeside(source, destinationCount(functions)),
@@ -114,7 +127,7 @@ export function addFunctionDestination(
   const source = nodes.find((n) => n.id === sourceId);
   const functions = nodeFunctions(source);
   const fn = functions[functionIndex];
-  if (!source || !fn || functionTargets(fn).length > 0) return null;
+  if (!source || !fn || functionTargets(fn).length > 0 || kind === "stay") return null;
   const node = newNode(
     kind === "end" ? "end" : "node",
     placeBeside(source, destinationCount(functions)),

@@ -1,7 +1,8 @@
 "use client";
 
 import { Handle, type NodeProps, Position, useNodes } from "@xyflow/react";
-import { AlertTriangle, GitBranch, LogOut, Play, Plus } from "lucide-react";
+import { AlertTriangle, ArrowRight, LogOut, Play, Plus, Split, Wrench, X } from "lucide-react";
+import { useState } from "react";
 
 import { useHoverWithGrace } from "@/hooks/useHoverWithGrace";
 import { type ConfigCanvasNode, handleId, NEW_FUNCTION_HANDLE } from "@/lib/convert/configToCanvas";
@@ -10,31 +11,43 @@ import { type FlowConfigFunction, isBranch } from "@/lib/schema/flowConfig";
 import { useEditorStore } from "@/lib/store/editorStore";
 
 import { useCanvasActions } from "./canvasActions";
-import NodeAddToolbar, { DestinationMenu } from "./NodeAddToolbar";
+import InlineText from "./InlineText";
+import NodeAddToolbar from "./NodeAddToolbar";
+
+/** Which text on the card is being edited in place. */
+type Editing =
+  | { kind: "node" }
+  | { kind: "function"; functionIndex: number }
+  | { kind: "field"; functionIndex: number }
+  | { kind: "case"; functionIndex: number; caseValue: string }
+  | null;
 
 /**
  * A node card: the node's name, then one row per function it offers. A
  * function that leads somewhere has a port on its row; a branch function
  * lists its cases and default as sub-rows, each with a port. The rows are
- * the edge labels.
+ * the edge labels. Names rename in place on double-click, rows remove on
+ * hover, and a "+ function" row adds a function that stays on the node.
  */
 export default function BaseNode({ id, data, selected, type }: NodeProps<ConfigCanvasNode>) {
   const allNodes = useNodes();
   const actions = useCanvasActions();
   const [hovering, setHovering] = useHoverWithGrace();
+  const [editing, setEditing] = useState<Editing>(null);
   const selectedNodeId = useEditorStore((state) => state.selectedNodeId);
   const selectedFunctionIndex = useEditorStore((state) => state.selectedFunctionIndex);
   const selectedConditionIndex = useEditorStore((state) => state.selectedConditionIndex);
 
-  const nodeIds = new Set(allNodes.map((n) => n.id));
+  const nodeTypes = new Map(allNodes.map((n) => [n.id, n.type]));
   const functions = data.functions ?? [];
   const isEndNode = type === "end";
   const isInitialNode = type === "initial";
   const isSelectedNode = selectedNodeId === id;
+  const active = hovering || Boolean(selected);
 
   return (
     <div
-      className={`rounded-lg border-2 bg-white text-xs shadow-sm dark:bg-neutral-800 ${
+      className={`relative rounded-lg border-2 bg-white text-xs shadow-sm dark:bg-neutral-800 ${
         selected ? "border-blue-500" : "border-neutral-300 dark:border-neutral-600"
       }`}
       style={{ minWidth: NODE_CARD.minWidth }}
@@ -56,7 +69,18 @@ export default function BaseNode({ id, data, selected, type }: NodeProps<ConfigC
         {isInitialNode && (
           <Play className="h-3 w-3 text-neutral-400 dark:text-neutral-500 shrink-0" />
         )}
-        <div className="flex-1 text-nowrap">{data.label || "Node"}</div>
+        <InlineText
+          value={data.label || id}
+          editing={editing?.kind === "node"}
+          onStartEdit={() => setEditing({ kind: "node" })}
+          onCommit={(name) => {
+            setEditing(null);
+            actions?.renameNode(id, name);
+          }}
+          onCancel={() => setEditing(null)}
+          className="flex-1 text-nowrap"
+          ariaLabel="Node name"
+        />
         {isEndNode && <LogOut className="h-3 w-3 text-neutral-400 dark:text-neutral-500" />}
       </div>
 
@@ -64,11 +88,14 @@ export default function BaseNode({ id, data, selected, type }: NodeProps<ConfigC
         <div className="py-1">
           {functions.map((fn, functionIndex) => (
             <FunctionRows
-              key={`${functionIndex}:${fn.name}`}
+              key={functionIndex}
               nodeId={id}
               fn={fn}
               functionIndex={functionIndex}
-              nodeIds={nodeIds}
+              nodeTypes={nodeTypes}
+              active={active}
+              editing={editing}
+              setEditing={setEditing}
               selectedCase={
                 isSelectedNode && selectedFunctionIndex === functionIndex
                   ? (selectedConditionIndex ?? "function")
@@ -89,10 +116,24 @@ export default function BaseNode({ id, data, selected, type }: NodeProps<ConfigC
         />
       )}
       {!isEndNode && actions && (
+        // An invisible strip under the card so the "+" appears before the
+        // pointer reaches it, and the trip down to it stays inside the node.
+        <div
+          aria-hidden
+          className="nodrag nopan absolute inset-x-0 top-full h-12"
+          onClick={(e) => e.stopPropagation()}
+        />
+      )}
+      {!isEndNode && actions && (
         <NodeAddToolbar
-          visible={hovering || Boolean(selected)}
-          onAdd={(kind) => actions.addDestination(id, kind)}
-          title="Add a function leading to a new node"
+          visible={active}
+          onAdd={(kind) => {
+            const functionIndex = actions.addDestination(id, kind);
+            if (kind === "stay" && functionIndex !== null) {
+              setEditing({ kind: "function", functionIndex });
+            }
+          }}
+          title="Add a function"
           onHoverChange={setHovering}
         />
       )}
@@ -100,7 +141,7 @@ export default function BaseNode({ id, data, selected, type }: NodeProps<ConfigC
   );
 }
 
-const ROW_CLASS = "relative flex items-center gap-1.5 pr-4";
+const ROW_CLASS = "group relative flex items-center gap-1.5 pr-4";
 const SELECTED_ROW_CLASS = "bg-blue-50 dark:bg-blue-950/40";
 const MISSING_CLASS = "text-orange-600 dark:text-orange-400";
 
@@ -108,129 +149,203 @@ function FunctionRows({
   nodeId,
   fn,
   functionIndex,
-  nodeIds,
+  nodeTypes,
+  active,
+  editing,
+  setEditing,
   selectedCase,
 }: {
   nodeId: string;
   fn: FlowConfigFunction;
   functionIndex: number;
-  nodeIds: Set<string>;
+  /** Every node on the canvas and its type, to draw a destination kind and spot a missing one. */
+  nodeTypes: Map<string, string | undefined>;
+  active: boolean;
+  editing: Editing;
+  setEditing: (editing: Editing) => void;
   /** "function" for the function row itself, a case index, -1 for the default, or null. */
   selectedCase: "function" | number | null;
 }) {
   const actions = useCanvasActions();
   const select = (caseIndex: number | null) => actions?.selectRow(nodeId, functionIndex, caseIndex);
-  const name = fn.name || `function ${functionIndex + 1}`;
   const transition = fn.transition_to;
-  const rowStyle = { height: NODE_CARD.rowHeight };
+  const editingName = editing?.kind === "function" && editing.functionIndex === functionIndex;
+
+  const nameText = (
+    <InlineText
+      value={fn.name}
+      placeholder={`function ${functionIndex + 1}`}
+      editing={editingName}
+      onStartEdit={() => setEditing({ kind: "function", functionIndex })}
+      onCommit={(name) => {
+        setEditing(null);
+        actions?.renameFunction(nodeId, functionIndex, name);
+      }}
+      onCancel={() => setEditing(null)}
+      className={`font-mono ${fn.name ? "" : "italic text-neutral-400"}`}
+      ariaLabel="Tool name"
+    />
+  );
+  const removeFunction =
+    active && actions ? () => actions.removeFunction(nodeId, functionIndex) : undefined;
 
   if (isBranch(transition)) {
     const cases = Object.entries(transition.cases);
     return (
-      <>
-        <button
-          type="button"
-          className={`${ROW_CLASS} w-full px-2.5 text-left ${selectedCase === "function" ? SELECTED_ROW_CLASS : ""}`}
-          style={rowStyle}
+      // The branch as a group: a tinted band behind the function and its
+      // cases, and a guide line down from the fork icon past the case rows.
+      <div className="relative bg-purple-500/5 dark:bg-purple-400/5">
+        <span
+          aria-hidden
+          className="absolute w-px bg-purple-300 dark:bg-purple-700"
+          style={{
+            left: 15,
+            top: NODE_CARD.rowHeight,
+            bottom: NODE_CARD.rowHeight / 2,
+          }}
+        />
+        <Row
+          label={nameText}
+          icon={<Split className="h-3 w-3 shrink-0 text-purple-600 dark:text-purple-400" />}
+          selected={selectedCase === "function"}
           onClick={() => select(null)}
-        >
-          <GitBranch className="h-3 w-3 shrink-0 text-purple-600 dark:text-purple-400" />
-          <span className="flex-1 truncate font-mono">{name}</span>
-          <span className="truncate text-neutral-500">
-            → <span className="font-mono">{transition.field || "…"}</span>
-          </span>
-        </button>
+          onRemove={removeFunction}
+          removeTitle="Remove this function and its branch"
+          trailing={
+            <span
+              className="flex min-w-0 items-center gap-1 text-neutral-500"
+              title="The field of the tool result the branch keys on"
+            >
+              <ArrowRight className="h-3 w-3 shrink-0" />
+              <InlineText
+                value={transition.field}
+                placeholder="field"
+                editing={editing?.kind === "field" && editing.functionIndex === functionIndex}
+                onStartEdit={() => setEditing({ kind: "field", functionIndex })}
+                onCommit={(field) => {
+                  setEditing(null);
+                  actions?.setBranchField(nodeId, functionIndex, field.trim());
+                }}
+                onCancel={() => setEditing(null)}
+                className={`font-mono ${transition.field ? "" : "italic text-neutral-400"}`}
+                ariaLabel="Branch field"
+              />
+            </span>
+          }
+        />
         {cases.map(([value, target], caseIndex) => (
           <Row
             key={value}
-            handle={handleId({ kind: "case", functionName: fn.name, caseValue: value })}
-            label={value}
+            handle={handleId({ kind: "case", functionIndex, caseValue: value })}
+            label={
+              <InlineText
+                value={value}
+                editing={
+                  editing?.kind === "case" &&
+                  editing.functionIndex === functionIndex &&
+                  editing.caseValue === value
+                }
+                onStartEdit={() => setEditing({ kind: "case", functionIndex, caseValue: value })}
+                onCommit={(next) => {
+                  setEditing(null);
+                  actions?.renameBranchCase(nodeId, functionIndex, value, next.trim());
+                }}
+                onCancel={() => setEditing(null)}
+                ariaLabel="Case value"
+              />
+            }
             indent
-            missing={!nodeIds.has(target)}
+            missing={!nodeTypes.has(target)}
             selected={selectedCase === caseIndex}
             onClick={() => select(caseIndex)}
+            onRemove={
+              active && actions && cases.length > 1
+                ? () => actions.removeBranchCase(nodeId, functionIndex, caseIndex)
+                : undefined
+            }
+            removeTitle="Remove this case"
           />
         ))}
         {transition.default && (
           <Row
-            handle={handleId({ kind: "default", functionName: fn.name })}
-            label="default"
+            handle={handleId({ kind: "default", functionIndex })}
+            label={<span className="italic">default</span>}
             indent
             muted
-            missing={!nodeIds.has(transition.default)}
+            missing={!nodeTypes.has(transition.default)}
             selected={selectedCase === -1}
             onClick={() => select(-1)}
+            onRemove={
+              active && actions
+                ? () => actions.removeBranchCase(nodeId, functionIndex, -1)
+                : undefined
+            }
+            removeTitle="Remove the default"
           />
         )}
         <Row
-          handle={handleId({ kind: "new-case", functionName: fn.name })}
-          label="add case"
+          handle={handleId({ kind: "new-case", functionIndex })}
+          label={<span>add case</span>}
           indent
           muted
           icon={<Plus className="h-3 w-3" />}
           onClick={() => actions?.addBranchCase(nodeId, functionIndex)}
           title="Add a case leading to a new node, or drag to a node"
         />
-      </>
+      </div>
     );
   }
 
   const target = typeof transition === "string" ? transition : null;
-  const row = (
+  const iconClass = "h-3 w-3 shrink-0 text-neutral-400";
+  const icon =
+    target === null ? (
+      <Wrench className={iconClass} />
+    ) : nodeTypes.get(target) === "end" ? (
+      <LogOut className={iconClass} />
+    ) : (
+      <ArrowRight className={iconClass} />
+    );
+  return (
     <Row
-      handle={handleId({ kind: "function", functionName: fn.name })}
-      label={name}
-      mono
-      missing={target !== null && !nodeIds.has(target)}
+      handle={handleId({ kind: "function", functionIndex })}
+      label={nameText}
+      icon={icon}
+      missing={target !== null && !nodeTypes.has(target)}
       selected={selectedCase === "function"}
       onClick={() => select(null)}
-      trailing={
-        target === null && actions ? (
-          <DestinationMenu
-            onAdd={(kind) => actions.addFunctionDestination(nodeId, functionIndex, kind)}
-            trigger={
-              <button
-                type="button"
-                className="nodrag nopan rounded p-0.5 text-neutral-400 hover:text-blue-600"
-                title="Add a destination"
-                aria-label={`Add a destination for ${name}`}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <Plus className="h-3 w-3" />
-              </button>
-            }
-          />
-        ) : null
-      }
+      onRemove={removeFunction}
+      removeTitle="Remove this function"
       title={target === null ? "Stays on this node; drag to a node to route there" : undefined}
     />
   );
-  return row;
 }
 
 function Row({
   handle,
   label,
   indent,
-  mono,
   muted,
   missing,
   selected,
   icon,
   trailing,
   onClick,
+  onRemove,
+  removeTitle,
   title,
 }: {
-  handle: string;
-  label: string;
+  handle?: string;
+  label: React.ReactNode;
   indent?: boolean;
-  mono?: boolean;
   muted?: boolean;
   missing?: boolean;
   selected?: boolean;
   icon?: React.ReactNode;
   trailing?: React.ReactNode;
   onClick: () => void;
+  onRemove?: () => void;
+  removeTitle?: string;
   title?: string;
 }) {
   return (
@@ -243,23 +358,37 @@ function Row({
     >
       <button
         type="button"
-        className={`flex flex-1 min-w-0 items-center gap-1.5 text-left ${mono ? "font-mono" : ""} ${
-          missing ? MISSING_CLASS : ""
-        }`}
+        className={`flex flex-1 min-w-0 items-center gap-1.5 text-left ${missing ? MISSING_CLASS : ""}`}
         onClick={onClick}
       >
         {icon}
-        <span className="truncate">{label}</span>
+        {label}
         {missing && <AlertTriangle className="h-3 w-3 shrink-0" />}
       </button>
       {trailing}
-      <Handle
-        type="source"
-        id={handle}
-        position={Position.Right}
-        className="bg-neutral-400! h-2.5! w-2.5! hover:bg-blue-500! hover:scale-125 transition-transform"
-        style={{ top: "50%" }}
-      />
+      {onRemove && (
+        <button
+          type="button"
+          className="nodrag nopan rounded p-0.5 text-neutral-400 opacity-0 hover:text-red-600 group-hover:opacity-100"
+          title={removeTitle}
+          aria-label={removeTitle}
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemove();
+          }}
+        >
+          <X className="h-3 w-3" />
+        </button>
+      )}
+      {handle && (
+        <Handle
+          type="source"
+          id={handle}
+          position={Position.Right}
+          className="bg-neutral-400! h-2.5! w-2.5! hover:bg-blue-500! hover:scale-125 transition-transform"
+          style={{ top: "50%" }}
+        />
+      )}
     </div>
   );
 }

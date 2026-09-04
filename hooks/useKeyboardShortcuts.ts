@@ -4,7 +4,7 @@ import { useEditorStore } from "@/lib/store/editorStore";
 import type { FlowEdge, FlowNode } from "@/lib/types/flowTypes";
 import { canDeleteNode, deleteNode } from "@/lib/utils/nodeDeletion";
 import { canDuplicateNode, duplicateNode } from "@/lib/utils/nodeDuplication";
-import { clearFunctionConnection, removeBranchCase } from "@/lib/utils/nodeUpdates";
+import { removeBranchCase, removeEdgeRoute, removeFunction } from "@/lib/utils/nodeUpdates";
 
 interface KeyboardShortcutsProps {
   nodes: FlowNode[];
@@ -17,7 +17,9 @@ interface KeyboardShortcutsProps {
 }
 
 /**
- * Hook to handle keyboard shortcuts
+ * Delete removes what is selected: a selected edge loses its route, a
+ * selected row (function, case, or default) is removed, and otherwise the
+ * selected node is deleted. Cmd/Ctrl+D duplicates the selected node.
  */
 export function useKeyboardShortcuts({
   nodes,
@@ -41,20 +43,21 @@ export function useKeyboardShortcuts({
           target.closest("[data-monaco-editor]") !== null);
 
       // Undo/Redo handled by Toolbar component, not here
-      // Delete/Backspace for edges and nodes
       if ((e.key === "Delete" || e.key === "Backspace") && !isTyping) {
         e.preventDefault();
-        if (selectedNodeId && selectedFunctionIndex !== null) {
-          // Delete the selected branch row, or the whole destination
+        const selectedEdges = edges.filter((edge) => edge.selected);
+        if (selectedEdges.length > 0) {
+          setNodes((nds) => selectedEdges.reduce((acc, edge) => removeEdgeRoute(acc, edge), nds));
+          useEditorStore.getState().clearFunctionSelection();
+        } else if (selectedNodeId && selectedFunctionIndex !== null) {
           const conditionIndex = useEditorStore.getState().selectedConditionIndex;
           setNodes((nds) =>
             conditionIndex !== null
               ? removeBranchCase(nds, selectedNodeId, selectedFunctionIndex, conditionIndex)
-              : clearFunctionConnection(nds, selectedNodeId, selectedFunctionIndex)
+              : removeFunction(nds, selectedNodeId, selectedFunctionIndex)
           );
           useEditorStore.getState().clearFunctionSelection();
         } else if (selectedNodeId) {
-          // Delete node
           const nodeToDelete = nodes.find((n) => n.id === selectedNodeId);
           if (canDeleteNode(nodeToDelete)) {
             setNodes((nds) => deleteNode(nds, selectedNodeId));
@@ -62,7 +65,6 @@ export function useKeyboardShortcuts({
           }
         }
       } else if (modKey && e.key === "d") {
-        // Duplicate node
         e.preventDefault();
         if (selectedNodeId) {
           const selected = nodes.find((n) => n.id === selectedNodeId);
@@ -77,5 +79,5 @@ export function useKeyboardShortcuts({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [nodes, selectedNodeId, selectedFunctionIndex, setNodes, clearSelection, selectNode]);
+  }, [nodes, edges, selectedNodeId, selectedFunctionIndex, setNodes, clearSelection, selectNode]);
 }

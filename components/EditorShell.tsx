@@ -48,20 +48,26 @@ import { useFlowStore } from "@/lib/store/flowStore";
 import type { FlowEdge, FlowNode, ReactFlowInstance } from "@/lib/types/flowTypes";
 import { UndoManager } from "@/lib/undo/undoManager";
 import { handleConnection } from "@/lib/utils/connectionHandlers";
+import { formatFunctionName, validateFunctionName } from "@/lib/utils/nameFormatting";
 import { filterNodeChanges } from "@/lib/utils/nodeChanges";
 import {
   addBranchCaseDestination,
   addDestination,
   type Added,
-  addFunctionDestination,
   setInitialNode,
 } from "@/lib/utils/nodeCreation";
 import { canDeleteNode, deleteNode } from "@/lib/utils/nodeDeletion";
 import { canDuplicateNode, duplicateNode } from "@/lib/utils/nodeDuplication";
+import { generateNodeIdFromLabel } from "@/lib/utils/nodeId";
 import {
+  removeBranchCase,
   removeEdgeRoute,
+  removeFunction,
+  renameBranchCase,
+  renameFunction,
   renameFunctionTargets,
   renameNode,
+  setBranchField,
   updateNodeData,
 } from "@/lib/utils/nodeUpdates";
 import { formatFlowConfigError } from "@/lib/validation/flowConfigValidator";
@@ -455,20 +461,57 @@ export default function EditorShell() {
     [rfInstance]
   );
 
+  // Renames a node and every destination that pointed at it, including
+  // global functions, and keeps the selection on it.
+  const handleRenameNode = useCallback(
+    (oldId: string, newId: string) => {
+      if (newId === oldId) return;
+      setNodes((nds) => renameNode(nds, oldId, newId));
+      const flow = useFlowStore.getState();
+      flow.setGlobalFunctions(renameFunctionTargets(flow.globalFunctions, oldId, newId));
+      const editor = useEditorStore.getState();
+      if (editor.selectedNodeId === oldId) selectNode(newId, editor.selectedFunctionIndex);
+    },
+    [setNodes, selectNode]
+  );
+
   const canvasActions = useMemo<CanvasActions>(
     () => ({
-      addDestination: (sourceNodeId, kind) =>
-        applyAdded(addDestination(nodesRef.current, sourceNodeId, kind)),
-      addFunctionDestination: (sourceNodeId, functionIndex, kind) =>
-        applyAdded(addFunctionDestination(nodesRef.current, sourceNodeId, functionIndex, kind)),
+      addDestination: (sourceNodeId, kind) => {
+        const added = addDestination(nodesRef.current, sourceNodeId, kind);
+        applyAdded(added);
+        return added?.functionIndex ?? null;
+      },
       addBranchCase: (sourceNodeId, functionIndex) =>
         applyAdded(addBranchCaseDestination(nodesRef.current, sourceNodeId, functionIndex)),
+      removeFunction: (nodeId, functionIndex) => {
+        setNodes((nds) => removeFunction(nds, nodeId, functionIndex));
+        useEditorStore.getState().clearFunctionSelection();
+      },
+      removeBranchCase: (nodeId, functionIndex, caseIndex) => {
+        setNodes((nds) => removeBranchCase(nds, nodeId, functionIndex, caseIndex));
+        useEditorStore.getState().clearFunctionSelection();
+      },
+      renameFunction: (nodeId, functionIndex, name) => {
+        const formatted = formatFunctionName(name);
+        if (validateFunctionName(formatted)) return;
+        setNodes((nds) => renameFunction(nds, nodeId, functionIndex, formatted));
+      },
+      renameBranchCase: (nodeId, functionIndex, oldValue, newValue) =>
+        setNodes((nds) => renameBranchCase(nds, nodeId, functionIndex, oldValue, newValue)),
+      setBranchField: (nodeId, functionIndex, field) =>
+        setNodes((nds) => setBranchField(nds, nodeId, functionIndex, field)),
+      renameNode: (nodeId, name) => {
+        if (!name.trim()) return;
+        const others = nodesRef.current.map((n) => n.id).filter((id) => id !== nodeId);
+        handleRenameNode(nodeId, generateNodeIdFromLabel(name, others));
+      },
       selectRow: (sourceNodeId, functionIndex, caseIndex) => {
         selectNode(sourceNodeId, functionIndex, caseIndex);
         focusNode(sourceNodeId);
       },
     }),
-    [applyAdded, selectNode, focusNode]
+    [applyAdded, selectNode, focusNode, setNodes, handleRenameNode]
   );
 
   const handleMakeInitial = useCallback(() => {
@@ -543,6 +586,8 @@ export default function EditorShell() {
             selectionMode={SelectionMode.Partial}
             panOnScroll
             zoomOnScroll={false}
+            deleteKeyCode={null}
+            zoomOnDoubleClick={false}
             onInit={(instance) => setRfInstance(instance as unknown as ReactFlowInstance)}
             onNodeContextMenu={handleNodeContextMenu}
             fitView
@@ -597,9 +642,7 @@ export default function EditorShell() {
                   const edge = edges.find((e) => e.id === id);
                   if (!edge?.data) return;
                   setNodes((nds) => removeEdgeRoute(nds, edge));
-                  const functionIndex = nodeFunctions(
-                    nodes.find((n) => n.id === edge.data?.sourceNodeId)
-                  ).findIndex((fn) => fn.name === edge.data?.functionName);
+                  const functionIndex = edge.data.functionIndex;
                   if (
                     selectedNodeId === edge.data.sourceNodeId &&
                     selectedFunctionIndex === functionIndex
@@ -614,14 +657,7 @@ export default function EditorShell() {
                   }
                 }
               }}
-              onRenameNode={(oldId, newId) => {
-                setNodes((nds) => renameNode(nds, oldId, newId));
-                const flow = useFlowStore.getState();
-                flow.setGlobalFunctions(renameFunctionTargets(flow.globalFunctions, oldId, newId));
-                if (selectedNodeId === oldId) {
-                  selectNode(newId, selectedFunctionIndex);
-                }
-              }}
+              onRenameNode={handleRenameNode}
             />
           </div>
         )}

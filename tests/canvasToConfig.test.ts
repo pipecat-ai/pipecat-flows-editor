@@ -103,8 +103,8 @@ describe("deriveCanvasEdges", () => {
       configNode("b", "node", {}),
     ];
     expect(deriveCanvasEdges(nodes).map((e) => [e.sourceHandle, e.target])).toEqual([
-      ["fn:check:case:ok", "b"],
-      ["fn:go", "b"],
+      ["fn:0:case:ok", "b"],
+      ["fn:1", "b"],
     ]);
   });
 

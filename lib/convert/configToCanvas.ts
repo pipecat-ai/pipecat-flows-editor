@@ -48,7 +48,8 @@ export type CanvasEdgeKind = "transition" | "case" | "default";
  */
 export interface CanvasEdgeData {
   sourceNodeId: string;
-  functionName: string;
+  /** Index of the function on the source node. Names can be empty or repeated mid-edit; indexes cannot. */
+  functionIndex: number;
   kind: CanvasEdgeKind;
   caseValue?: string;
   /** Index of the case among the branch's cases, in config order. */
@@ -84,12 +85,14 @@ const ID_SEPARATOR = ":";
  * Source handles on a node card, one per row that can lead somewhere:
  * a function without a branch, each case of a branch, its default, and the
  * "add a case" row; plus the node's own handle for adding a function.
+ * Functions are addressed by index, since a name can be empty or repeated
+ * while it is being typed.
  */
 export type HandleRef =
-  | { kind: "function"; functionName: string }
-  | { kind: "case"; functionName: string; caseValue: string }
-  | { kind: "default"; functionName: string }
-  | { kind: "new-case"; functionName: string }
+  | { kind: "function"; functionIndex: number }
+  | { kind: "case"; functionIndex: number; caseValue: string }
+  | { kind: "default"; functionIndex: number }
+  | { kind: "new-case"; functionIndex: number }
   | { kind: "new-function" };
 
 export const NEW_FUNCTION_HANDLE = "new-function";
@@ -99,25 +102,28 @@ export function handleId(ref: HandleRef): string {
     case "new-function":
       return NEW_FUNCTION_HANDLE;
     case "function":
-      return ["fn", ref.functionName].join(ID_SEPARATOR);
+      return ["fn", ref.functionIndex].join(ID_SEPARATOR);
     case "case":
-      return ["fn", ref.functionName, "case", ref.caseValue].join(ID_SEPARATOR);
+      return ["fn", ref.functionIndex, "case", ref.caseValue].join(ID_SEPARATOR);
     case "default":
-      return ["fn", ref.functionName, "default"].join(ID_SEPARATOR);
+      return ["fn", ref.functionIndex, "default"].join(ID_SEPARATOR);
     case "new-case":
-      return ["fn", ref.functionName, "new-case"].join(ID_SEPARATOR);
+      return ["fn", ref.functionIndex, "new-case"].join(ID_SEPARATOR);
   }
 }
 
 /** Inverse of `handleId`. A missing or unknown handle is the node's own. */
 export function parseHandleId(id: string | null | undefined): HandleRef {
   if (!id || id === NEW_FUNCTION_HANDLE) return { kind: "new-function" };
-  const [prefix, functionName, kind, ...rest] = id.split(ID_SEPARATOR);
-  if (prefix !== "fn" || !functionName) return { kind: "new-function" };
-  if (kind === undefined) return { kind: "function", functionName };
-  if (kind === "case") return { kind: "case", functionName, caseValue: rest.join(ID_SEPARATOR) };
-  if (kind === "default") return { kind: "default", functionName };
-  if (kind === "new-case") return { kind: "new-case", functionName };
+  const [prefix, index, kind, ...rest] = id.split(ID_SEPARATOR);
+  const functionIndex = Number(index);
+  if (prefix !== "fn" || !Number.isInteger(functionIndex) || functionIndex < 0) {
+    return { kind: "new-function" };
+  }
+  if (kind === undefined) return { kind: "function", functionIndex };
+  if (kind === "case") return { kind: "case", functionIndex, caseValue: rest.join(ID_SEPARATOR) };
+  if (kind === "default") return { kind: "default", functionIndex };
+  if (kind === "new-case") return { kind: "new-case", functionIndex };
   return { kind: "new-function" };
 }
 
@@ -136,16 +142,16 @@ export function deriveConfigNodeType(
   return "node";
 }
 
-export function transitionEdgeId(sourceNodeId: string, functionName: string): string {
-  return ["edge", sourceNodeId, functionName].join(ID_SEPARATOR);
+export function transitionEdgeId(sourceNodeId: string, functionIndex: number): string {
+  return ["edge", sourceNodeId, functionIndex].join(ID_SEPARATOR);
 }
 
-export function branchCaseEdgeId(sourceNodeId: string, functionName: string, caseValue: string) {
-  return ["edge", sourceNodeId, functionName, "case", caseValue].join(ID_SEPARATOR);
+export function branchCaseEdgeId(sourceNodeId: string, functionIndex: number, caseValue: string) {
+  return ["edge", sourceNodeId, functionIndex, "case", caseValue].join(ID_SEPARATOR);
 }
 
-export function branchDefaultEdgeId(sourceNodeId: string, functionName: string): string {
-  return ["edge", sourceNodeId, functionName, "default"].join(ID_SEPARATOR);
+export function branchDefaultEdgeId(sourceNodeId: string, functionIndex: number): string {
+  return ["edge", sourceNodeId, functionIndex, "default"].join(ID_SEPARATOR);
 }
 
 /** Nodes and edges for a config, without positions. */
@@ -167,15 +173,15 @@ export function configToGraph(config: FlowConfig): Canvas {
 export function edgesForNodes(nodes: CanvasNode[]): CanvasEdge[] {
   const edges: CanvasEdge[] = [];
   for (const node of nodes) {
-    for (const fn of node.data.functions ?? []) {
+    (node.data.functions ?? []).forEach((fn, functionIndex) => {
       const transition = fn.transition_to;
-      if (transition === undefined || transition === null) continue;
+      if (transition === undefined || transition === null) return;
       if (isBranch(transition)) {
-        edges.push(...branchEdges(node.id, fn, transition));
+        edges.push(...branchEdges(node.id, functionIndex, transition));
       } else {
-        edges.push(transitionEdge(node.id, fn.name, transition));
+        edges.push(transitionEdge(node.id, functionIndex, transition));
       }
-    }
+    });
   }
   return edges;
 }
@@ -208,39 +214,38 @@ function edge(
   };
 }
 
-function transitionEdge(sourceNodeId: string, functionName: string, target: string): CanvasEdge {
+function transitionEdge(sourceNodeId: string, functionIndex: number, target: string): CanvasEdge {
   return edge(
-    transitionEdgeId(sourceNodeId, functionName),
+    transitionEdgeId(sourceNodeId, functionIndex),
     sourceNodeId,
-    { kind: "function", functionName },
+    { kind: "function", functionIndex },
     target,
-    { sourceNodeId, functionName, kind: "transition" }
+    { sourceNodeId, functionIndex, kind: "transition" }
   );
 }
 
 function branchEdges(
   sourceNodeId: string,
-  fn: FlowConfigFunction,
+  functionIndex: number,
   branch: FlowConfigBranch
 ): CanvasEdge[] {
-  const functionName = fn.name;
   const edges = Object.entries(branch.cases).map(([caseValue, target], caseIndex) =>
     edge(
-      branchCaseEdgeId(sourceNodeId, functionName, caseValue),
+      branchCaseEdgeId(sourceNodeId, functionIndex, caseValue),
       sourceNodeId,
-      { kind: "case", functionName, caseValue },
+      { kind: "case", functionIndex, caseValue },
       target,
-      { sourceNodeId, functionName, kind: "case", caseValue, caseIndex }
+      { sourceNodeId, functionIndex, kind: "case", caseValue, caseIndex }
     )
   );
   if (branch.default) {
     edges.push(
       edge(
-        branchDefaultEdgeId(sourceNodeId, functionName),
+        branchDefaultEdgeId(sourceNodeId, functionIndex),
         sourceNodeId,
-        { kind: "default", functionName },
+        { kind: "default", functionIndex },
         branch.default,
-        { sourceNodeId, functionName, kind: "default" }
+        { sourceNodeId, functionIndex, kind: "default" }
       )
     );
   }

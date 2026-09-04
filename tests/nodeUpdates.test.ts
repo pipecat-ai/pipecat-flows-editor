@@ -10,10 +10,15 @@ import { handleConnection } from "@/lib/utils/connectionHandlers";
 import { duplicateNode } from "@/lib/utils/nodeDuplication";
 import { deriveNodeType } from "@/lib/utils/nodeType";
 import {
+  addFunction,
   clearFunctionConnection,
   removeEdgeRoute,
+  removeFunction,
+  renameBranchCase,
+  renameFunction,
   renameFunctionTargets,
   renameNode,
+  setBranchField,
   updateNodeData,
 } from "@/lib/utils/nodeUpdates";
 
@@ -81,6 +86,36 @@ describe("renameNode", () => {
   });
 });
 
+describe("function rows", () => {
+  it("adds, renames, and removes functions", () => {
+    const added = addFunction(canvas().nodes, "a", "stay");
+    expect(functionsOf(added, "a")[2]).toEqual({ name: "stay" });
+    const renamed = renameFunction(added, "a", 2, "wait");
+    expect(functionsOf(renamed, "a")[2]).toEqual({ name: "wait" });
+    const removed = removeFunction(renamed, "a", 0);
+    expect(functionsOf(removed, "a").map((fn) => fn.name)).toEqual(["check", "wait"]);
+  });
+
+  it("renames a case in place and refuses a taken or empty value", () => {
+    const nodes = canvas().nodes;
+    const renamed = renameBranchCase(nodes, "a", 1, "bad", "unavailable");
+    expect(
+      Object.keys((functionsOf(renamed, "a")[1].transition_to as { cases: object }).cases)
+    ).toEqual(["ok", "unavailable"]);
+    expect(renameBranchCase(nodes, "a", 1, "bad", "ok")).toEqual(nodes);
+    expect(renameBranchCase(nodes, "a", 1, "bad", "")).toEqual(nodes);
+    expect(renameBranchCase(nodes, "a", 0, "x", "y")).toEqual(nodes);
+  });
+});
+
+describe("setBranchField", () => {
+  it("sets the field on a branch and leaves other functions alone", () => {
+    const nodes = setBranchField(canvas().nodes, "a", 1, "outcome");
+    expect(functionsOf(nodes, "a")[1].transition_to).toMatchObject({ field: "outcome" });
+    expect(setBranchField(canvas().nodes, "a", 0, "x")).toEqual(canvas().nodes);
+  });
+});
+
 describe("clearFunctionConnection and removeEdgeRoute", () => {
   it("drops a function's destination", () => {
     const nodes = clearFunctionConnection(canvas().nodes, "a", 0);
@@ -129,23 +164,23 @@ describe("handleConnection", () => {
   });
 
   it("sets a function's destination from its row", () => {
-    const { result, nodes } = connect(canvas().nodes, "fn:go", "a");
+    const { result, nodes } = connect(canvas().nodes, "fn:0", "a");
     expect(functionsOf(nodes, "a")[0]).toEqual({ name: "go", transition_to: "a" });
     expect(result).toEqual({ sourceNodeId: "a", functionIndex: 0, caseIndex: null });
   });
 
   it("sets a case's target, the default, or adds a case from the branch's rows", () => {
-    const retarget = connect(canvas().nodes, "fn:check:case:bad", "b");
+    const retarget = connect(canvas().nodes, "fn:1:case:bad", "b");
     expect(functionsOf(retarget.nodes, "a")[1].transition_to).toMatchObject({
       cases: { ok: "b", bad: "b" },
     });
     expect(retarget.result).toEqual({ sourceNodeId: "a", functionIndex: 1, caseIndex: 1 });
 
-    const setDefault = connect(canvas().nodes, "fn:check:default", "a");
+    const setDefault = connect(canvas().nodes, "fn:1:default", "a");
     expect(functionsOf(setDefault.nodes, "a")[1].transition_to).toMatchObject({ default: "a" });
     expect(setDefault.result?.caseIndex).toBe(-1);
 
-    const addNew = connect(canvas().nodes, "fn:check:new-case", "a");
+    const addNew = connect(canvas().nodes, "fn:1:new-case", "a");
     expect(functionsOf(addNew.nodes, "a")[1].transition_to).toMatchObject({
       cases: { ok: "b", bad: "a", value_3: "a" },
     });
@@ -153,10 +188,19 @@ describe("handleConnection", () => {
   });
 
   it("ignores handles that name nothing", () => {
-    const { result, nodes } = connect(canvas().nodes, "fn:missing", "b");
+    const { result, nodes } = connect(canvas().nodes, "fn:7", "b");
     expect(result).toBeNull();
     expect(nodes).toEqual(canvas().nodes);
-    expect(connect(canvas().nodes, "fn:go:case:x", "b").result).toBeNull();
+    expect(connect(canvas().nodes, "fn:0:case:x", "b").result).toBeNull();
+  });
+
+  it("routes an unnamed function from its own row rather than adding one", () => {
+    const nodes = canvas().nodes.map((n) =>
+      n.id === "a" ? { ...n, data: { ...n.data, functions: [{ name: "" }] } } : n
+    );
+    const { result, nodes: after } = connect(nodes, "fn:0", "b");
+    expect(functionsOf(after, "a")).toEqual([{ name: "", transition_to: "b" }]);
+    expect(result).toEqual({ sourceNodeId: "a", functionIndex: 0, caseIndex: null });
   });
 });
 

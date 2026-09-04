@@ -28,11 +28,13 @@ export default function SelfLoopEdge({
 
   // Which of this node's self-loops this is, in row order
   const loopHandles = nodeFunctions(sourceNode)
-    .filter((fn) => functionTargets(fn).includes(source))
-    .map((fn) => `fn:${fn.name}`);
+    .map((fn, i) => (functionTargets(fn).includes(source) ? `fn:${i}` : null))
+    .filter((h): h is string => h !== null);
   const loopIndex = Math.max(
     0,
-    loopHandles.findIndex((prefix) => sourceHandleId?.startsWith(prefix))
+    loopHandles.findIndex(
+      (prefix) => sourceHandleId === prefix || sourceHandleId?.startsWith(`${prefix}:`)
+    )
   );
 
   const step = 14;

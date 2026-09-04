@@ -44,7 +44,7 @@ npm run lint  # ESLint + TypeScript rules
 ## Working With Flows
 
 - A flow is a `FlowConfig` YAML file. Its shape is defined by Pipecat's JSON Schema, vendored at `lib/schema/flow_config.schema.json`; the field descriptions there are Pipecat's own. See [docs/INTEGRATION.md](./docs/INTEGRATION.md) for the format and how a Pipecat application loads it.
-- Nodes are added from other nodes. Hover a node and press its "+" to add a function leading to a new node: a next node, an end node, or a branch on the tool's result. Every node is reachable by construction. A function row without a destination has its own "+", and a branch has an "add case" row.
+- The canvas owns structure and the inspector owns content. Hover a node and press its "+" to add a function: leading to a next node, an end node, or a branch on the tool's result, or staying on the node. Every node is reachable by construction. A branch has an "add case" row. Double-click a node name, a tool name, or a case value to rename it in place; hover a row for its "×". Delete removes what is selected: an edge's route, a row, or a node.
 - The initial node is whichever node `initial_node` names; use "Make initial node" in a node's context menu to move it. An end node is one with an `end_conversation` post-action. Every node has the same shape.
 - A node's name is its key in the config. Renaming a node rewrites every destination that pointed at it.
 - Routing lives on functions as `transition_to`: a node name, or a branch table with `field`, `cases`, and an optional `default`. Dragging from a row's port sets that row's destination; dragging from the node's bottom handle adds a function, and from a branch's "add case" row adds a case.

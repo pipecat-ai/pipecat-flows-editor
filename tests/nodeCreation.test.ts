@@ -44,14 +44,14 @@ describe("addDestination", () => {
         : n
     );
     const first = addDestination(nodes, "start", "node")!;
-    expect(configNode(first.nodes, first.newNodeId).position).toEqual({ x: 270, y: 170 });
+    expect(configNode(first.nodes, first.newNodeId!).position).toEqual({ x: 270, y: 170 });
     const second = addDestination(first.nodes, "start", "end")!;
-    expect(configNode(second.nodes, second.newNodeId).position).toEqual({ x: 270, y: 290 });
+    expect(configNode(second.nodes, second.newNodeId!).position).toEqual({ x: 270, y: 290 });
   });
 
   it("adds an end node with an end_conversation post-action", () => {
     const added = addDestination(canvas().nodes, "start", "end")!;
-    const node = configNode(added.nodes, added.newNodeId);
+    const node = configNode(added.nodes, added.newNodeId!);
     expect(added.newNodeId).toBe("end");
     expect(node.type).toBe("end");
     expect(node.data.post_actions).toEqual([{ type: "end_conversation" }]);
@@ -65,8 +65,8 @@ describe("addDestination", () => {
       transition_to: { field: "", cases: { value_1: added.newNodeId } },
     });
     expect(deriveCanvasEdges(added.nodes).map((e) => [e.sourceHandle, e.target])).toEqual([
-      ["fn:go", "next"],
-      ["fn:function_2:case:value_1", added.newNodeId],
+      ["fn:0", "next"],
+      ["fn:1:case:value_1", added.newNodeId],
     ]);
   });
 
@@ -79,6 +79,18 @@ describe("addDestination", () => {
       "function_2",
       "function_3",
     ]);
+  });
+
+  it("adds a function that stays on the node", () => {
+    const added = addDestination(canvas().nodes, "start", "stay")!;
+    expect(added).toEqual({
+      nodes: expect.any(Array),
+      newNodeId: null,
+      sourceNodeId: "start",
+      functionIndex: 1,
+    });
+    expect(added.nodes).toHaveLength(2);
+    expect(configNode(added.nodes, "start").data.functions![1]).toEqual({ name: "" });
   });
 
   it("returns null for an unknown source", () => {
@@ -95,7 +107,7 @@ describe("addFunctionDestination", () => {
     expect(configNode(asNode.nodes, "start").data.functions).toEqual([
       { name: "stay", transition_to: asNode.newNodeId },
     ]);
-    expect(configNode(asNode.nodes, asNode.newNodeId).type).toBe("end");
+    expect(configNode(asNode.nodes, asNode.newNodeId!).type).toBe("end");
     expect(asNode).toMatchObject({ functionIndex: 0, caseIndex: undefined });
 
     const asBranch = addFunctionDestination(nodes, "start", 0, "branch")!;

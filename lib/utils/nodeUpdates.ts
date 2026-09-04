@@ -6,7 +6,7 @@ import {
 } from "@/lib/convert/configToCanvas";
 import { type FlowConfigFunction, isBranch } from "@/lib/schema/flowConfig";
 
-import { removeCase } from "./branchEdits";
+import { removeCase, renameCase } from "./branchEdits";
 import { deriveNodeType } from "./nodeType";
 
 /** Merges `updates` into a node's data and re-derives its display type. */
@@ -56,8 +56,8 @@ export function removeEdgeRoute(nodes: CanvasNode[], edge: CanvasEdge): CanvasNo
   const data = edge.data;
   if (!data) return nodes;
   return updateFunctions(nodes, data.sourceNodeId, (functions) =>
-    functions.map((fn) => {
-      if (fn.name !== data.functionName) return fn;
+    functions.map((fn, i) => {
+      if (i !== data.functionIndex) return fn;
       if (data.kind === "transition") {
         const { transition_to: _transition, ...rest } = fn;
         return rest;
@@ -98,6 +98,61 @@ export function removeBranchCase(
         transition_to: { ...fn.transition_to, cases: removeCase(fn.transition_to.cases, value) },
       };
     })
+  );
+}
+
+/** Adds a function with no destination; it stays on the node until routed. */
+export function addFunction(nodes: CanvasNode[], nodeId: string, name: string): CanvasNode[] {
+  return updateFunctions(nodes, nodeId, (functions) => [...functions, { name }]);
+}
+
+export function removeFunction(nodes: CanvasNode[], nodeId: string, functionIndex: number) {
+  return updateFunctions(nodes, nodeId, (functions) =>
+    functions.filter((_, i) => i !== functionIndex)
+  );
+}
+
+export function renameFunction(
+  nodes: CanvasNode[],
+  nodeId: string,
+  functionIndex: number,
+  name: string
+): CanvasNode[] {
+  return updateFunctions(nodes, nodeId, (functions) =>
+    functions.map((fn, i) => (i === functionIndex ? { ...fn, name } : fn))
+  );
+}
+
+/** Renames a case value in place. Leaves the nodes alone when the new value is empty or taken. */
+export function renameBranchCase(
+  nodes: CanvasNode[],
+  nodeId: string,
+  functionIndex: number,
+  oldValue: string,
+  newValue: string
+): CanvasNode[] {
+  return updateFunctions(nodes, nodeId, (functions) =>
+    functions.map((fn, i) => {
+      if (i !== functionIndex || !isBranch(fn.transition_to)) return fn;
+      const cases = renameCase(fn.transition_to.cases, oldValue, newValue);
+      return cases ? { ...fn, transition_to: { ...fn.transition_to, cases } } : fn;
+    })
+  );
+}
+
+/** Sets the field a function branch keys on. Leaves a function without a branch alone. */
+export function setBranchField(
+  nodes: CanvasNode[],
+  nodeId: string,
+  functionIndex: number,
+  field: string
+): CanvasNode[] {
+  return updateFunctions(nodes, nodeId, (functions) =>
+    functions.map((fn, i) =>
+      i === functionIndex && isBranch(fn.transition_to)
+        ? { ...fn, transition_to: { ...fn.transition_to, field } }
+        : fn
+    )
   );
 }
 
