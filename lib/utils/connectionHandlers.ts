@@ -7,6 +7,7 @@ import {
   parseBranchNodeId,
 } from "@/lib/convert/configToCanvas";
 import { type FlowConfigFunction, isBranch } from "@/lib/schema/flowConfig";
+import { addCase } from "@/lib/utils/branchEdits";
 import { generateNodeIdFromLabel } from "@/lib/utils/nodeId";
 
 type SetNodes = (updater: (nodes: CanvasNode[]) => CanvasNode[]) => void;
@@ -37,10 +38,9 @@ export function handleBranchConnection(
   const fn = functions[functionIndex];
   if (!isBranch(fn.transition_to)) return false;
   const cases = fn.transition_to.cases;
-  const caseValue = nextCaseValue(cases);
   const updated: FlowConfigFunction = {
     ...fn,
-    transition_to: { ...fn.transition_to, cases: { ...cases, [caseValue]: params.target } },
+    transition_to: { ...fn.transition_to, cases: addCase(cases, params.target) },
   };
 
   setNodes((nds) =>
@@ -59,12 +59,6 @@ export function handleBranchConnection(
 
   selectNode(sourceNode.id, functionIndex, Object.keys(cases).length);
   return true;
-}
-
-function nextCaseValue(cases: Record<string, string>): string {
-  let n = Object.keys(cases).length + 1;
-  while (`value_${n}` in cases) n += 1;
-  return `value_${n}`;
 }
 
 /** A connection drawn out of a node adds a function with that destination. */

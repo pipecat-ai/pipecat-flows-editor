@@ -13,9 +13,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { type FlowConfigFunction, functionTargets, isBranch } from "@/lib/schema/flowConfig";
+import {
+  type FlowConfigBranch,
+  type FlowConfigFunction,
+  functionTargets,
+  isBranch,
+} from "@/lib/schema/flowConfig";
 import { useEditorStore } from "@/lib/store/editorStore";
 import { formatFunctionName, validateFunctionName } from "@/lib/utils/nameFormatting";
+
+import BranchEditor from "./BranchEditor";
 
 interface FunctionItemProps {
   func: FlowConfigFunction;
@@ -39,6 +46,7 @@ export const FunctionItem = React.forwardRef<HTMLDivElement, FunctionItemProps>(
       onChange,
       onRemove,
       availableNodeIds,
+      currentNodeId,
       functionIndex,
       isSelected,
       selectedConditionIndex,
@@ -85,6 +93,20 @@ export const FunctionItem = React.forwardRef<HTMLDivElement, FunctionItemProps>(
     const transition = func.transition_to;
     const branch = isBranch(transition) ? transition : null;
     const destination = typeof transition === "string" ? transition : undefined;
+
+    // Switching modes keeps the destination: a branch starts with one case
+    // leading where the node destination did, and back again the default or
+    // first case becomes the node destination.
+    const switchToBranch = () => {
+      const target = destination ?? currentNodeId ?? availableNodeIds[0] ?? "";
+      const next: FlowConfigBranch = { field: "", cases: { value_1: target } };
+      onChange({ transition_to: next });
+    };
+    const switchToNode = () => {
+      if (!branch) return;
+      const target = branch.default ?? Object.values(branch.cases)[0];
+      onChange({ transition_to: target });
+    };
 
     return (
       <div
@@ -168,7 +190,7 @@ export const FunctionItem = React.forwardRef<HTMLDivElement, FunctionItemProps>(
                   htmlFor={destinationId}
                   className="text-xs font-medium opacity-80 flex items-center gap-1"
                 >
-                  {branch ? `Branch on ${branch.field}` : "Transition to"}
+                  Transition to
                   {hasInvalidTarget && (
                     <span
                       className="text-orange-600 dark:text-orange-400 text-xs"
@@ -194,28 +216,39 @@ export const FunctionItem = React.forwardRef<HTMLDivElement, FunctionItemProps>(
                   Invalid: no node named {missingTargets.map((t) => `"${t}"`).join(", ")}
                 </div>
               )}
+              <div
+                className="mb-2 inline-flex rounded-md border text-xs overflow-hidden"
+                role="radiogroup"
+                aria-label="Destination kind"
+              >
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={!branch}
+                  className={`px-2 py-1 ${!branch ? "bg-neutral-200 dark:bg-neutral-700" : "opacity-70"}`}
+                  onClick={() => branch && switchToNode()}
+                >
+                  A node
+                </button>
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={Boolean(branch)}
+                  className={`px-2 py-1 border-l ${branch ? "bg-neutral-200 dark:bg-neutral-700" : "opacity-70"}`}
+                  onClick={() => !branch && switchToBranch()}
+                >
+                  Branch on the result
+                </button>
+              </div>
               {branch ? (
-                <table className="w-full text-xs">
-                  <tbody>
-                    {Object.entries(branch.cases).map(([value, target], caseIndex) => (
-                      <tr
-                        key={value}
-                        className={selectedConditionIndex === caseIndex ? "font-semibold" : ""}
-                      >
-                        <td className="py-0.5 pr-2 font-mono">{value}</td>
-                        <td className="py-0.5 opacity-60">→</td>
-                        <td className="py-0.5 pl-2 font-mono">{target}</td>
-                      </tr>
-                    ))}
-                    {branch.default && (
-                      <tr className={selectedConditionIndex === -1 ? "font-semibold" : ""}>
-                        <td className="py-0.5 pr-2 italic opacity-70">default</td>
-                        <td className="py-0.5 opacity-60">→</td>
-                        <td className="py-0.5 pl-2 font-mono">{branch.default}</td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+                <BranchEditor
+                  branch={branch}
+                  onChange={(next) => onChange({ transition_to: next })}
+                  availableNodeIds={availableNodeIds}
+                  currentNodeId={currentNodeId}
+                  selectedConditionIndex={selectedConditionIndex}
+                  onFocus={handleFocus}
+                />
               ) : availableNodeIds.length > 0 ? (
                 <Select
                   value={destination}

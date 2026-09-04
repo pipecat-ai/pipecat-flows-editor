@@ -84,6 +84,7 @@ export default function EditorShell() {
   );
   const clearSelection = useEditorStore((state) => state.clearSelection);
   const showNodesPanel = useEditorStore((state) => state.showNodesPanel);
+  const showFlowPanel = useEditorStore((state) => state.showFlowPanel);
   const inspectorPanelWidth = useEditorStore((state) => state.inspectorPanelWidth);
   const isInspectorResizing = useEditorStore((state) => state.isInspectorResizing);
   const loadFlow = useFlowStore((state) => state.loadFlow);
@@ -292,6 +293,7 @@ export default function EditorShell() {
   }, [contextMenuNodeId, nodes, setNodes, selectedNodeId, clearSelection]);
 
   const { theme } = useTheme();
+  const showInspector = Boolean(selectedNodeId) || showFlowPanel;
 
   return (
     <div className="h-screen w-screen flex overflow-hidden">
@@ -436,13 +438,13 @@ export default function EditorShell() {
       <div
         className={`flex flex-col overflow-hidden h-screen ${
           isInspectorResizing ? "" : "transition-all duration-300 ease-in-out"
-        } ${selectedNodeId ? "" : "w-0"}`}
+        } ${showInspector ? "" : "w-0"}`}
         style={{
-          width: selectedNodeId ? `${inspectorPanelWidth}px` : "0px",
-          maxWidth: selectedNodeId ? "min(100vw, 800px)" : "0px",
+          width: showInspector ? `${inspectorPanelWidth}px` : "0px",
+          maxWidth: showInspector ? "min(100vw, 800px)" : "0px",
         }}
       >
-        {selectedNodeId && (
+        {showInspector && (
           <div
             className="shrink-0 h-full"
             style={{ width: `${inspectorPanelWidth}px`, maxWidth: "min(100vw, 800px)" }}

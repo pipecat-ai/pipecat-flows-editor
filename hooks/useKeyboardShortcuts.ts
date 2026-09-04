@@ -4,7 +4,7 @@ import { useEditorStore } from "@/lib/store/editorStore";
 import type { FlowEdge, FlowNode } from "@/lib/types/flowTypes";
 import { canDeleteNode, deleteNode } from "@/lib/utils/nodeDeletion";
 import { canDuplicateNode, duplicateNode } from "@/lib/utils/nodeDuplication";
-import { clearFunctionConnection } from "@/lib/utils/nodeUpdates";
+import { clearFunctionConnection, removeBranchCase } from "@/lib/utils/nodeUpdates";
 
 interface KeyboardShortcutsProps {
   nodes: FlowNode[];
@@ -45,8 +45,13 @@ export function useKeyboardShortcuts({
       if ((e.key === "Delete" || e.key === "Backspace") && !isTyping) {
         e.preventDefault();
         if (selectedNodeId && selectedFunctionIndex !== null) {
-          // Delete the edge by clearing the function's destination
-          setNodes((nds) => clearFunctionConnection(nds, selectedNodeId, selectedFunctionIndex));
+          // Delete the selected branch row, or the whole destination
+          const conditionIndex = useEditorStore.getState().selectedConditionIndex;
+          setNodes((nds) =>
+            conditionIndex !== null
+              ? removeBranchCase(nds, selectedNodeId, selectedFunctionIndex, conditionIndex)
+              : clearFunctionConnection(nds, selectedNodeId, selectedFunctionIndex)
+          );
           useEditorStore.getState().clearFunctionSelection();
         } else if (selectedNodeId) {
           // Delete node

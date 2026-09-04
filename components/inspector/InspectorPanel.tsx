@@ -16,6 +16,7 @@ import { type CanvasNode, type ConfigNodeData, isConfigNode } from "@/lib/conver
 import { useEditorStore } from "@/lib/store/editorStore";
 import { generateNodeIdFromLabel } from "@/lib/utils/nodeId";
 
+import FlowPanel from "./FlowPanel";
 import ActionsForm from "./forms/ActionsForm";
 import ContextStrategyForm from "./forms/ContextStrategyForm";
 import FunctionsForm from "./forms/FunctionsForm";
@@ -43,6 +44,8 @@ export default function InspectorPanel({
   const setIsInspectorResizing = useEditorStore((state) => state.setIsInspectorResizing);
   const selectNode = useEditorStore((state) => state.selectNode);
   const rfInstance = useEditorStore((state) => state.rfInstance);
+  const showFlowPanel = useEditorStore((state) => state.showFlowPanel);
+  const setShowFlowPanel = useEditorStore((state) => state.setShowFlowPanel);
 
   const found = selectedNodeId ? nodes.find((n) => n.id === selectedNodeId) : undefined;
   const selected = found && isConfigNode(found) ? found : null;
@@ -126,9 +129,13 @@ export default function InspectorPanel({
           role="separator"
           aria-orientation="vertical"
         />
-        <div className="p-3 text-sm">
-          <div className="opacity-60">Select a node or edge</div>
-        </div>
+        {showFlowPanel ? (
+          <FlowPanel nodes={nodes} onClose={() => setShowFlowPanel(false)} />
+        ) : (
+          <div className="p-3 text-sm">
+            <div className="opacity-60">Select a node or edge</div>
+          </div>
+        )}
       </aside>
     );
   }
