@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, ChevronUp, Trash2, X } from "lucide-react";
+import { ChevronDown, ChevronUp, PanelRightClose, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { stringify } from "yaml";
 
@@ -44,8 +44,7 @@ export default function InspectorPanel({
   const setIsInspectorResizing = useEditorStore((state) => state.setIsInspectorResizing);
   const selectNode = useEditorStore((state) => state.selectNode);
   const rfInstance = useEditorStore((state) => state.rfInstance);
-  const showFlowPanel = useEditorStore((state) => state.showFlowPanel);
-  const setShowFlowPanel = useEditorStore((state) => state.setShowFlowPanel);
+  const setSidebarCollapsed = useEditorStore((state) => state.setSidebarCollapsed);
 
   const found = selectedNodeId ? nodes.find((n) => n.id === selectedNodeId) : undefined;
   const selected = found && isConfigNode(found) ? found : null;
@@ -129,13 +128,7 @@ export default function InspectorPanel({
           role="separator"
           aria-orientation="vertical"
         />
-        {showFlowPanel ? (
-          <FlowPanel nodes={nodes} onClose={() => setShowFlowPanel(false)} />
-        ) : (
-          <div className="p-3 text-sm">
-            <div className="opacity-60">Select a node or edge</div>
-          </div>
-        )}
+        <FlowPanel nodes={nodes} onCollapse={() => setSidebarCollapsed(true)} />
       </aside>
     );
   }
@@ -179,12 +172,28 @@ export default function InspectorPanel({
                       }))
                     );
                   }}
-                  aria-label="Close inspector"
+                  aria-label="Back to the flow"
                 >
                   <X className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="left">Close inspector</TooltipContent>
+              <TooltipContent side="left">Back to the flow</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0"
+                  onClick={() => setSidebarCollapsed(true)}
+                  aria-label="Hide the sidebar"
+                >
+                  <PanelRightClose className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="left">Hide the sidebar</TooltipContent>
             </Tooltip>
           </TooltipProvider>
           <TooltipProvider>

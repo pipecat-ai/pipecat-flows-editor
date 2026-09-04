@@ -8,9 +8,9 @@ import {
   FolderOpen,
   LayoutGrid,
   MoreHorizontal,
+  PanelRightOpen,
   Redo2,
   Undo2,
-  Workflow,
 } from "lucide-react";
 import Link from "next/link";
 import { useRef } from "react";
@@ -60,22 +60,9 @@ export default function Toolbar({
   onNewFlow,
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const showFlowPanel = useEditorStore((state) => state.showFlowPanel);
-  const setShowFlowPanel = useEditorStore((state) => state.setShowFlowPanel);
-  const selectedNodeId = useEditorStore((state) => state.selectedNodeId);
+  const sidebarCollapsed = useEditorStore((state) => state.sidebarCollapsed);
+  const setSidebarCollapsed = useEditorStore((state) => state.setSidebarCollapsed);
   const flowName = useFlowStore((state) => state.flowName);
-
-  const flowPanelOpen = showFlowPanel && !selectedNodeId;
-  function toggleFlowPanel() {
-    if (flowPanelOpen) {
-      setShowFlowPanel(false);
-      return;
-    }
-    const editor = useEditorStore.getState();
-    editor.clearSelection();
-    editor.rfInstance?.setNodes((nds) => nds.map((node) => ({ ...node, selected: false })));
-    setShowFlowPanel(true);
-  }
 
   function onSave() {
     const { document, globalFunctions } = useFlowStore.getState();
@@ -238,20 +225,6 @@ export default function Toolbar({
           </TooltipTrigger>
           <TooltipContent>Lay the nodes out automatically</TooltipContent>
         </Tooltip>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant={flowPanelOpen ? "default" : "secondary"}
-              size="sm"
-              onClick={toggleFlowPanel}
-              className="hidden md:flex"
-            >
-              <Workflow className="h-4 w-4 md:mr-1.5" />
-              <span className="sr-only lg:not-sr-only">Flow</span>
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Global functions, referenced tools, and variables</TooltipContent>
-        </Tooltip>
         {/* More menu - shown on mobile only, contains Open, Save, and Examples */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -269,9 +242,9 @@ export default function Toolbar({
               <Download className="mr-2 h-4 w-4" />
               Save
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={toggleFlowPanel}>
-              <Workflow className="mr-2 h-4 w-4" />
-              Flow
+            <DropdownMenuItem onClick={() => setSidebarCollapsed(!sidebarCollapsed)}>
+              <PanelRightOpen className="mr-2 h-4 w-4" />
+              {sidebarCollapsed ? "Show sidebar" : "Hide sidebar"}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={onAutoLayout}>
               <LayoutGrid className="mr-2 h-4 w-4" />

@@ -28,8 +28,9 @@ interface EditorState {
   inspectorPanelWidth: number;
   isInspectorResizing: boolean;
 
-  // Flow panel: the inspector's flow-level view, shown when no node is selected
-  showFlowPanel: boolean;
+  // The sidebar shows the selected node, or the flow when none is selected.
+  // It is always open unless collapsed, and the choice is remembered.
+  sidebarCollapsed: boolean;
 
   // React Flow instance
   rfInstance: ReactFlowInstance | null;
@@ -47,7 +48,7 @@ interface EditorState {
   setIsYamlPanelResizing: (isResizing: boolean) => void;
   setInspectorPanelWidth: (width: number) => void;
   setIsInspectorResizing: (isResizing: boolean) => void;
-  setShowFlowPanel: (show: boolean) => void;
+  setSidebarCollapsed: (collapsed: boolean) => void;
   setRfInstance: (instance: ReactFlowInstance | null) => void;
 
   // Selection actions (with validation and logic)
@@ -84,6 +85,18 @@ interface EditorState {
   _setIsDeletingFunction: (value: boolean) => void;
 }
 
+const SIDEBAR_COLLAPSED_KEY = "pipecat-flows-editor/sidebar-collapsed";
+
+function readSidebarCollapsed(): boolean {
+  try {
+    return (
+      typeof localStorage !== "undefined" && localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "1"
+    );
+  } catch {
+    return false;
+  }
+}
+
 export const useEditorStore = create<EditorState>((set, get) => {
   return {
     // Initial state
@@ -96,7 +109,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
     isYamlPanelResizing: false,
     inspectorPanelWidth: 384,
     isInspectorResizing: false,
-    showFlowPanel: false,
+    sidebarCollapsed: readSidebarCollapsed(),
     rfInstance: null,
     _isDeletingFunction: false,
 
@@ -131,7 +144,12 @@ export const useEditorStore = create<EditorState>((set, get) => {
     setIsYamlPanelResizing: (isResizing) => set({ isYamlPanelResizing: isResizing }),
     setInspectorPanelWidth: (width) => set({ inspectorPanelWidth: width }),
     setIsInspectorResizing: (isResizing) => set({ isInspectorResizing: isResizing }),
-    setShowFlowPanel: (show) => set({ showFlowPanel: show }),
+    setSidebarCollapsed: (collapsed) => {
+      try {
+        localStorage.setItem(SIDEBAR_COLLAPSED_KEY, collapsed ? "1" : "0");
+      } catch {}
+      set({ sidebarCollapsed: collapsed });
+    },
     setRfInstance: (instance) => set({ rfInstance: instance }),
 
     // Selection actions with validation
