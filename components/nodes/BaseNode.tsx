@@ -1,8 +1,8 @@
 "use client";
 
-import { Handle, type NodeProps, Position, useNodes } from "@xyflow/react";
+import { Handle, type NodeProps, Position, useNodes, useUpdateNodeInternals } from "@xyflow/react";
 import { AlertTriangle, ArrowRight, LogOut, Play, Plus, Split, Wrench, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { useHoverWithGrace } from "@/hooks/useHoverWithGrace";
 import { type ConfigCanvasNode, handleId, NEW_FUNCTION_HANDLE } from "@/lib/convert/configToCanvas";
@@ -19,7 +19,7 @@ import NodeAddToolbar from "./NodeAddToolbar";
  * full text is in the tooltip and when editing. These are independent of the
  * card's width, which is NODE_CARD.width in lib/layout/autoLayout.ts.
  */
-const NAME_LIMITS = { node: 30, tool: 25, caseValue: 20, field: 25 };
+const NAME_LIMITS = { node: 35, tool: 25, caseValue: 25, field: 10 };
 
 /** Which text on the card is being edited in place. */
 type Editing =
@@ -47,6 +47,21 @@ export default function BaseNode({ id, data, selected, type }: NodeProps<ConfigC
 
   const nodeTypes = new Map(allNodes.map((n) => [n.id, n.type]));
   const functions = data.functions ?? [];
+
+  // React Flow measures handles when the card mounts or resizes. Renaming a
+  // case, or removing a row above another, changes handle ids without a
+  // resize, so ask for a re-measure whenever the set of handle ids changes.
+  const updateNodeInternals = useUpdateNodeInternals();
+  const handleKey = functions
+    .map((fn, i) =>
+      isBranch(fn.transition_to)
+        ? `${i}:${Object.keys(fn.transition_to.cases).join(",")}:${fn.transition_to.default ?? ""}`
+        : `${i}`
+    )
+    .join("|");
+  useEffect(() => {
+    updateNodeInternals(id);
+  }, [id, handleKey, updateNodeInternals]);
   const isEndNode = type === "end";
   const isInitialNode = type === "initial";
   const isSelectedNode = selectedNodeId === id;

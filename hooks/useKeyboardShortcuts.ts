@@ -2,7 +2,6 @@ import { useEffect } from "react";
 
 import { useEditorStore } from "@/lib/store/editorStore";
 import type { FlowEdge, FlowNode } from "@/lib/types/flowTypes";
-import { canDeleteNode, deleteNode } from "@/lib/utils/nodeDeletion";
 import { canDuplicateNode, duplicateNode } from "@/lib/utils/nodeDuplication";
 import { removeBranchCase, removeEdgeRoute, removeFunction } from "@/lib/utils/nodeUpdates";
 
@@ -12,7 +11,8 @@ interface KeyboardShortcutsProps {
   selectedNodeId: string | null;
   selectedFunctionIndex: number | null;
   setNodes: (updater: (nodes: FlowNode[]) => FlowNode[]) => void;
-  clearSelection: () => void;
+  /** Deletes a node with the editor's rules: destinations that pointed at it are dropped. */
+  deleteNode: (nodeId: string) => void;
   selectNode: (nodeId: string | null, functionIndex?: number | null) => void;
 }
 
@@ -27,7 +27,7 @@ export function useKeyboardShortcuts({
   selectedNodeId,
   selectedFunctionIndex,
   setNodes,
-  clearSelection,
+  deleteNode,
   selectNode,
 }: KeyboardShortcutsProps) {
   useEffect(() => {
@@ -58,11 +58,7 @@ export function useKeyboardShortcuts({
           );
           useEditorStore.getState().clearFunctionSelection();
         } else if (selectedNodeId) {
-          const nodeToDelete = nodes.find((n) => n.id === selectedNodeId);
-          if (canDeleteNode(nodeToDelete)) {
-            setNodes((nds) => deleteNode(nds, selectedNodeId));
-            clearSelection();
-          }
+          deleteNode(selectedNodeId);
         }
       } else if (modKey && e.key === "d") {
         e.preventDefault();
@@ -79,5 +75,5 @@ export function useKeyboardShortcuts({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [nodes, edges, selectedNodeId, selectedFunctionIndex, setNodes, clearSelection, selectNode]);
+  }, [nodes, edges, selectedNodeId, selectedFunctionIndex, setNodes, deleteNode, selectNode]);
 }

@@ -9,7 +9,7 @@ import {
   addFunctionDestination,
   setInitialNode,
 } from "@/lib/utils/nodeCreation";
-import { canDeleteNode } from "@/lib/utils/nodeDeletion";
+import { canDeleteNode, deleteNode } from "@/lib/utils/nodeDeletion";
 
 const config: FlowConfig = {
   initial_node: "start",
@@ -143,6 +143,12 @@ describe("setInitialNode", () => {
     expect(configNode(nodes, "next").data.type).toBe("initial");
     expect(configNode(nodes, "start").type).toBe("node");
     expect(setInitialNode(nodes, "missing")).toBe(nodes);
+  });
+
+  it("deleting a node drops the destinations that pointed at it", () => {
+    const nodes = deleteNode(canvas().nodes, "next");
+    expect(nodes.map((n) => n.id)).toEqual(["start"]);
+    expect(configNode(nodes, "start").data.functions).toEqual([{ name: "go" }]);
   });
 
   it("keeps the initial node from being deleted", () => {

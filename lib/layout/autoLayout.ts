@@ -27,7 +27,7 @@ export interface LayoutOptions {
 export const SELF_LOOP_HEADROOM = 36;
 
 /** The node card's geometry, shared with the size estimate so layout matches rendering. */
-export const NODE_CARD = { width: 240, headerHeight: 36, rowHeight: 24, padding: 8 };
+export const NODE_CARD = { width: 320, headerHeight: 36, rowHeight: 24, padding: 8 };
 
 /** How many rows a node card shows: one per function, plus one per case and default of a branch. */
 export function nodeRowCount(node: Node): number {

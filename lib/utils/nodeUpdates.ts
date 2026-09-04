@@ -156,6 +156,41 @@ export function setBranchField(
   );
 }
 
+/**
+ * Drops every destination naming `nodeId`: a function that led there stays
+ * on its node, a case that led there is removed, and a default that led
+ * there is dropped. A branch left with no cases loses its destination.
+ */
+export function dropFunctionTargets(
+  functions: FlowConfigFunction[],
+  nodeId: string
+): FlowConfigFunction[] {
+  return functions.map((fn) => {
+    const transition = fn.transition_to;
+    if (transition === undefined || transition === null) return fn;
+    if (!isBranch(transition)) {
+      if (transition !== nodeId) return fn;
+      const { transition_to: _transition, ...rest } = fn;
+      return rest;
+    }
+    const cases = Object.fromEntries(
+      Object.entries(transition.cases).filter(([, target]) => target !== nodeId)
+    );
+    if (Object.keys(cases).length === 0) {
+      const { transition_to: _transition, ...rest } = fn;
+      return rest;
+    }
+    const { default: fallback, ...branch } = transition;
+    return {
+      ...fn,
+      transition_to:
+        fallback && fallback !== nodeId
+          ? { ...branch, cases, default: fallback }
+          : { ...branch, cases },
+    };
+  });
+}
+
 /** Rewrites every destination naming `oldId` to `newId`. */
 export function renameFunctionTargets(
   functions: FlowConfigFunction[],

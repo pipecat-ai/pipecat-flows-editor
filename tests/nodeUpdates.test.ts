@@ -5,13 +5,14 @@ import {
   type ConfigCanvasNode,
   configToCanvas,
 } from "@/lib/convert/configToCanvas";
-import type { FlowConfig } from "@/lib/schema/flowConfig";
+import type { FlowConfig, FlowConfigFunction } from "@/lib/schema/flowConfig";
 import { handleConnection } from "@/lib/utils/connectionHandlers";
 import { duplicateNode } from "@/lib/utils/nodeDuplication";
 import { deriveNodeType } from "@/lib/utils/nodeType";
 import {
   addFunction,
   clearFunctionConnection,
+  dropFunctionTargets,
   removeEdgeRoute,
   removeFunction,
   renameBranchCase,
@@ -105,6 +106,28 @@ describe("function rows", () => {
     expect(renameBranchCase(nodes, "a", 1, "bad", "ok")).toEqual(nodes);
     expect(renameBranchCase(nodes, "a", 1, "bad", "")).toEqual(nodes);
     expect(renameBranchCase(nodes, "a", 0, "x", "y")).toEqual(nodes);
+  });
+});
+
+describe("dropFunctionTargets", () => {
+  it("drops transitions, cases, and defaults that led to the node", () => {
+    const functions: FlowConfigFunction[] = [
+      { name: "go", transition_to: "gone" },
+      { name: "stay", transition_to: "kept" },
+      {
+        name: "check",
+        transition_to: { field: "s", cases: { ok: "kept", bad: "gone" }, default: "gone" },
+      },
+      { name: "only", transition_to: { field: "s", cases: { bad: "gone" }, default: "kept" } },
+      { name: "none" },
+    ];
+    expect(dropFunctionTargets(functions, "gone")).toEqual([
+      { name: "go" },
+      { name: "stay", transition_to: "kept" },
+      { name: "check", transition_to: { field: "s", cases: { ok: "kept" } } },
+      { name: "only" },
+      { name: "none" },
+    ]);
   });
 });
 

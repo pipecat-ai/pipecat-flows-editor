@@ -60,6 +60,7 @@ import { canDeleteNode, deleteNode } from "@/lib/utils/nodeDeletion";
 import { canDuplicateNode, duplicateNode } from "@/lib/utils/nodeDuplication";
 import { generateNodeIdFromLabel } from "@/lib/utils/nodeId";
 import {
+  dropFunctionTargets,
   removeBranchCase,
   removeEdgeRoute,
   removeFunction,
@@ -388,6 +389,19 @@ export default function EditorShell() {
     return () => clearTimeout(id);
   }, [nodes, edges]);
 
+  // Deletes a node and drops every destination that pointed at it, including
+  // global functions, so the document never refers to a node that is gone.
+  const handleDeleteNodeById = useCallback(
+    (nodeId: string) => {
+      if (!canDeleteNode(nodesRef.current.find((n) => n.id === nodeId))) return;
+      setNodes((nds) => deleteNode(nds, nodeId));
+      const flow = useFlowStore.getState();
+      flow.setGlobalFunctions(dropFunctionTargets(flow.globalFunctions, nodeId));
+      if (useEditorStore.getState().selectedNodeId === nodeId) clearSelection();
+    },
+    [setNodes, clearSelection]
+  );
+
   // Keyboard shortcuts (excluding undo/redo which is handled by Toolbar)
   useKeyboardShortcuts({
     nodes,
@@ -395,7 +409,7 @@ export default function EditorShell() {
     selectedNodeId,
     selectedFunctionIndex,
     setNodes,
-    clearSelection,
+    deleteNode: handleDeleteNodeById,
     selectNode,
   });
 
@@ -423,16 +437,9 @@ export default function EditorShell() {
   // Handle delete action
   const handleDeleteNode = useCallback(() => {
     if (!contextMenuNodeId) return;
-
-    const nodeToDelete = nodes.find((n) => n.id === contextMenuNodeId);
-    if (!canDeleteNode(nodeToDelete)) return;
-
-    setNodes((nds) => deleteNode(nds, contextMenuNodeId));
-    if (selectedNodeId === contextMenuNodeId) {
-      clearSelection();
-    }
+    handleDeleteNodeById(contextMenuNodeId);
     setContextMenuOpen(false);
-  }, [contextMenuNodeId, nodes, setNodes, selectedNodeId, clearSelection]);
+  }, [contextMenuNodeId, handleDeleteNodeById]);
 
   // "+" on a node: a new node and the function that leads to it, with the
   // inspector opened on that function so its tool name gets typed.
@@ -650,11 +657,7 @@ export default function EditorShell() {
                     useEditorStore.getState().clearFunctionSelection();
                   }
                 } else {
-                  const nodeToDelete = nodes.find((n) => n.id === id);
-                  if (canDeleteNode(nodeToDelete)) {
-                    setNodes((nds) => deleteNode(nds, id));
-                    clearSelection();
-                  }
+                  handleDeleteNodeById(id);
                 }
               }}
               onRenameNode={handleRenameNode}
