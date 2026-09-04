@@ -1,7 +1,8 @@
 /**
- * The editor's examples are Pipecat's own example configs, served verbatim
- * from `public/examples/` and copied from `examples/flows/` in the Pipecat
- * repository.
+ * The editor's examples, served verbatim from `public/examples/`. Two are
+ * Pipecat's own, copied from `examples/flows/` in the Pipecat repository;
+ * the others are authored here, and each shows a different part of the
+ * format.
  */
 
 export interface FlowExample {
@@ -16,6 +17,13 @@ export const EXAMPLES: FlowExample[] = [
     id: "restaurant_reservation",
     name: "Restaurant Reservation",
     path: "/examples/restaurant_reservation.yaml",
+  },
+  { id: "patient_intake", name: "Patient Intake", path: "/examples/patient_intake.yaml" },
+  { id: "order_status", name: "Order Status and Returns", path: "/examples/order_status.yaml" },
+  {
+    id: "lead_qualification",
+    name: "Lead Qualification",
+    path: "/examples/lead_qualification.yaml",
   },
 ];
 
