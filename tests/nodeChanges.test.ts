@@ -16,13 +16,11 @@ const config: FlowConfig = {
 };
 
 describe("filterNodeChanges", () => {
-  it("drops removals of the initial node and branch nodes, keeps the rest", () => {
+  it("drops removals of the initial node, keeps the rest", () => {
     const { nodes } = configToCanvas(config);
-    const branch = nodes.find((n) => n.type === "decision")!;
     const changes = filterNodeChanges(
       [
         { type: "remove", id: "start" },
-        { type: "remove", id: branch.id },
         { type: "remove", id: "next" },
         { type: "select", id: "start", selected: true },
       ],

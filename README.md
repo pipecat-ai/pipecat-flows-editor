@@ -13,7 +13,7 @@ A visual editor for Pipecat Flows. The document it edits is Pipecat's `FlowConfi
 
 - **The YAML is the document** – Open a `FlowConfig` file, edit it on the canvas or in the YAML pane, and save it. Comments, key order, and block scalars in a hand-written file survive the round trip.
 - **Two views, one document** – The canvas and the YAML pane stay in step: a change on either side updates the other, with problems shown inline in the pane.
-- **Routing as data** – A function is a tool name and a destination: a node, or a branch table keyed on a field of the tool's result. Branches show as diamonds with one edge per case.
+- **Routing as data** – A function is a tool name and a destination: a node, or a branch table keyed on a field of the tool's result. A node card lists its functions as rows, a branch's cases as sub-rows, and each row has its own port.
 - **Pipecat's schema** – Validation uses the JSON Schema Pipecat ships for `FlowConfig`, vendored and pinned, plus the same cross-reference checks Pipecat's own loader makes.
 - **The handoff to code is a list** – The Flow panel lists every tool and action handler the config references and every `{{ variable }}` it uses, so you know what the Python side must provide.
 - **Local-first UX** – Autosave, undo/redo, keyboard shortcuts, dark mode, auto-layout on open, and Pipecat's own example flows.
@@ -44,12 +44,12 @@ npm run lint  # ESLint + TypeScript rules
 ## Working With Flows
 
 - A flow is a `FlowConfig` YAML file. Its shape is defined by Pipecat's JSON Schema, vendored at `lib/schema/flow_config.schema.json`; the field descriptions there are Pipecat's own. See [docs/INTEGRATION.md](./docs/INTEGRATION.md) for the format and how a Pipecat application loads it.
-- Nodes are added from other nodes. Hover a node and press its "+" to add a destination: a next node, an end node, or a branch on the tool's result. Each adds the function that leads there, so every node is reachable by construction. On a branch diamond, "+" adds a case leading to a new node.
+- Nodes are added from other nodes. Hover a node and press its "+" to add a function leading to a new node: a next node, an end node, or a branch on the tool's result. Every node is reachable by construction. A function row without a destination has its own "+", and a branch has an "add case" row.
 - The initial node is whichever node `initial_node` names; use "Make initial node" in a node's context menu to move it. An end node is one with an `end_conversation` post-action. Every node has the same shape.
 - A node's name is its key in the config. Renaming a node rewrites every destination that pointed at it.
-- Routing lives on functions as `transition_to`: a node name, or a branch table with `field`, `cases`, and an optional `default`. Drawing an edge from a node adds a function; drawing one from a branch diamond adds a case.
+- Routing lives on functions as `transition_to`: a node name, or a branch table with `field`, `cases`, and an optional `default`. Dragging from a row's port sets that row's destination; dragging from the node's bottom handle adds a function, and from a branch's "add case" row adds a case.
 - Tool descriptions and parameters are not in the config. They come from the direct functions in your Python tools module, referenced by name.
-- Edges and branch diamonds are derived from the routing data. Deleting or renaming nodes surfaces broken references on the canvas and in the YAML pane.
+- Edges are derived from the routing data. Deleting or renaming nodes surfaces broken references on the canvas and in the YAML pane.
 - Canvas positions are not part of the document. A freshly opened file is auto-laid out; positions are then kept in `localStorage`, keyed by flow name.
 
 ### Persistence

@@ -6,7 +6,7 @@ import {
   configToCanvas,
 } from "@/lib/convert/configToCanvas";
 import type { FlowConfig } from "@/lib/schema/flowConfig";
-import { handleBranchConnection, handleRegularConnection } from "@/lib/utils/connectionHandlers";
+import { handleConnection } from "@/lib/utils/connectionHandlers";
 import { duplicateNode } from "@/lib/utils/nodeDuplication";
 import { deriveNodeType } from "@/lib/utils/nodeType";
 import {
@@ -104,44 +104,59 @@ describe("clearFunctionConnection and removeEdgeRoute", () => {
     });
   });
 
-  it("removes the whole destination for a transition or branch edge", () => {
+  it("removes the whole destination for a transition edge", () => {
     const { nodes, edges } = canvas();
-    const branchEdge = edges.find((e) => e.data?.kind === "branch")!;
-    expect(functionsOf(removeEdgeRoute(nodes, branchEdge), "a")[1]).toEqual({ name: "check" });
+    const transition = edges.find((e) => e.data?.kind === "transition")!;
+    expect(functionsOf(removeEdgeRoute(nodes, transition), "a")[0]).toEqual({ name: "go" });
   });
 });
 
-describe("connection handlers", () => {
-  it("adds a function for a connection between nodes", () => {
-    let nodes = canvas().nodes;
-    const selected: unknown[] = [];
-    handleRegularConnection(
-      { source: "b", target: "a", sourceHandle: null, targetHandle: null },
+describe("handleConnection", () => {
+  const connect = (nodesIn: CanvasNode[], sourceHandle: string | null, target: string) => {
+    let nodes = nodesIn;
+    const result = handleConnection(
+      { source: "a", target, sourceHandle, targetHandle: null },
       nodes,
-      (update) => (nodes = update(nodes)),
-      (...args) => selected.push(args)
+      (update) => (nodes = update(nodes))
     );
-    expect(functionsOf(nodes, "b")).toEqual([{ name: "function_1", transition_to: "a" }]);
-    expect(selected).toEqual([["b", 0]]);
+    return { result, nodes };
+  };
+
+  it("adds a function from the node's own handle", () => {
+    const { result, nodes } = connect(canvas().nodes, null, "b");
+    expect(functionsOf(nodes, "a")[2]).toEqual({ name: "function_3", transition_to: "b" });
+    expect(result).toEqual({ sourceNodeId: "a", functionIndex: 2, caseIndex: null });
   });
 
-  it("adds a case for a connection out of a branch node", () => {
-    let nodes = canvas().nodes;
-    const branch = nodes.find((n) => n.type === "decision")!;
-    const selected: unknown[] = [];
-    const handled = handleBranchConnection(
-      { source: branch.id, target: "a", sourceHandle: null, targetHandle: null },
-      nodes,
-      (update) => (nodes = update(nodes)),
-      (...args) => selected.push(args)
-    );
-    expect(handled).toBe(true);
-    expect(functionsOf(nodes, "a")[1].transition_to).toEqual({
-      field: "s",
-      cases: { ok: "b", bad: "a", value_3: "a" },
-      default: "b",
+  it("sets a function's destination from its row", () => {
+    const { result, nodes } = connect(canvas().nodes, "fn:go", "a");
+    expect(functionsOf(nodes, "a")[0]).toEqual({ name: "go", transition_to: "a" });
+    expect(result).toEqual({ sourceNodeId: "a", functionIndex: 0, caseIndex: null });
+  });
+
+  it("sets a case's target, the default, or adds a case from the branch's rows", () => {
+    const retarget = connect(canvas().nodes, "fn:check:case:bad", "b");
+    expect(functionsOf(retarget.nodes, "a")[1].transition_to).toMatchObject({
+      cases: { ok: "b", bad: "b" },
     });
-    expect(selected).toEqual([["a", 1, 2]]);
+    expect(retarget.result).toEqual({ sourceNodeId: "a", functionIndex: 1, caseIndex: 1 });
+
+    const setDefault = connect(canvas().nodes, "fn:check:default", "a");
+    expect(functionsOf(setDefault.nodes, "a")[1].transition_to).toMatchObject({ default: "a" });
+    expect(setDefault.result?.caseIndex).toBe(-1);
+
+    const addNew = connect(canvas().nodes, "fn:check:new-case", "a");
+    expect(functionsOf(addNew.nodes, "a")[1].transition_to).toMatchObject({
+      cases: { ok: "b", bad: "a", value_3: "a" },
+    });
+    expect(addNew.result?.caseIndex).toBe(2);
+  });
+
+  it("ignores handles that name nothing", () => {
+    const { result, nodes } = connect(canvas().nodes, "fn:missing", "b");
+    expect(result).toBeNull();
+    expect(nodes).toEqual(canvas().nodes);
+    expect(connect(canvas().nodes, "fn:go:case:x", "b").result).toBeNull();
   });
 });
 

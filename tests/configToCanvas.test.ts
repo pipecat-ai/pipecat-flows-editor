@@ -5,13 +5,13 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { parse } from "yaml";
 
 import {
-  branchNodeId,
   configToCanvas,
   configToGraph,
   deriveConfigNodeType,
-  parseBranchNodeId,
+  handleId,
+  parseHandleId,
 } from "@/lib/convert/configToCanvas";
-import { estimateNodeSize, layoutNodes } from "@/lib/layout/autoLayout";
+import { estimateNodeSize, layoutNodes, SELF_LOOP_HEADROOM } from "@/lib/layout/autoLayout";
 import type { FlowConfig } from "@/lib/schema/flowConfig";
 import { clearPositions, loadPositions, savePositions } from "@/lib/storage/positionStore";
 
@@ -47,15 +47,15 @@ describe("configToGraph", () => {
       ["confirm", "node"],
       ["end", "end"],
     ]);
-    expect(edges.map((e) => [e.source, e.label, e.target])).toEqual([
-      ["initial", "choose_pizza", "choose_pizza"],
-      ["initial", "choose_sushi", "choose_sushi"],
-      ["choose_pizza", "select_pizza_order", "confirm"],
-      ["choose_sushi", "select_sushi_order", "confirm"],
-      ["confirm", "complete_order", "end"],
-      ["confirm", "revise_order", "initial"],
+    expect(edges.map((e) => [e.source, e.sourceHandle, e.target])).toEqual([
+      ["initial", "fn:choose_pizza", "choose_pizza"],
+      ["initial", "fn:choose_sushi", "choose_sushi"],
+      ["choose_pizza", "fn:select_pizza_order", "confirm"],
+      ["choose_sushi", "fn:select_sushi_order", "confirm"],
+      ["confirm", "fn:complete_order", "end"],
+      ["confirm", "fn:revise_order", "initial"],
     ]);
-    expect(edges.every((e) => e.type === "default")).toBe(true);
+    expect(edges.every((e) => e.type === "default" && e.label === undefined)).toBe(true);
   });
 
   it("carries the config node's fields and name onto the canvas node data", () => {
@@ -74,24 +74,15 @@ describe("configToGraph", () => {
     expect(typeof initial.data.role_message).toBe("string");
   });
 
-  it("draws a branch node with one edge per case for restaurant_reservation", () => {
+  it("draws one edge per case from the case's handle for restaurant_reservation", () => {
     const { nodes, edges } = configToGraph(restaurantReservation);
-    const branch = nodes.find((n) => n.id === branchNodeId("get_time", "check_availability"))!;
-    expect(branch.type).toBe("decision");
-    expect(branch.data).toEqual({
-      label: "check_availability",
-      type: "decision",
-      sourceNodeId: "get_time",
-      functionName: "check_availability",
-      field: "status",
-      caseCount: 2,
-      hasDefault: false,
-    });
-    const branchEdges = edges.filter((e) => e.source === branch.id || e.target === branch.id);
-    expect(branchEdges.map((e) => [e.source, e.label, e.target])).toEqual([
-      ["get_time", "check_availability", branch.id],
-      [branch.id, "available", "confirm"],
-      [branch.id, "unavailable", "no_availability"],
+    expect(nodes.map((n) => n.type)).not.toContain("decision");
+    const branchEdges = edges.filter((e) => e.source === "get_time");
+    expect(
+      branchEdges.map((e) => [e.sourceHandle, e.target, e.data?.kind, e.data?.caseIndex])
+    ).toEqual([
+      ["fn:check_availability:case:available", "confirm", "case", 0],
+      ["fn:check_availability:case:unavailable", "no_availability", "case", 1],
     ]);
   });
 
@@ -109,11 +100,9 @@ describe("configToGraph", () => {
       },
     };
     const { edges } = configToGraph(config);
-    const branch = branchNodeId("a", "f");
-    expect(edges.map((e) => [e.id, e.source, e.label, e.target])).toEqual([
-      ["edge:a:f", "a", "f", branch],
-      [`${branch}:case:x`, branch, "x", "b"],
-      [`${branch}:default`, branch, "default", "a"],
+    expect(edges.map((e) => [e.id, e.sourceHandle, e.target, e.type])).toEqual([
+      ["edge:a:f:case:x", "fn:f:case:x", "b", "default"],
+      ["edge:a:f:default", "fn:f:default", "a", "selfloop"],
     ]);
   });
 
@@ -133,25 +122,25 @@ describe("configToGraph", () => {
     const { nodes, edges } = configToGraph(foodOrdering);
     expect(foodOrdering.global_functions).toEqual([{ name: "get_delivery_estimate" }]);
     expect(nodes).toHaveLength(5);
-    expect(edges.some((e) => e.label === "get_delivery_estimate")).toBe(false);
+    expect(edges.some((e) => e.sourceHandle?.includes("get_delivery_estimate"))).toBe(false);
   });
 
-  it("round-trips branch node ids, including function names with the separator", () => {
-    expect(parseBranchNodeId(branchNodeId("n", "f"))).toEqual({
-      sourceNodeId: "n",
-      functionName: "f",
-    });
-    expect(parseBranchNodeId(branchNodeId("n", "f:g"))).toEqual({
-      sourceNodeId: "n",
-      functionName: "f:g",
-    });
-    expect(parseBranchNodeId("n")).toBeNull();
-    expect(parseBranchNodeId("edge:n:f")).toBeNull();
+  it("round-trips handle ids, including case values with the separator", () => {
+    const refs = [
+      { kind: "function", functionName: "f" },
+      { kind: "case", functionName: "f", caseValue: "a:b" },
+      { kind: "default", functionName: "f" },
+      { kind: "new-case", functionName: "f" },
+      { kind: "new-function" },
+    ] as const;
+    for (const ref of refs) expect(parseHandleId(handleId(ref))).toEqual(ref);
+    expect(parseHandleId(null)).toEqual({ kind: "new-function" });
+    expect(parseHandleId("garbage")).toEqual({ kind: "new-function" });
   });
 });
 
 describe("layoutNodes", () => {
-  it("places every node and keeps sources above their targets", () => {
+  it("places every node and keeps sources left of their targets", () => {
     const { nodes, edges } = configToGraph(foodOrdering);
     const placed = layoutNodes(nodes, edges);
     const byId = new Map(placed.map((n) => [n.id, n.position]));
@@ -160,7 +149,7 @@ describe("layoutNodes", () => {
       const source = byId.get(edge.source)!;
       const target = byId.get(edge.target)!;
       if (edge.target === "initial") continue; // the revise_order back edge
-      expect(target.y).toBeGreaterThan(source.y);
+      expect(target.x).toBeGreaterThan(source.x);
     }
   });
 
@@ -169,18 +158,43 @@ describe("layoutNodes", () => {
     const placed = layoutNodes(nodes, edges);
     const pizza = placed.find((n) => n.id === "choose_pizza")!;
     const sushi = placed.find((n) => n.id === "choose_sushi")!;
-    expect(pizza.position.y).toBe(sushi.position.y);
-    const gap = Math.abs(pizza.position.x - sushi.position.x);
-    expect(gap).toBeGreaterThanOrEqual(estimateNodeSize(pizza).width);
+    expect(pizza.position.x).toBe(sushi.position.x);
+    const gap = Math.abs(pizza.position.y - sushi.position.y);
+    expect(gap).toBeGreaterThanOrEqual(estimateNodeSize(pizza).height);
   });
 
-  it("lays out branch nodes between their source and targets", () => {
-    const { nodes, edges } = configToGraph(restaurantReservation);
+  it("sizes a card by its rows", () => {
+    const { nodes } = configToGraph(restaurantReservation);
+    const getTime = nodes.find((n) => n.id === "get_time")!;
+    const end = nodes.find((n) => n.id === "end")!;
+    // check_availability: the function row, two cases, and the add-case row
+    expect(estimateNodeSize(getTime).height).toBe(36 + 4 * 24 + 8);
+    expect(estimateNodeSize(end).height).toBe(36);
+  });
+
+  it("leaves headroom above a card with a self-loop", () => {
+    const config: FlowConfig = {
+      initial_node: "a",
+      nodes: {
+        a: {
+          task_messages: [],
+          functions: [
+            { name: "to_b", transition_to: "b" },
+            { name: "to_c", transition_to: "c" },
+          ],
+        },
+        b: { task_messages: [], functions: [{ name: "again", transition_to: "b" }] },
+        c: { task_messages: [] },
+      },
+    };
+    const { nodes, edges } = configToGraph(config);
     const placed = layoutNodes(nodes, edges);
-    const byId = new Map(placed.map((n) => [n.id, n.position]));
-    const branch = byId.get(branchNodeId("get_time", "check_availability"))!;
-    expect(branch.y).toBeGreaterThan(byId.get("get_time")!.y);
-    expect(byId.get("confirm")!.y).toBeGreaterThan(branch.y);
+    const b = placed.find((n) => n.id === "b")!;
+    const c = placed.find((n) => n.id === "c")!;
+    // b and c share a column; the gap between them includes b's headroom
+    expect(b.position.x).toBe(c.position.x);
+    const gap = Math.abs(b.position.y - c.position.y);
+    expect(gap).toBeGreaterThanOrEqual(estimateNodeSize(b).height + SELF_LOOP_HEADROOM);
   });
 
   it("survives self-loops and dangling edges", () => {
@@ -202,11 +216,11 @@ describe("layoutNodes", () => {
 
   it("prefers measured sizes over estimates", () => {
     const { nodes, edges } = configToGraph(foodOrdering);
-    const measured = nodes.map((n) => ({ ...n, measured: { width: 400, height: 100 } }));
+    const measured = nodes.map((n) => ({ ...n, measured: { width: 400, height: 300 } }));
     const placed = layoutNodes(measured, edges);
     const pizza = placed.find((n) => n.id === "choose_pizza")!;
     const sushi = placed.find((n) => n.id === "choose_sushi")!;
-    expect(Math.abs(pizza.position.x - sushi.position.x)).toBeGreaterThanOrEqual(400);
+    expect(Math.abs(pizza.position.y - sushi.position.y)).toBeGreaterThanOrEqual(300);
   });
 });
 
@@ -226,12 +240,11 @@ describe("configToCanvas", () => {
     expect(byId.get("end")).not.toEqual({ x: 0, y: 0 });
   });
 
-  it("stores positions for branch nodes by their canvas id", () => {
-    const branch = branchNodeId("get_time", "check_availability");
-    const { nodes } = configToCanvas(restaurantReservation, {
-      positions: { [branch]: { x: 1, y: 2 } },
+  it("keeps a branch's targets as separate edges when positions are stored", () => {
+    const { edges } = configToCanvas(restaurantReservation, {
+      positions: { get_time: { x: 1, y: 2 } },
     });
-    expect(nodes.find((n) => n.id === branch)!.position).toEqual({ x: 1, y: 2 });
+    expect(edges.filter((e) => e.source === "get_time")).toHaveLength(2);
   });
 });
 

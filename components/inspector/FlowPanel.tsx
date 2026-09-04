@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { showToast } from "@/components/ui/Toast";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { canvasToConfig } from "@/lib/convert/canvasToConfig";
-import { type CanvasNode, isConfigNode } from "@/lib/convert/configToCanvas";
+import type { CanvasNode } from "@/lib/convert/configToCanvas";
 import { DEFAULT_FLOW_NAME, FLOW_FILE_EXTENSION } from "@/lib/document/flowDocument";
 import {
   actionHandlers,
@@ -40,7 +40,7 @@ export default function FlowPanel({ nodes, onClose }: Props) {
   const nameId = useId();
   const [selectedGlobal, setSelectedGlobal] = useState<number | null>(null);
 
-  const availableNodeIds = nodes.filter(isConfigNode).map((n) => n.id);
+  const availableNodeIds = nodes.map((n) => n.id);
   const config = canvasToConfig(nodes, globalFunctions);
   const tools = referencedTools(config);
   const handlers = actionHandlers(config);

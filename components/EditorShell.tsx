@@ -19,12 +19,11 @@ import Toolbar from "@/components/header/Toolbar";
 import InspectorPanel from "@/components/inspector/InspectorPanel";
 import BaseNode from "@/components/nodes/BaseNode";
 import { type CanvasActions, CanvasActionsContext } from "@/components/nodes/canvasActions";
-import DecisionNode from "@/components/nodes/DecisionNode";
 import NodeContextMenu from "@/components/nodes/NodeContextMenu";
 import ToastContainer, { showToast } from "@/components/ui/Toast";
 import YamlPanel from "@/components/yaml/YamlPanel";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
-import { deriveCanvasGraph, reconcileEdges } from "@/lib/convert/canvasGraph";
+import { deriveCanvasEdges, reconcileEdges } from "@/lib/convert/canvasGraph";
 import { configToCanvas, nodeFunctions } from "@/lib/convert/configToCanvas";
 import {
   createFlowDocument,
@@ -48,12 +47,13 @@ import { useEditorStore } from "@/lib/store/editorStore";
 import { useFlowStore } from "@/lib/store/flowStore";
 import type { FlowEdge, FlowNode, ReactFlowInstance } from "@/lib/types/flowTypes";
 import { UndoManager } from "@/lib/undo/undoManager";
-import { handleBranchConnection, handleRegularConnection } from "@/lib/utils/connectionHandlers";
+import { handleConnection } from "@/lib/utils/connectionHandlers";
 import { filterNodeChanges } from "@/lib/utils/nodeChanges";
 import {
   addBranchCaseDestination,
   addDestination,
   type Added,
+  addFunctionDestination,
   setInitialNode,
 } from "@/lib/utils/nodeCreation";
 import { canDeleteNode, deleteNode } from "@/lib/utils/nodeDeletion";
@@ -189,7 +189,6 @@ export default function EditorShell() {
       initial: BaseNode,
       node: BaseNode,
       end: BaseNode,
-      decision: DecisionNode,
     }),
     []
   );
@@ -294,12 +293,11 @@ export default function EditorShell() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Branch nodes and edges are derived from the nodes' function entries
+  // Edges are derived from the nodes' function entries
   useEffect(() => {
-    const derived = deriveCanvasGraph(nodes);
-    if (derived.nodesChanged) setNodes(derived.nodes);
-    setEdges((current) => reconcileEdges(current, derived.edges).edges);
-  }, [nodes, setNodes, setEdges]);
+    const derived = deriveCanvasEdges(nodes);
+    setEdges((current) => reconcileEdges(current, derived).edges);
+  }, [nodes, setEdges]);
 
   // Keep selected node visually selected in React Flow (separate effect to avoid loops)
   // Only update when selectedNodeId changes, NOT when selectedFunctionIndex changes
@@ -398,12 +396,6 @@ export default function EditorShell() {
   // Handle node context menu
   const handleNodeContextMenu = useCallback((event: React.MouseEvent, node: FlowNode) => {
     event.preventDefault();
-
-    // Branch nodes have no menu; they are derived from a function's branch table
-    if (node.type === "decision") {
-      return;
-    }
-
     setContextMenuPosition({ x: event.clientX, y: event.clientY });
     setContextMenuNodeId(node.id);
     setContextMenuOpen(true);
@@ -452,14 +444,31 @@ export default function EditorShell() {
     [setNodes, selectNode, rfInstance]
   );
 
+  const focusNode = useCallback(
+    (nodeId: string) => {
+      setTimeout(() => {
+        rfInstance?.setNodes((nds) =>
+          nds.map((node) => ({ ...node, selected: node.id === nodeId }))
+        );
+      }, 0);
+    },
+    [rfInstance]
+  );
+
   const canvasActions = useMemo<CanvasActions>(
     () => ({
       addDestination: (sourceNodeId, kind) =>
         applyAdded(addDestination(nodesRef.current, sourceNodeId, kind)),
-      addBranchCase: (branchNodeId) =>
-        applyAdded(addBranchCaseDestination(nodesRef.current, branchNodeId)),
+      addFunctionDestination: (sourceNodeId, functionIndex, kind) =>
+        applyAdded(addFunctionDestination(nodesRef.current, sourceNodeId, functionIndex, kind)),
+      addBranchCase: (sourceNodeId, functionIndex) =>
+        applyAdded(addBranchCaseDestination(nodesRef.current, sourceNodeId, functionIndex)),
+      selectRow: (sourceNodeId, functionIndex, caseIndex) => {
+        selectNode(sourceNodeId, functionIndex, caseIndex);
+        focusNode(sourceNodeId);
+      },
     }),
-    [applyAdded]
+    [applyAdded, selectNode, focusNode]
   );
 
   const handleMakeInitial = useCallback(() => {
@@ -514,33 +523,10 @@ export default function EditorShell() {
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={(params) => {
-              if (!params.source || !params.target) return;
-
-              const focusNode = (nodeId: string) => {
-                setTimeout(() => {
-                  rfInstance?.setNodes((nds) =>
-                    nds.map((node) => ({ ...node, selected: node.id === nodeId }))
-                  );
-                }, 0);
-              };
-
-              // Out of a branch node: a new case. Out of a node: a new function.
-              const handled = handleBranchConnection(
-                params,
-                nodes,
-                setNodes,
-                (nodeId, functionIndex, caseIndex) => {
-                  selectNode(nodeId, functionIndex, caseIndex);
-                  focusNode(nodeId);
-                }
-              );
-
-              if (!handled) {
-                handleRegularConnection(params, nodes, setNodes, (nodeId, functionIndex) => {
-                  selectNode(nodeId, functionIndex);
-                  focusNode(nodeId);
-                });
-              }
+              const connected = handleConnection(params, nodes, setNodes);
+              if (!connected) return;
+              selectNode(connected.sourceNodeId, connected.functionIndex, connected.caseIndex);
+              focusNode(connected.sourceNodeId);
             }}
             onSelectionChange={(sel) => {
               const n = (sel.nodes?.[0] || null) as FlowNode | null;
@@ -572,11 +558,6 @@ export default function EditorShell() {
           onDuplicate={handleDuplicateNode}
           onDelete={handleDeleteNode}
           onMakeInitial={handleMakeInitial}
-          isDecisionNode={
-            contextMenuNodeId
-              ? nodes.find((n) => n.id === contextMenuNodeId)?.type === "decision"
-              : false
-          }
           isInitialNode={
             contextMenuNodeId
               ? nodes.find((n) => n.id === contextMenuNodeId)?.type === "initial"
@@ -601,7 +582,7 @@ export default function EditorShell() {
           >
             <InspectorPanel
               nodes={nodes}
-              availableNodeIds={nodes.filter((n) => n.type !== "decision").map((n) => n.id)}
+              availableNodeIds={nodes.map((n) => n.id)}
               onChange={(next) => {
                 if (!selectedNodeId || selectedNodeId !== next.id) return;
 
