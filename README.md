@@ -1,22 +1,22 @@
 # Pipecat Flows Editor
 
-Next.js + TypeScript + Tailwind + React Flow visual editor tailored to Pipecat Flows. The editor runs entirely in the browser, syncs state to `localStorage`, and exports Pipecat-ready JSON _and_ Python code.
+A visual editor for Pipecat Flows. The document it edits is Pipecat's `FlowConfig` YAML: the nodes of a conversation, what each one says, which tools each offers, and where each tool leads. The canvas is a view of that file. The editor runs entirely in the browser, keeps a draft in `localStorage`, and saves the same YAML your Pipecat application loads.
 
 ## References
 
 - Online editor: https://flows.pipecat.ai
-- Pipecat Flows repo: https://github.com/pipecat-ai/pipecat-flows
+- Pipecat repo: https://github.com/pipecat-ai/pipecat
 - Feature guide: https://docs.pipecat.ai/guides/features/pipecat-flows
-- API reference: https://reference-flows.pipecat.ai/en/latest/
+- Flows API reference: https://reference-flows.pipecat.ai/en/latest/
 
 ## Highlights
 
-- **NodeConfig-first modeling** – Nodes map 1:1 to Pipecat `NodeConfig` objects (`role_messages`, `task_messages`, `functions`, actions, context strategy, etc.).
-- **Inspector-driven editing** – Schema-backed forms for messages, function schemas, decisions, actions, context strategy, and response controls.
-- **Decision routing visualized** – Function-level decisions appear as inline decision nodes and translate directly to Python conditionals.
-- **JSON + Python export** – Download the validated flow JSON or generate runnable Python scaffolding via the built-in code generator.
-- **Schema validation** – TypeBox + Ajv plus custom graph rules (unique IDs, valid references) before import/export.
-- **Local-first UX** – Autosave, undo/redo, keyboard shortcuts, dark mode, example flows, and Monaco JSON viewer.
+- **The YAML is the document** – Open a `FlowConfig` file, edit it on the canvas or in the YAML pane, and save it. Comments, key order, and block scalars in a hand-written file survive the round trip.
+- **Two views, one document** – The canvas and the YAML pane stay in step: a change on either side updates the other, with problems shown inline in the pane.
+- **Routing as data** – A function is a tool name and a destination: a node, or a branch table keyed on a field of the tool's result. Branches show as diamonds with one edge per case.
+- **Pipecat's schema** – Validation uses the JSON Schema Pipecat ships for `FlowConfig`, vendored and pinned, plus the same cross-reference checks Pipecat's own loader makes.
+- **The handoff to code is a list** – The Flow panel lists every tool and action handler the config references and every `{{ variable }}` it uses, so you know what the Python side must provide.
+- **Local-first UX** – Autosave, undo/redo, keyboard shortcuts, dark mode, auto-layout on open, and Pipecat's own example flows.
 
 ## Getting Started
 
@@ -43,50 +43,47 @@ npm run lint  # ESLint + TypeScript rules
 
 ## Working With Flows
 
-- Flows are saved as JSON documents that follow `lib/schema/flow.schema.ts`. Detailed field descriptions live in [docs/SCHEMA.md](./docs/SCHEMA.md).
-- The node palette includes `initial`, `node`, and `end` templates. All nodes ultimately emit the same Pipecat `NodeConfig`, but templates give sensible defaults.
-- Routing is controlled by function metadata:
-  - `next_node_id` wires one function directly to the next node.
-  - `decision` objects attach Python snippets and conditionals that become decision nodes in the canvas and `if/elif` blocks in generated Python.
-- Decision nodes shown on the canvas are visualization helpers; they are not persisted as standalone nodes. Instead, decision metadata is stored on the originating function.
-- Edges are derived automatically from function routing. When you delete or rename nodes, the UI surfaces broken references so you can fix them before exporting.
+- A flow is a `FlowConfig` YAML file. Its shape is defined by Pipecat's JSON Schema, vendored at `lib/schema/flow_config.schema.json`; the field descriptions there are Pipecat's own. See [docs/INTEGRATION.md](./docs/INTEGRATION.md) for the format and how a Pipecat application loads it.
+- The node palette offers `initial`, `node`, and `end` templates. Every node has the same shape; the templates differ only in defaults. The initial node is whichever node `initial_node` names, and an end node is one with an `end_conversation` post-action.
+- A node's name is its key in the config. Renaming a node rewrites every destination that pointed at it.
+- Routing lives on functions as `transition_to`: a node name, or a branch table with `field`, `cases`, and an optional `default`. Drawing an edge from a node adds a function; drawing one from a branch diamond adds a case.
+- Tool descriptions and parameters are not in the config. They come from the direct functions in your Python tools module, referenced by name.
+- Edges and branch diamonds are derived from the routing data. Deleting or renaming nodes surfaces broken references on the canvas and in the YAML pane.
+- Canvas positions are not part of the document. A freshly opened file is auto-laid out; positions are then kept in `localStorage`, keyed by flow name.
 
 ### Persistence
 
 - Every edit debounces into `localStorage`, so reloading the page restores the last working draft.
 - No server calls are made; the editor operates entirely client-side.
 
-### Import / Export
+### Open / Save
 
 Toolbar actions let you:
 
-- **Import JSON** – Validates against the schema plus custom graph rules, then rehydrates the canvas.
-- **Export JSON** – Serializes the current graph into Pipecat Flow JSON.
-- **Export Python** – Validates the flow, runs `lib/codegen/pythonGenerator.ts`, and downloads a Python file with `NodeConfig` factories, handler scaffolding, optional decision routing, and FlowManager wiring comments.
-
-See [docs/INTEGRATION.md](./docs/INTEGRATION.md) for full integration steps.
+- **Open** – Read a `FlowConfig` file as YAML or JSON, validate it, and lay it out. A file in the editor's old JSON format is converted; what cannot convert (tool schemas, decisions) is reported by name.
+- **Save** – Download the flow as `<name>.yaml`, merged into the document it was opened from so comments are preserved.
+- **Flow** – Edit the flow's name and global functions, and see the tools, action handlers, and variables the config refers to.
+- **Show YAML** – Edit the document itself, with parse, schema, and reference problems marked inline.
 
 ### Example Flows
 
-Example definitions live in `lib/examples/` (e.g., `minimal.json`, `food_ordering.json`). Load them via **Load Example** in the toolbar to see end-to-end patterns.
+The examples under **Load Example** are Pipecat's own, served from `public/examples/` and copied verbatim from `examples/flows/` in the Pipecat repository.
 
 ## Tech Stack
 
 - **Next.js 16** (App Router)
 - **React 19** + **@xyflow/react** for the canvas
-- **TypeScript**
+- **TypeScript**, with the `FlowConfig` types generated from Pipecat's schema
 - **Tailwind CSS v4** + custom UI primitives
-- **Monaco Editor** for JSON inspection
-- **TypeBox + Ajv** for schema + validation
+- **yaml** for parsing with comment preservation, **Ajv** for schema validation, **dagre** for auto-layout
+- **Monaco Editor** for the YAML pane
 - **Zustand** for editor state
 
 ## Contributing
 
-When expanding capabilities:
+When Pipecat's `FlowConfig` changes:
 
-1. Update `lib/schema/flow.schema.ts` and `docs/SCHEMA.md` for any schema changes.
-2. Add or tweak templates in `lib/nodes/templates.ts`.
-3. Extend inspector forms under `components/inspector/forms/` to expose new fields.
-4. Update tests (`tests/`) and docs as needed.
-
-See [docs/SCHEMA.md](./docs/SCHEMA.md) for authoritative schema details.
+1. Copy the new `flow_config.schema.json` over `lib/schema/flow_config.schema.json` and update the source record in `lib/schema/flowConfig.ts`.
+2. Run `npm run gen:types` to regenerate `lib/schema/flowConfig.generated.ts`.
+3. Mirror any new validator in `lib/validation/flowConfigValidator.ts`.
+4. Extend the inspector forms under `components/inspector/forms/` to expose new fields, and update tests under `tests/`.
