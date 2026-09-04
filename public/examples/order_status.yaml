@@ -1,0 +1,105 @@
+# Order status and returns: find the order, branch on where it is, and offer
+# the right next step. Shows a branch with a default, a tool that stays on its
+# node until it finds an order, a global function available everywhere, and a
+# tts_say action.
+#
+# Tools the module must define: look_up_order, cancel_order, keep_order,
+# report_missing, done, start_return, request_reship, transfer_to_agent.
+# Variables: store_name.
+
+initial_node: greet
+
+nodes:
+  greet:
+    role_message: >
+      You are a support agent for {{ store_name }}. This is a phone call, so
+      keep replies short and avoid special characters. Always use the available
+      functions to progress the conversation.
+    task_messages:
+      - role: developer
+        content: >
+          Greet the caller and ask for their order number. When they give one,
+          call look_up_order. If it is not found, say so and ask them to check
+          the number and try again.
+    functions:
+      - name: look_up_order
+        transition_to:
+          field: status
+          cases:
+            processing: processing
+            shipped: shipped
+            delivered: delivered
+          default: not_found
+
+  not_found:
+    task_messages:
+      - role: developer
+        content: >
+          Apologize that you could not find an order with that number. Ask the
+          caller to read it again, digit by digit, and call look_up_order with
+          the new number.
+    functions:
+      - name: look_up_order
+        transition_to:
+          field: status
+          cases:
+            processing: processing
+            shipped: shipped
+            delivered: delivered
+
+  processing:
+    task_messages:
+      - role: developer
+        content: >
+          Tell the caller the order is still being prepared and give the
+          expected ship date from the lookup. Ask whether they would like to
+          cancel it or keep it; use cancel_order or keep_order accordingly.
+    functions:
+      - name: cancel_order
+        transition_to: end
+      - name: keep_order
+        transition_to: end
+
+  shipped:
+    task_messages:
+      - role: developer
+        content: >
+          Read out the carrier and the tracking status from the lookup. If the
+          caller says the package is late or missing, use report_missing to open
+          a claim. Otherwise, ask if there is anything else and wrap up.
+    functions:
+      - name: report_missing
+        transition_to: end
+      - name: done
+        transition_to: end
+
+  delivered:
+    task_messages:
+      - role: developer
+        content: >
+          Confirm the delivery date. If the caller wants to return an item, ask
+          which item and why, then use start_return. If they want a replacement
+          instead, use request_reship.
+    functions:
+      - name: start_return
+        transition_to: end
+      - name: request_reship
+        transition_to: end
+      - name: done
+        transition_to: end
+
+  end:
+    task_messages:
+      - role: developer
+        content: >
+          Summarize what was done in one sentence, thank the caller, and end
+          the conversation.
+    pre_actions:
+      - type: tts_say
+        text: One moment while I note that on your account.
+    post_actions:
+      - type: end_conversation
+
+global_functions:
+  - name: transfer_to_agent
+    transition_to: end

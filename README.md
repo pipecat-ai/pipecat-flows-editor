@@ -69,7 +69,7 @@ Toolbar actions let you:
 
 ### Example Flows
 
-The examples under **Load Example** are Pipecat's own, served from `public/examples/` and copied verbatim from `examples/flows/` in the Pipecat repository.
+The examples under **Load Example** are served from `public/examples/`. Food ordering and restaurant reservation are Pipecat's own, copied verbatim from `examples/flows/` in the Pipecat repository; patient intake is a port of the Python example there; order status and lead qualification are written for the editor. Each file's header comment lists the tools its module must define.
 
 ## Tech Stack
 
