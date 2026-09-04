@@ -3,8 +3,6 @@ import type { ReactFlowInstance as RFInstance } from "@xyflow/react";
 import type { CanvasEdge, CanvasNode } from "@/lib/convert/configToCanvas";
 
 export type {
-  BranchCanvasNode,
-  BranchNodeData,
   CanvasEdge,
   CanvasEdgeData,
   CanvasNode,

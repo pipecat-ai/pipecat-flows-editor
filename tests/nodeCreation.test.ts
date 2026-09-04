@@ -1,9 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import { deriveCanvasGraph } from "@/lib/convert/canvasGraph";
-import { branchNodeId, type ConfigCanvasNode, configToCanvas } from "@/lib/convert/configToCanvas";
+import { deriveCanvasEdges } from "@/lib/convert/canvasGraph";
+import { type ConfigCanvasNode, configToCanvas } from "@/lib/convert/configToCanvas";
 import type { FlowConfig } from "@/lib/schema/flowConfig";
-import { addBranchCaseDestination, addDestination, setInitialNode } from "@/lib/utils/nodeCreation";
+import {
+  addBranchCaseDestination,
+  addDestination,
+  addFunctionDestination,
+  setInitialNode,
+} from "@/lib/utils/nodeCreation";
 import { canDeleteNode } from "@/lib/utils/nodeDeletion";
 
 const config: FlowConfig = {
@@ -32,16 +37,16 @@ describe("addDestination", () => {
     expect(node.data.task_messages.length).toBeGreaterThan(0);
   });
 
-  it("places children below the source, fanned out past existing destinations", () => {
+  it("places children to the right of the source, stacked past existing destinations", () => {
     const nodes = canvas().nodes.map((n) =>
       n.id === "start"
         ? { ...n, position: { x: 100, y: 50 }, measured: { width: 80, height: 32 } }
         : n
     );
     const first = addDestination(nodes, "start", "node")!;
-    expect(configNode(first.nodes, first.newNodeId).position).toEqual({ x: 320, y: 182 });
+    expect(configNode(first.nodes, first.newNodeId).position).toEqual({ x: 270, y: 170 });
     const second = addDestination(first.nodes, "start", "end")!;
-    expect(configNode(second.nodes, second.newNodeId).position).toEqual({ x: 540, y: 182 });
+    expect(configNode(second.nodes, second.newNodeId).position).toEqual({ x: 270, y: 290 });
   });
 
   it("adds an end node with an end_conversation post-action", () => {
@@ -52,26 +57,17 @@ describe("addDestination", () => {
     expect(node.data.post_actions).toEqual([{ type: "end_conversation" }]);
   });
 
-  it("adds a branch whose first case leads to the new node, with the diamond between them", () => {
-    const nodes = canvas().nodes.map((n) =>
-      n.id === "start"
-        ? { ...n, position: { x: 100, y: 50 }, measured: { width: 80, height: 32 } }
-        : n
-    );
-    const added = addDestination(nodes, "start", "branch")!;
+  it("adds a branch whose first case leads to the new node", () => {
+    const added = addDestination(canvas().nodes, "start", "branch")!;
     expect(added.caseIndex).toBe(0);
     expect(configNode(added.nodes, "start").data.functions![1]).toEqual({
       name: "function_2",
       transition_to: { field: "", cases: { value_1: added.newNodeId } },
     });
-    const branch = added.nodes.find((n) => n.id === branchNodeId("start", "function_2"))!;
-    const node = configNode(added.nodes, added.newNodeId);
-    expect(branch.position).toEqual({ x: 320, y: 182 });
-    expect(node.position.y).toBeGreaterThan(branch.position.y + 52);
-    // The derivation keeps the diamond where it was placed
-    const derived = deriveCanvasGraph(added.nodes);
-    expect(derived.nodesChanged).toBe(false);
-    expect(derived.nodes.find((n) => n.id === branch.id)!.position).toEqual(branch.position);
+    expect(deriveCanvasEdges(added.nodes).map((e) => [e.sourceHandle, e.target])).toEqual([
+      ["fn:go", "next"],
+      ["fn:function_2:case:value_1", added.newNodeId],
+    ]);
   });
 
   it("picks unused names", () => {
@@ -85,23 +81,46 @@ describe("addDestination", () => {
     ]);
   });
 
-  it("returns null for a branch node or unknown source", () => {
+  it("returns null for an unknown source", () => {
     expect(addDestination(canvas().nodes, "missing", "node")).toBeNull();
+  });
+});
+
+describe("addFunctionDestination", () => {
+  it("gives a function without a destination a new node, or a branch leading to one", () => {
+    const nodes = canvas().nodes.map((n) =>
+      n.id === "start" ? { ...n, data: { ...n.data, functions: [{ name: "stay" }] } } : n
+    );
+    const asNode = addFunctionDestination(nodes, "start", 0, "end")!;
+    expect(configNode(asNode.nodes, "start").data.functions).toEqual([
+      { name: "stay", transition_to: asNode.newNodeId },
+    ]);
+    expect(configNode(asNode.nodes, asNode.newNodeId).type).toBe("end");
+    expect(asNode).toMatchObject({ functionIndex: 0, caseIndex: undefined });
+
+    const asBranch = addFunctionDestination(nodes, "start", 0, "branch")!;
+    expect(configNode(asBranch.nodes, "start").data.functions![0].transition_to).toEqual({
+      field: "",
+      cases: { value_1: asBranch.newNodeId },
+    });
+    expect(asBranch.caseIndex).toBe(0);
+  });
+
+  it("leaves a function that already has a destination alone", () => {
+    expect(addFunctionDestination(canvas().nodes, "start", 0, "node")).toBeNull();
   });
 });
 
 describe("addBranchCaseDestination", () => {
   it("adds a node and a case on the branch leading to it", () => {
     const withBranch = addDestination(canvas().nodes, "start", "branch")!;
-    const nodes = deriveCanvasGraph(withBranch.nodes).nodes;
-    const branchId = branchNodeId("start", "function_2");
-    const added = addBranchCaseDestination(nodes, branchId)!;
+    const added = addBranchCaseDestination(withBranch.nodes, "start", 1)!;
     expect(added).toMatchObject({ sourceNodeId: "start", functionIndex: 1, caseIndex: 1 });
     expect(configNode(added.nodes, "start").data.functions![1].transition_to).toEqual({
       field: "",
       cases: { value_1: withBranch.newNodeId, value_2: added.newNodeId },
     });
-    expect(addBranchCaseDestination(nodes, "start")).toBeNull();
+    expect(addBranchCaseDestination(withBranch.nodes, "start", 0)).toBeNull();
   });
 });
 

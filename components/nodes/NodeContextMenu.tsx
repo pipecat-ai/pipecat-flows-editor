@@ -13,7 +13,6 @@ interface NodeContextMenuProps {
   onDuplicate: () => void;
   onDelete: () => void;
   onMakeInitial: () => void;
-  isDecisionNode?: boolean;
   /** The initial node cannot be deleted and is already initial. */
   isInitialNode?: boolean;
 }
@@ -25,7 +24,6 @@ export default function NodeContextMenu({
   onDuplicate,
   onDelete,
   onMakeInitial,
-  isDecisionNode = false,
   isInitialNode = false,
 }: NodeContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
@@ -68,12 +66,6 @@ export default function NodeContextMenu({
   }, [open, onOpenChange]);
 
   if (!open || !position) return null;
-
-  // Decision nodes shouldn't be duplicated or deleted directly
-  // They are derived from a function's branch table and go away with it
-  if (isDecisionNode) {
-    return null;
-  }
 
   const handleDuplicate = () => {
     onDuplicate();

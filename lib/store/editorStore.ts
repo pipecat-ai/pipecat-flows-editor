@@ -1,11 +1,6 @@
 import { create } from "zustand";
 
-import {
-  type CanvasEdge,
-  type CanvasNode,
-  isBranchNode,
-  nodeFunctions,
-} from "@/lib/convert/configToCanvas";
+import { type CanvasEdge, type CanvasNode, nodeFunctions } from "@/lib/convert/configToCanvas";
 import type { FlowConfigFunction } from "@/lib/schema/flowConfig";
 import type { ReactFlowInstance } from "@/lib/types/flowTypes";
 
@@ -197,26 +192,9 @@ export const useEditorStore = create<EditorState>((set, get) => {
       if (edge) {
         get().selectNodeFromEdge(edge, nodes);
       } else if (node) {
-        if (isBranchNode(node)) {
-          // A branch node stands for a function on its source node
-          const sourceNode = nodes.find((n) => n.id === node.data.sourceNodeId);
-          if (sourceNode) {
-            const functionIndex = nodeFunctions(sourceNode).findIndex(
-              (fn) => fn.name === node.data.functionName
-            );
-            if (functionIndex >= 0) {
-              get().selectFunction(sourceNode.id, functionIndex, nodes, null);
-            } else {
-              get().selectNode(sourceNode.id, null, null);
-            }
-          }
-        } else {
-          // Regular node selection
-          const current = get();
-          // Only update if node changed (clear function index when switching nodes)
-          if (current.selectedNodeId !== node.id) {
-            get().selectNode(node.id, null);
-          }
+        // Only update if node changed (clear function index when switching nodes)
+        if (get().selectedNodeId !== node.id) {
+          get().selectNode(node.id, null);
         }
       } else {
         // Selection cleared - check if we should preserve (deleting function case)

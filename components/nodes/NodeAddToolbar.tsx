@@ -18,31 +18,41 @@ const DESTINATIONS: { kind: DestinationKind; label: string; Icon: typeof SquareP
   { kind: "branch", label: "Branch on the result", Icon: GitBranch },
 ];
 
+/** The three kinds of destination, as a dropdown around any trigger. */
+export function DestinationMenu({
+  trigger,
+  onAdd,
+  onOpenChange,
+}: {
+  trigger: React.ReactNode;
+  onAdd: (kind: DestinationKind) => void;
+  onOpenChange?: (open: boolean) => void;
+}) {
+  return (
+    <DropdownMenu onOpenChange={onOpenChange}>
+      <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
+      <DropdownMenuContent align="center" side="bottom" className="nodrag nopan">
+        {DESTINATIONS.map(({ kind, label, Icon }) => (
+          <DropdownMenuItem key={kind} onClick={() => onAdd(kind)}>
+            <Icon className="mr-2 h-4 w-4" />
+            {label}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 interface Props {
   visible: boolean;
-  /** Called with the chosen kind; when omitted the button acts at once. */
   onAdd: (kind: DestinationKind) => void;
-  /** No menu: one meaning, one click. */
-  single?: boolean;
   title: string;
   onHoverChange: (hovering: boolean) => void;
 }
 
-/** A "+" under a node that adds a destination. Shown on hover and while selected. */
-export default function NodeAddToolbar({ visible, onAdd, single, title, onHoverChange }: Props) {
+/** A "+" under a node that adds a function leading to a new node. Shown on hover and while selected. */
+export default function NodeAddToolbar({ visible, onAdd, title, onHoverChange }: Props) {
   const [open, setOpen] = useState(false);
-
-  const button = (
-    <button
-      type="button"
-      className="nodrag nopan flex h-7 w-7 items-center justify-center rounded-full border border-neutral-300 bg-white text-neutral-600 shadow-sm hover:border-blue-500 hover:text-blue-600 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-300"
-      title={title}
-      aria-label={title}
-      onClick={single ? () => onAdd("node") : undefined}
-    >
-      <Plus className="h-4 w-4" />
-    </button>
-  );
 
   return (
     <NodeToolbar
@@ -52,21 +62,20 @@ export default function NodeAddToolbar({ visible, onAdd, single, title, onHoverC
       onMouseEnter={() => onHoverChange(true)}
       onMouseLeave={() => onHoverChange(false)}
     >
-      {single ? (
-        button
-      ) : (
-        <DropdownMenu open={open} onOpenChange={setOpen}>
-          <DropdownMenuTrigger asChild>{button}</DropdownMenuTrigger>
-          <DropdownMenuContent align="center" side="bottom" className="nodrag nopan">
-            {DESTINATIONS.map(({ kind, label, Icon }) => (
-              <DropdownMenuItem key={kind} onClick={() => onAdd(kind)}>
-                <Icon className="mr-2 h-4 w-4" />
-                {label}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )}
+      <DestinationMenu
+        onAdd={onAdd}
+        onOpenChange={setOpen}
+        trigger={
+          <button
+            type="button"
+            className="nodrag nopan flex h-7 w-7 items-center justify-center rounded-full border border-neutral-300 bg-white text-neutral-600 shadow-sm hover:border-blue-500 hover:text-blue-600 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-300"
+            title={title}
+            aria-label={title}
+          >
+            <Plus className="h-4 w-4" />
+          </button>
+        }
+      />
     </NodeToolbar>
   );
 }

@@ -58,7 +58,7 @@ export function removeEdgeRoute(nodes: CanvasNode[], edge: CanvasEdge): CanvasNo
   return updateFunctions(nodes, data.sourceNodeId, (functions) =>
     functions.map((fn) => {
       if (fn.name !== data.functionName) return fn;
-      if (data.kind === "transition" || data.kind === "branch") {
+      if (data.kind === "transition") {
         const { transition_to: _transition, ...rest } = fn;
         return rest;
       }

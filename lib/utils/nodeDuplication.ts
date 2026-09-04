@@ -1,4 +1,4 @@
-import { type CanvasNode, type ConfigCanvasNode, isConfigNode } from "@/lib/convert/configToCanvas";
+import type { CanvasNode, ConfigCanvasNode } from "@/lib/convert/configToCanvas";
 
 import { generateNodeIdFromLabel } from "./nodeId";
 import { deriveNodeType } from "./nodeType";
@@ -26,5 +26,5 @@ export function duplicateNode(node: ConfigCanvasNode, allNodes: CanvasNode[]): C
 }
 
 export function canDuplicateNode(node: CanvasNode | undefined): node is ConfigCanvasNode {
-  return node !== undefined && isConfigNode(node);
+  return node !== undefined;
 }

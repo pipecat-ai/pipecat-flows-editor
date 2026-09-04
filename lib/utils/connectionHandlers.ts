@@ -1,90 +1,74 @@
 import type { Connection } from "@xyflow/react";
 
-import {
-  type CanvasNode,
-  isBranchNode,
-  nodeFunctions,
-  parseBranchNodeId,
-} from "@/lib/convert/configToCanvas";
+import { type CanvasNode, nodeFunctions, parseHandleId } from "@/lib/convert/configToCanvas";
 import { type FlowConfigFunction, isBranch } from "@/lib/schema/flowConfig";
-import { addCase } from "@/lib/utils/branchEdits";
+import { addCase, setCaseTarget } from "@/lib/utils/branchEdits";
 import { newFunctionName } from "@/lib/utils/nodeCreation";
 
 type SetNodes = (updater: (nodes: CanvasNode[]) => CanvasNode[]) => void;
 
-/**
- * A connection drawn out of a branch node adds a case to its branch table.
- * The case value is a placeholder for the author to rename.
- */
-export function handleBranchConnection(
-  params: Connection,
-  nodes: CanvasNode[],
-  setNodes: SetNodes,
-  selectNode: (nodeId: string, functionIndex: number, caseIndex: number) => void
-): boolean {
-  if (!params.source || !params.target) return false;
-  const branchNode = nodes.find((n) => n.id === params.source);
-  if (!branchNode || !isBranchNode(branchNode)) return false;
-
-  const parsed = parseBranchNodeId(branchNode.id);
-  if (!parsed) return false;
-  const sourceNode = nodes.find((n) => n.id === parsed.sourceNodeId);
-  const functions = nodeFunctions(sourceNode);
-  const functionIndex = functions.findIndex(
-    (fn) => fn.name === parsed.functionName && isBranch(fn.transition_to)
-  );
-  if (!sourceNode || functionIndex < 0) return false;
-
-  const fn = functions[functionIndex];
-  if (!isBranch(fn.transition_to)) return false;
-  const cases = fn.transition_to.cases;
-  const updated: FlowConfigFunction = {
-    ...fn,
-    transition_to: { ...fn.transition_to, cases: addCase(cases, params.target) },
-  };
-
-  setNodes((nds) =>
-    nds.map((n) =>
-      n.id === sourceNode.id && n.type !== "decision"
-        ? {
-            ...n,
-            data: {
-              ...n.data,
-              functions: functions.map((f, i) => (i === functionIndex ? updated : f)),
-            },
-          }
-        : n
-    )
-  );
-
-  selectNode(sourceNode.id, functionIndex, Object.keys(cases).length);
-  return true;
+export interface Connected {
+  sourceNodeId: string;
+  functionIndex: number;
+  caseIndex: number | null;
 }
 
-/** A connection drawn out of a node adds a function with that destination. */
-export function handleRegularConnection(
+/**
+ * A connection drawn from a row's handle sets that row's destination: a
+ * function's `transition_to`, a case's target, or the branch default. From
+ * the "add a case" row it adds a case, and from the node's own handle it adds
+ * a function. Returns what to select, or null when nothing changed.
+ */
+export function handleConnection(
   params: Connection,
   nodes: CanvasNode[],
-  setNodes: SetNodes,
-  selectNode: (nodeId: string, functionIndex: number) => void
-): void {
-  if (!params.source || !params.target) return;
-  const sourceNode = nodes.find((n) => n.id === params.source);
-  if (!sourceNode || sourceNode.type === "decision") return;
+  setNodes: SetNodes
+): Connected | null {
+  const { source, target } = params;
+  if (!source || !target) return null;
+  const sourceNode = nodes.find((n) => n.id === source);
+  if (!sourceNode) return null;
 
   const functions = nodeFunctions(sourceNode);
-  const newFunction: FlowConfigFunction = {
-    name: newFunctionName(functions),
-    transition_to: params.target,
-  };
+  const handle = parseHandleId(params.sourceHandle);
+  const commit = (updated: FlowConfigFunction[]) =>
+    setNodes((nds) =>
+      nds.map((n) => (n.id === source ? { ...n, data: { ...n.data, functions: updated } } : n))
+    );
 
-  setNodes((nds) =>
-    nds.map((n) =>
-      n.id === params.source && n.type !== "decision"
-        ? { ...n, data: { ...n.data, functions: [...functions, newFunction] } }
-        : n
-    )
-  );
+  if (handle.kind === "new-function") {
+    commit([...functions, { name: newFunctionName(functions), transition_to: target }]);
+    return { sourceNodeId: source, functionIndex: functions.length, caseIndex: null };
+  }
 
-  selectNode(params.source, functions.length);
+  const functionIndex = functions.findIndex((fn) => fn.name === handle.functionName);
+  const fn = functions[functionIndex];
+  if (!fn) return null;
+  const replace = (updated: FlowConfigFunction) =>
+    commit(functions.map((f, i) => (i === functionIndex ? updated : f)));
+
+  if (handle.kind === "function") {
+    replace({ ...fn, transition_to: target });
+    return { sourceNodeId: source, functionIndex, caseIndex: null };
+  }
+
+  if (!isBranch(fn.transition_to)) return null;
+  const branch = fn.transition_to;
+  switch (handle.kind) {
+    case "case": {
+      const caseIndex = Object.keys(branch.cases).indexOf(handle.caseValue);
+      if (caseIndex < 0) return null;
+      replace({
+        ...fn,
+        transition_to: { ...branch, cases: setCaseTarget(branch.cases, handle.caseValue, target) },
+      });
+      return { sourceNodeId: source, functionIndex, caseIndex };
+    }
+    case "default":
+      replace({ ...fn, transition_to: { ...branch, default: target } });
+      return { sourceNodeId: source, functionIndex, caseIndex: -1 };
+    case "new-case":
+      replace({ ...fn, transition_to: { ...branch, cases: addCase(branch.cases, target) } });
+      return { sourceNodeId: source, functionIndex, caseIndex: Object.keys(branch.cases).length };
+  }
 }

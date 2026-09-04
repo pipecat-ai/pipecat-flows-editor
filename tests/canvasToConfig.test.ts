@@ -4,10 +4,9 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
 
-import { deriveCanvasGraph, reconcileEdges } from "@/lib/convert/canvasGraph";
+import { deriveCanvasEdges, reconcileEdges } from "@/lib/convert/canvasGraph";
 import { canvasToConfig, configNodeFromData } from "@/lib/convert/canvasToConfig";
 import {
-  branchNodeId,
   type CanvasNode,
   type ConfigCanvasNode,
   configToCanvas,
@@ -95,75 +94,33 @@ describe("canvasToConfig", () => {
   });
 });
 
-describe("deriveCanvasGraph", () => {
+describe("deriveCanvasEdges", () => {
   const branchFn = { name: "check", transition_to: { field: "s", cases: { ok: "b" } } };
 
-  it("adds a branch node below its source and derives the edges", () => {
+  it("derives an edge per destination from the row's handle", () => {
     const nodes: CanvasNode[] = [
-      { ...configNode("a", "initial", { functions: [branchFn] }), position: { x: 10, y: 20 } },
+      configNode("a", "initial", { functions: [branchFn, { name: "go", transition_to: "b" }] }),
       configNode("b", "node", {}),
     ];
-    const derived = deriveCanvasGraph(nodes);
-    expect(derived.nodesChanged).toBe(true);
-    const branch = derived.nodes.find((n) => n.id === branchNodeId("a", "check"))!;
-    expect(branch.type).toBe("decision");
-    expect(branch.position).toEqual({ x: 10, y: 120 });
-    expect(derived.edges.map((e) => [e.source, e.target])).toEqual([
-      ["a", branch.id],
-      [branch.id, "b"],
+    expect(deriveCanvasEdges(nodes).map((e) => [e.sourceHandle, e.target])).toEqual([
+      ["fn:check:case:ok", "b"],
+      ["fn:go", "b"],
     ]);
   });
 
-  it("is stable once the branch node exists", () => {
-    const nodes: CanvasNode[] = [configNode("a", "initial", { functions: [branchFn] })];
-    const once = deriveCanvasGraph(nodes);
-    const twice = deriveCanvasGraph(once.nodes);
-    expect(twice.nodesChanged).toBe(false);
-    expect(twice.nodes).toBe(once.nodes === twice.nodes ? once.nodes : twice.nodes);
-    expect(twice.nodes[1]).toBe(once.nodes[1]);
-  });
-
-  it("keeps a moved branch node's position and updates its data", () => {
-    const nodes: CanvasNode[] = [configNode("a", "initial", { functions: [branchFn] })];
-    const once = deriveCanvasGraph(nodes);
-    const moved = once.nodes.map((n) =>
-      n.type === "decision" ? { ...n, position: { x: 500, y: 500 } } : n
-    );
-    const withDefault = moved.map((n) =>
-      n.id === "a"
-        ? {
-            ...n,
-            data: {
-              ...n.data,
-              functions: [
-                { ...branchFn, transition_to: { ...branchFn.transition_to, default: "a" } },
-              ],
-            },
-          }
-        : n
-    ) as CanvasNode[];
-    const derived = deriveCanvasGraph(withDefault);
-    const branch = derived.nodes.find((n) => n.type === "decision")!;
-    expect(derived.nodesChanged).toBe(true);
-    expect(branch.position).toEqual({ x: 500, y: 500 });
-    expect(branch.data.hasDefault).toBe(true);
-  });
-
-  it("removes a branch node whose function lost its branch table", () => {
-    const nodes: CanvasNode[] = [configNode("a", "initial", { functions: [branchFn] })];
-    const once = deriveCanvasGraph(nodes);
-    const cleared = once.nodes.map((n) =>
-      n.id === "a" ? { ...n, data: { ...n.data, functions: [{ name: "check" }] } } : n
-    ) as CanvasNode[];
-    const derived = deriveCanvasGraph(cleared);
-    expect(derived.nodesChanged).toBe(true);
-    expect(derived.nodes.map((n) => n.id)).toEqual(["a"]);
-    expect(derived.edges).toEqual([]);
+  it("drops the edges of a function that lost its destination", () => {
+    const nodes: CanvasNode[] = [configNode("a", "initial", { functions: [{ name: "check" }] })];
+    expect(deriveCanvasEdges(nodes)).toEqual([]);
   });
 });
 
 describe("reconcileEdges", () => {
-  const edge = (id: string, target: string) => ({ id, source: "a", target, label: id });
+  const edge = (id: string, target: string) => ({
+    id,
+    source: "a",
+    sourceHandle: `fn:${id}`,
+    target,
+  });
 
   it("returns the current edges when nothing changed", () => {
     const current = [edge("x", "b")];
