@@ -11,3 +11,5 @@ package-lock.json
 yarn.lock
 pnpm-lock.yaml
 
+# Vendored verbatim from Pipecat; kept byte-identical to the upstream file.
+lib/schema/flow_config.schema.json
