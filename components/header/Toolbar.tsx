@@ -10,6 +10,7 @@ import {
   MoreHorizontal,
   Redo2,
   Undo2,
+  Workflow,
 } from "lucide-react";
 import Link from "next/link";
 import { useRef } from "react";
@@ -59,7 +60,22 @@ export default function Toolbar({
   const inputRef = useRef<HTMLInputElement>(null);
   const showNodesPanel = useEditorStore((state) => state.showNodesPanel);
   const setShowNodesPanel = useEditorStore((state) => state.setShowNodesPanel);
+  const showFlowPanel = useEditorStore((state) => state.showFlowPanel);
+  const setShowFlowPanel = useEditorStore((state) => state.setShowFlowPanel);
+  const selectedNodeId = useEditorStore((state) => state.selectedNodeId);
   const flowName = useFlowStore((state) => state.flowName);
+
+  const flowPanelOpen = showFlowPanel && !selectedNodeId;
+  function toggleFlowPanel() {
+    if (flowPanelOpen) {
+      setShowFlowPanel(false);
+      return;
+    }
+    const editor = useEditorStore.getState();
+    editor.clearSelection();
+    editor.rfInstance?.setNodes((nds) => nds.map((node) => ({ ...node, selected: false })));
+    setShowFlowPanel(true);
+  }
 
   function onSave() {
     const { document, globalFunctions } = useFlowStore.getState();
@@ -234,6 +250,20 @@ export default function Toolbar({
             {FLOW_FILE_EXTENSION}
           </TooltipContent>
         </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant={flowPanelOpen ? "default" : "secondary"}
+              size="sm"
+              onClick={toggleFlowPanel}
+              className="hidden md:flex"
+            >
+              <Workflow className="h-4 w-4 md:mr-1.5" />
+              <span className="sr-only lg:not-sr-only">Flow</span>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Global functions, referenced tools, and variables</TooltipContent>
+        </Tooltip>
         {/* More menu - shown on mobile only, contains Open, Save, and Examples */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -250,6 +280,10 @@ export default function Toolbar({
             <DropdownMenuItem onClick={onSave}>
               <Download className="mr-2 h-4 w-4" />
               Save
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={toggleFlowPanel}>
+              <Workflow className="mr-2 h-4 w-4" />
+              Flow
             </DropdownMenuItem>
             <div className="my-1 h-px bg-neutral-200 dark:bg-neutral-700" />
             {EXAMPLES.map((example) => (

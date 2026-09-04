@@ -31,6 +31,9 @@ interface EditorState {
   // Nodes panel state
   showNodesPanel: boolean;
 
+  // Flow panel: the inspector's flow-level view, shown when no node is selected
+  showFlowPanel: boolean;
+
   // React Flow instance
   rfInstance: ReactFlowInstance | null;
 
@@ -45,6 +48,7 @@ interface EditorState {
   setInspectorPanelWidth: (width: number) => void;
   setIsInspectorResizing: (isResizing: boolean) => void;
   setShowNodesPanel: (show: boolean) => void;
+  setShowFlowPanel: (show: boolean) => void;
   setRfInstance: (instance: ReactFlowInstance | null) => void;
 
   // Selection actions (with validation and logic)
@@ -91,6 +95,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
     inspectorPanelWidth: 384,
     isInspectorResizing: false,
     showNodesPanel: true,
+    showFlowPanel: false,
     rfInstance: null,
     _isDeletingFunction: false,
 
@@ -123,6 +128,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
     setInspectorPanelWidth: (width) => set({ inspectorPanelWidth: width }),
     setIsInspectorResizing: (isResizing) => set({ isInspectorResizing: isResizing }),
     setShowNodesPanel: (show) => set({ showNodesPanel: show }),
+    setShowFlowPanel: (show) => set({ showFlowPanel: show }),
     setRfInstance: (instance) => set({ rfInstance: instance }),
 
     // Selection actions with validation

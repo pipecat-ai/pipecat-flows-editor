@@ -6,6 +6,7 @@ import {
 } from "@/lib/convert/configToCanvas";
 import { type FlowConfigFunction, isBranch } from "@/lib/schema/flowConfig";
 
+import { removeCase } from "./branchEdits";
 import { deriveNodeType } from "./nodeType";
 
 /** Merges `updates` into a node's data and re-derives its display type. */
@@ -69,6 +70,33 @@ export function removeEdgeRoute(nodes: CanvasNode[], edge: CanvasEdge): CanvasNo
       const cases = { ...fn.transition_to.cases };
       if (data.caseValue !== undefined) delete cases[data.caseValue];
       return { ...fn, transition_to: { ...fn.transition_to, cases } };
+    })
+  );
+}
+
+/**
+ * Removes one row of a function's branch table: the case at `conditionIndex`,
+ * or the default when it is -1.
+ */
+export function removeBranchCase(
+  nodes: CanvasNode[],
+  nodeId: string,
+  functionIndex: number,
+  conditionIndex: number
+): CanvasNode[] {
+  return updateFunctions(nodes, nodeId, (functions) =>
+    functions.map((fn, i) => {
+      if (i !== functionIndex || !isBranch(fn.transition_to)) return fn;
+      if (conditionIndex === -1) {
+        const { default: _default, ...branch } = fn.transition_to;
+        return { ...fn, transition_to: branch };
+      }
+      const value = Object.keys(fn.transition_to.cases)[conditionIndex];
+      if (value === undefined) return fn;
+      return {
+        ...fn,
+        transition_to: { ...fn.transition_to, cases: removeCase(fn.transition_to.cases, value) },
+      };
     })
   );
 }
