@@ -172,3 +172,9 @@ function checkAction(action: FlowConfigAction, path: string, errors: FlowConfigE
 function escapePointer(segment: string): string {
   return segment.replace(/~/g, "~0").replace(/\//g, "~1");
 }
+
+/** A one-line description of an error for toasts and logs. */
+export function formatFlowConfigError(error: FlowConfigError): string {
+  const path = error.instancePath || "/";
+  return error.message ? `${path}: ${error.message}` : path;
+}

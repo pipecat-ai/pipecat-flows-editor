@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { NODE_TEMPLATES } from "@/lib/nodes/templates";
 import { useEditorStore } from "@/lib/store/editorStore";
-import { deriveNodeType } from "@/lib/utils/nodeType";
 
 type Props = {
   nodes: Node[];
@@ -17,9 +16,7 @@ export default function NodePalette({ nodes }: Props) {
   const setShowNodesPanel = useEditorStore((state) => state.setShowNodesPanel);
 
   // Check if an initial node already exists
-  const hasInitialNode = nodes.some(
-    (n) => deriveNodeType(n.data as Record<string, unknown>, n.type as string) === "initial"
-  );
+  const hasInitialNode = nodes.some((n) => n.type === "initial");
 
   return (
     <aside className="w-56 shrink-0 border-r bg-white/70 p-2 text-sm backdrop-blur dark:bg-black/40 flex flex-col overflow-hidden h-full">

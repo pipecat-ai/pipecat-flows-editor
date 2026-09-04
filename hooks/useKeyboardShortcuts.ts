@@ -1,10 +1,9 @@
 import { useEffect } from "react";
 
-import type { FlowFunctionJson } from "@/lib/schema/flow.schema";
 import { useEditorStore } from "@/lib/store/editorStore";
 import type { FlowEdge, FlowNode } from "@/lib/types/flowTypes";
 import { canDeleteNode, deleteNode } from "@/lib/utils/nodeDeletion";
-import { duplicateNode } from "@/lib/utils/nodeDuplication";
+import { canDuplicateNode, duplicateNode } from "@/lib/utils/nodeDuplication";
 import { clearFunctionConnection } from "@/lib/utils/nodeUpdates";
 
 interface KeyboardShortcutsProps {
@@ -46,7 +45,7 @@ export function useKeyboardShortcuts({
       if ((e.key === "Delete" || e.key === "Backspace") && !isTyping) {
         e.preventDefault();
         if (selectedNodeId && selectedFunctionIndex !== null) {
-          // Delete edge by clearing next_node_id
+          // Delete the edge by clearing the function's destination
           setNodes((nds) => clearFunctionConnection(nds, selectedNodeId, selectedFunctionIndex));
           useEditorStore.getState().clearFunctionSelection();
         } else if (selectedNodeId) {
@@ -62,7 +61,7 @@ export function useKeyboardShortcuts({
         e.preventDefault();
         if (selectedNodeId) {
           const selected = nodes.find((n) => n.id === selectedNodeId);
-          if (selected && canDeleteNode(selected)) {
+          if (canDuplicateNode(selected)) {
             const duplicatedNode = duplicateNode(selected, nodes);
             setNodes((nds) => nds.concat(duplicatedNode));
             selectNode(duplicatedNode.id);

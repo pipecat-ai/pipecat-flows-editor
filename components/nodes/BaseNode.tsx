@@ -3,29 +3,20 @@
 import { Handle, type NodeProps, Position, useNodes } from "@xyflow/react";
 import { AlertTriangle, LogOut, Play } from "lucide-react";
 
-import type { ActionJson, FlowFunctionJson } from "@/lib/schema/flow.schema";
-import type { FlowNodeData } from "@/lib/types/flowTypes";
-import { deriveNodeType } from "@/lib/utils/nodeType";
+import type { ConfigCanvasNode } from "@/lib/convert/configToCanvas";
+import { functionTargets } from "@/lib/schema/flowConfig";
 
-export default function BaseNode({ data, selected }: NodeProps) {
+export default function BaseNode({ data, selected, type }: NodeProps<ConfigCanvasNode>) {
   const allNodes = useNodes();
-  const nodeData = data as FlowNodeData | undefined;
 
-  // Compute broken references from node state directly
-  // React Compiler will automatically memoize this computation
+  // A destination that names no node on the canvas
   const nodeIds = new Set(allNodes.map((n) => n.id));
-  const functions = (nodeData?.functions ?? []) as FlowFunctionJson[];
-  const hasBrokenReferences = functions.some(
-    (func) => func.next_node_id && !nodeIds.has(func.next_node_id)
+  const hasBrokenReferences = (data.functions ?? []).some((fn) =>
+    functionTargets(fn).some((target) => !nodeIds.has(target))
   );
 
-  // Check if this is an end node (has post_actions with end_conversation)
-  const postActions = (nodeData?.post_actions ?? []) as ActionJson[];
-  const isEndNode = postActions.some((action) => action.type === "end_conversation");
-
-  // Check if this is an initial node (has role_messages)
-  const nodeType = deriveNodeType(nodeData, undefined);
-  const isInitialNode = nodeType === "initial";
+  const isEndNode = type === "end";
+  const isInitialNode = type === "initial";
 
   return (
     <div
@@ -38,7 +29,7 @@ export default function BaseNode({ data, selected }: NodeProps) {
         {isInitialNode && (
           <Play className="h-3 w-3 text-neutral-400 dark:text-neutral-500 shrink-0" />
         )}
-        <div className="text-xs font-normal flex-1 text-nowrap">{nodeData?.label || "Node"}</div>
+        <div className="text-xs font-normal flex-1 text-nowrap">{data.label || "Node"}</div>
         {hasBrokenReferences && (
           <div title="This node has broken references (functions pointing to deleted nodes)">
             <AlertTriangle className="h-3 w-3 text-orange-500 dark:text-orange-400 shrink-0" />

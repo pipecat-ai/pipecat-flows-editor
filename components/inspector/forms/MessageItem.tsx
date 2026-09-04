@@ -13,12 +13,15 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import type { MessageJson } from "@/lib/schema/flow.schema";
+import type { FlowConfigMessage } from "@/lib/schema/flowConfig";
+
+/** The roles Pipecat accepts in task messages. `developer` becomes `system` for LLMs that need it. */
+const MESSAGE_ROLES = ["developer", "user", "assistant"] as const;
 
 interface MessageItemProps {
-  message: MessageJson;
+  message: FlowConfigMessage;
   index: number;
-  onUpdate: (updates: Partial<MessageJson>) => void;
+  onUpdate: (updates: Partial<FlowConfigMessage>) => void;
   onRemove: () => void;
 }
 
@@ -33,20 +36,19 @@ export function MessageItem({ message, index, onUpdate, onRemove }: MessageItemP
           <label htmlFor={messageRoleId} className="sr-only">
             Role
           </label>
-          <Select
-            value={message.role}
-            onValueChange={(v: "system" | "user" | "assistant" | "developer") =>
-              onUpdate({ role: v })
-            }
-          >
+          <Select value={message.role} onValueChange={(v) => onUpdate({ role: v })}>
             <SelectTrigger id={messageRoleId} className="h-8 text-xs w-32">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="system">System</SelectItem>
-              <SelectItem value="developer">Developer</SelectItem>
-              <SelectItem value="user">User</SelectItem>
-              <SelectItem value="assistant">Assistant</SelectItem>
+              {MESSAGE_ROLES.map((role) => (
+                <SelectItem key={role} value={role}>
+                  {role}
+                </SelectItem>
+              ))}
+              {!MESSAGE_ROLES.includes(message.role as (typeof MESSAGE_ROLES)[number]) && (
+                <SelectItem value={message.role}>{message.role}</SelectItem>
+              )}
             </SelectContent>
           </Select>
         </div>

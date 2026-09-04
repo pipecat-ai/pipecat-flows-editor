@@ -30,6 +30,13 @@ export function savePositions(flowName: string, positions: NodePositions): void 
   } catch {}
 }
 
+/** The positions of every node on the canvas, keyed by canvas node id. */
+export function positionsFromNodes(nodes: ReadonlyArray<{ id: string; position: Position }>) {
+  const positions: NodePositions = {};
+  for (const node of nodes) positions[node.id] = { x: node.position.x, y: node.position.y };
+  return positions;
+}
+
 export function clearPositions(flowName: string): void {
   try {
     localStorage.removeItem(storageKey(flowName));

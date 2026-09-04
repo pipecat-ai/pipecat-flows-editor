@@ -12,7 +12,7 @@ import {
 } from "@/lib/validation/flowConfigValidator";
 
 function loadExample(name: string): unknown {
-  return parse(readFileSync(resolve(__dirname, "../lib/examples", name), "utf8"));
+  return parse(readFileSync(resolve(__dirname, "../public/examples", name), "utf8"));
 }
 
 const foodOrdering = loadExample("food_ordering.yaml");

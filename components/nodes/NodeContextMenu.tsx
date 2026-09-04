@@ -65,7 +65,7 @@ export default function NodeContextMenu({
   if (!open || !position) return null;
 
   // Decision nodes shouldn't be duplicated or deleted directly
-  // They're managed automatically by the useDecisionNodes hook
+  // They are derived from a function's branch table and go away with it
   if (isDecisionNode) {
     return null;
   }

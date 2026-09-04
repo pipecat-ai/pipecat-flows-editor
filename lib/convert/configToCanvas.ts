@@ -50,7 +50,39 @@ export interface BranchNodeData {
 export type ConfigCanvasNode = Node<ConfigNodeData, ConfigNodeType>;
 export type BranchCanvasNode = Node<BranchNodeData, "decision">;
 export type CanvasNode = ConfigCanvasNode | BranchCanvasNode;
-export type CanvasEdge = Edge;
+
+export type CanvasEdgeKind = "transition" | "branch" | "case" | "default";
+
+/**
+ * What an edge stands for in the config, so selection and deletion can find
+ * the function entry without parsing ids. `kind` is `transition` for a
+ * node-name destination, `branch` for the edge into a branch node, and
+ * `case` or `default` for the edges out of one.
+ */
+export interface CanvasEdgeData {
+  sourceNodeId: string;
+  functionName: string;
+  kind: CanvasEdgeKind;
+  caseValue?: string;
+  /** Index of the case among the branch's cases, in config order. */
+  caseIndex?: number;
+  [key: string]: unknown;
+}
+
+export type CanvasEdge = Edge<CanvasEdgeData>;
+
+export function isConfigNode(node: CanvasNode): node is ConfigCanvasNode {
+  return node.type !== "decision";
+}
+
+export function isBranchNode(node: CanvasNode): node is BranchCanvasNode {
+  return node.type === "decision";
+}
+
+/** The functions on a canvas node; a branch node has none. */
+export function nodeFunctions(node: CanvasNode | undefined): FlowConfigFunction[] {
+  return node && isConfigNode(node) ? (node.data.functions ?? []) : [];
+}
 
 export interface Canvas {
   nodes: CanvasNode[];
@@ -159,6 +191,7 @@ function transitionEdge(sourceNodeId: string, functionName: string, target: stri
     target,
     label: functionName,
     type: sourceNodeId === target ? "selfloop" : "default",
+    data: { sourceNodeId, functionName, kind: "transition" },
   };
 }
 
@@ -196,17 +229,19 @@ function branchEdges(
       target: branchId,
       label: fn.name,
       type: "default",
+      data: { sourceNodeId, functionName: fn.name, kind: "branch" },
     },
   ];
-  for (const [value, target] of Object.entries(branch.cases)) {
+  Object.entries(branch.cases).forEach(([value, target], caseIndex) => {
     edges.push({
       id: branchCaseEdgeId(branchId, value),
       source: branchId,
       target,
       label: value,
       type: "default",
+      data: { sourceNodeId, functionName: fn.name, kind: "case", caseValue: value, caseIndex },
     });
-  }
+  });
   if (branch.default) {
     edges.push({
       id: branchDefaultEdgeId(branchId),
@@ -214,6 +249,7 @@ function branchEdges(
       target: branch.default,
       label: "default",
       type: "default",
+      data: { sourceNodeId, functionName: fn.name, kind: "default" },
     });
   }
   return edges;

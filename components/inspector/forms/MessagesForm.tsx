@@ -3,27 +3,27 @@
 import { Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import type { MessageJson } from "@/lib/schema/flow.schema";
+import type { FlowConfigMessage } from "@/lib/schema/flowConfig";
 
 import { MessageItem } from "./MessageItem";
 
 type Props = {
   label: string;
-  messages: MessageJson[] | undefined;
-  onChange: (messages: MessageJson[]) => void;
+  messages: FlowConfigMessage[] | undefined;
+  onChange: (messages: FlowConfigMessage[]) => void;
 };
 
 export default function MessagesForm({ label, messages, onChange }: Props) {
   const items = messages ?? [];
 
-  const updateItem = (index: number, updates: Partial<MessageJson>) => {
+  const updateItem = (index: number, updates: Partial<FlowConfigMessage>) => {
     const next = [...items];
     next[index] = { ...next[index], ...updates };
     onChange(next);
   };
 
   const addItem = () => {
-    onChange([...items, { role: "system", content: "" }]);
+    onChange([...items, { role: "developer", content: "" }]);
   };
 
   const removeItem = (index: number) => {

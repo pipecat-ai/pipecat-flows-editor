@@ -13,12 +13,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import type { ActionJson } from "@/lib/schema/flow.schema";
+import type { FlowConfigAction } from "@/lib/schema/flowConfig";
 
 interface ActionItemProps {
-  action: ActionJson;
+  action: FlowConfigAction;
   index: number;
-  onUpdate: (updates: Partial<ActionJson>) => void;
+  onUpdate: (updates: Partial<FlowConfigAction>) => void;
   onRemove: () => void;
 }
 
@@ -66,7 +66,7 @@ export function ActionItem({ action, index, onUpdate, onRemove }: ActionItemProp
           <Input
             id={actionTextId}
             className="h-8 text-xs flex-1"
-            value={action.text ?? ""}
+            value={typeof action.text === "string" ? action.text : ""}
             onChange={(e) => onUpdate({ text: e.target.value })}
             placeholder="Text to say"
           />

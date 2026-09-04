@@ -1,17 +1,20 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { loadCurrent, saveCurrent } from "@/lib/storage/localStore";
+import { loadCurrentFlow, saveCurrentFlow } from "@/lib/storage/localStore";
 
 describe("storage", () => {
   beforeEach(() => {
-    // reset localStorage
     localStorage.clear();
   });
 
-  it("saves and loads current", () => {
-    const payload = { nodes: [{ id: "n1" }], edges: [] } as any;
-    saveCurrent(payload);
-    const loaded = loadCurrent<typeof payload>();
-    expect(loaded?.nodes?.[0]?.id).toBe("n1");
+  it("saves and loads the current flow", () => {
+    saveCurrentFlow({ flowName: "food_ordering", yaml: "initial_node: a\n" });
+    expect(loadCurrentFlow()).toEqual({ flowName: "food_ordering", yaml: "initial_node: a\n" });
+  });
+
+  it("returns null when nothing or something malformed is stored", () => {
+    expect(loadCurrentFlow()).toBeNull();
+    localStorage.setItem("pipecat-flows-editor/flow", '{"nodes": []}');
+    expect(loadCurrentFlow()).toBeNull();
   });
 });

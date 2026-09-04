@@ -6,10 +6,10 @@ import {
   Download,
   FilePlusCorner,
   FileText,
+  FolderOpen,
   MoreHorizontal,
   Redo2,
   Undo2,
-  Upload,
 } from "lucide-react";
 import Link from "next/link";
 import { useRef } from "react";
@@ -27,19 +27,17 @@ import {
 import { Input } from "@/components/ui/input";
 import { showToast } from "@/components/ui/Toast";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { generatePythonCode } from "@/lib/codegen/pythonGenerator";
-import { flowJsonToReactFlow, reactFlowToFlowJson } from "@/lib/convert/flowAdapters";
-import { EXAMPLES } from "@/lib/examples";
-import { FlowJson } from "@/lib/schema/flow.schema";
+import { FLOW_FILE_EXTENSION, flowNameFromFileName } from "@/lib/document/flowDocument";
+import { serializeFlow } from "@/lib/document/serializeFlow";
+import { EXAMPLES, fetchExample, type FlowExample } from "@/lib/examples";
 import { useEditorStore } from "@/lib/store/editorStore";
-import type { FlowEdge, FlowNode } from "@/lib/types/flowTypes";
-import { customGraphChecks, validateFlowJson } from "@/lib/validation/validator";
+import { useFlowStore } from "@/lib/store/flowStore";
+import type { FlowNode } from "@/lib/types/flowTypes";
+import { formatFlowConfigError } from "@/lib/validation/flowConfigValidator";
 
 type Props = {
   nodes: FlowNode[];
-  edges: FlowEdge[];
-  setNodes: (nodes: FlowNode[]) => void;
-  setEdges: (edges: FlowEdge[] | ((edges: FlowEdge[]) => FlowEdge[])) => void;
+  onOpenFlow: (text: string, flowName: string) => void;
   canUndo: boolean;
   canRedo: boolean;
   onUndo: () => void;
@@ -47,11 +45,11 @@ type Props = {
   onNewFlow: () => void;
 };
 
+const ACCEPTED_FILES = ".yaml,.yml,.json,application/x-yaml,application/yaml,application/json";
+
 export default function Toolbar({
   nodes,
-  edges,
-  setNodes,
-  setEdges,
+  onOpenFlow,
   canUndo,
   canRedo,
   onUndo,
@@ -59,71 +57,46 @@ export default function Toolbar({
   onNewFlow,
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const rfInstance = useEditorStore((state) => state.rfInstance);
   const showNodesPanel = useEditorStore((state) => state.showNodesPanel);
   const setShowNodesPanel = useEditorStore((state) => state.setShowNodesPanel);
+  const flowName = useFlowStore((state) => state.flowName);
 
-  function onExport() {
-    const json = reactFlowToFlowJson(nodes, edges);
-    const blob = new Blob([JSON.stringify(json, null, 2)], { type: "application/json" });
-    const a = document.createElement("a");
+  function onSave() {
+    const { document, globalFunctions } = useFlowStore.getState();
+    const { text, referenceErrors } = serializeFlow(nodes, { document, globalFunctions });
+    const blob = new Blob([text], { type: "application/yaml" });
+    const a = window.document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = "flow.json";
+    a.download = `${flowName}${FLOW_FILE_EXTENSION}`;
     a.click();
     URL.revokeObjectURL(a.href);
-  }
-
-  function onExportPython() {
-    const json = reactFlowToFlowJson(nodes, edges);
-    const r = validateFlowJson(json);
-    if (!r.valid) {
-      showToast("Flow must be valid before exporting Python code", "error");
-      return;
-    }
-    try {
-      const pythonCode = generatePythonCode(json);
-      const blob = new Blob([pythonCode], { type: "text/x-python" });
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = `${json.meta.name.toLowerCase().replace(/\s+/g, "_")}_flow.py`;
-      a.click();
-      URL.revokeObjectURL(a.href);
-      showToast("Python code exported successfully", "success");
-    } catch (error) {
-      console.error("Failed to generate Python code:", error);
-      showToast("Failed to generate Python code", "error");
+    if (referenceErrors.length > 0) {
+      showToast(
+        `Saved with ${referenceErrors.length} unresolved reference${referenceErrors.length === 1 ? "" : "s"}: ${formatFlowConfigError(referenceErrors[0])}`,
+        "info"
+      );
+    } else {
+      showToast(`Saved ${flowName}${FLOW_FILE_EXTENSION}`, "success");
     }
   }
 
-  function onImport(file: File, input: HTMLInputElement) {
+  function onOpenFile(file: File, input: HTMLInputElement) {
     const reader = new FileReader();
     reader.onload = () => {
-      try {
-        const json = JSON.parse(String(reader.result));
-        const r = validateFlowJson(json);
-        if (!r.valid) {
-          showToast("Invalid JSON schema for flow", "error");
-          return;
-        }
-        const custom = customGraphChecks(json);
-        if (custom.length) {
-          showToast("Custom validation failed. See console for details.", "error");
-          console.error("Custom validation errors:", custom);
-          return;
-        }
-        const rf = flowJsonToReactFlow(json);
-        setNodes(rf.nodes as FlowNode[]);
-        setEdges(rf.edges as FlowEdge[]);
-        showToast("Flow imported successfully", "success");
-        setTimeout(() => {
-          rfInstance?.fitView?.({ padding: 0.2, duration: 300 });
-        }, 100);
-        input.value = "";
-      } catch {
-        showToast("Failed to import JSON", "error");
-      }
+      onOpenFlow(String(reader.result), flowNameFromFileName(file.name));
+      input.value = "";
     };
+    reader.onerror = () => showToast("Could not read the file", "error");
     reader.readAsText(file);
+  }
+
+  function onLoadExample(example: FlowExample) {
+    fetchExample(example)
+      .then((text) => onOpenFlow(text, example.id))
+      .catch((error: unknown) => {
+        console.error("Failed to load example:", error);
+        showToast(`Could not load the ${example.name} example`, "error");
+      });
   }
 
   const moreLinks = (
@@ -227,37 +200,41 @@ export default function Toolbar({
           </TooltipContent>
         </Tooltip>
         <div className="w-px bg-neutral-300 dark:bg-neutral-700" />
-        {/* Import button - hidden on mobile, shown on larger screens */}
         <Input
           ref={inputRef}
           type="file"
-          accept="application/json"
+          accept={ACCEPTED_FILES}
           className="hidden"
-          onChange={(e) => e.target.files && onImport(e.target.files[0], e.target)}
+          onChange={(e) => e.target.files && onOpenFile(e.target.files[0], e.target)}
         />
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={() => inputRef.current?.click()}
-          className="hidden md:flex"
-        >
-          <Upload className="h-4 w-4 md:mr-1.5" />
-          <span className="sr-only lg:not-sr-only">Import</span>
-        </Button>
-        {/* Export dropdown - hidden on mobile, shown on larger screens */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="secondary" size="sm" className="hidden md:flex gap-1.5">
-              <Download className="h-4 w-4" />
-              <span className="sr-only lg:not-sr-only">Export</span>
+        {/* Open and Save - hidden on mobile, shown on larger screens */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => inputRef.current?.click()}
+              className="hidden md:flex"
+            >
+              <FolderOpen className="h-4 w-4 md:mr-1.5" />
+              <span className="sr-only lg:not-sr-only">Open</span>
             </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={onExport}>Export JSON</DropdownMenuItem>
-            <DropdownMenuItem onClick={onExportPython}>Export Python</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-        {/* More menu - shown on mobile only, contains Import, Export, and Examples */}
+          </TooltipTrigger>
+          <TooltipContent>Open a flow config (YAML or JSON)</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="secondary" size="sm" onClick={onSave} className="hidden md:flex">
+              <Download className="h-4 w-4 md:mr-1.5" />
+              <span className="sr-only lg:not-sr-only">Save</span>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            Save as {flowName}
+            {FLOW_FILE_EXTENSION}
+          </TooltipContent>
+        </Tooltip>
+        {/* More menu - shown on mobile only, contains Open, Save, and Examples */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="secondary" size="sm" className="gap-1.5 md:hidden">
@@ -267,45 +244,18 @@ export default function Toolbar({
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={() => inputRef.current?.click()}>
-              <Upload className="mr-2 h-4 w-4" />
-              Import
+              <FolderOpen className="mr-2 h-4 w-4" />
+              Open
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={onExport}>
+            <DropdownMenuItem onClick={onSave}>
               <Download className="mr-2 h-4 w-4" />
-              Export JSON
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={onExportPython}>
-              <Download className="mr-2 h-4 w-4" />
-              Export Python
+              Save
             </DropdownMenuItem>
             <div className="my-1 h-px bg-neutral-200 dark:bg-neutral-700" />
-            <DropdownMenuItem
-              onClick={() => {
-                const rf = flowJsonToReactFlow(EXAMPLES[0].json as FlowJson);
-                setNodes(rf.nodes as FlowNode[]);
-                setEdges(rf.edges as FlowEdge[]);
-                setTimeout(() => {
-                  rfInstance?.fitView?.({ padding: 0.2, duration: 300 });
-                }, 100);
-              }}
-            >
-              <FileText className="mr-2 h-4 w-4" />
-              {EXAMPLES[0].name}
-            </DropdownMenuItem>
-            {EXAMPLES.slice(1).map((ex) => (
-              <DropdownMenuItem
-                key={ex.id}
-                onClick={() => {
-                  const rf = flowJsonToReactFlow(ex.json as FlowJson);
-                  setNodes(rf.nodes as FlowNode[]);
-                  setEdges(rf.edges as FlowEdge[]);
-                  setTimeout(() => {
-                    rfInstance?.fitView?.({ padding: 0.2, duration: 300 });
-                  }, 100);
-                }}
-              >
+            {EXAMPLES.map((example) => (
+              <DropdownMenuItem key={example.id} onClick={() => onLoadExample(example)}>
                 <FileText className="mr-2 h-4 w-4" />
-                {ex.name}
+                {example.name}
               </DropdownMenuItem>
             ))}
             <DropdownMenuSeparator />
@@ -321,19 +271,9 @@ export default function Toolbar({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            {EXAMPLES.map((ex) => (
-              <DropdownMenuItem
-                key={ex.id}
-                onClick={() => {
-                  const rf = flowJsonToReactFlow(ex.json as FlowJson);
-                  setNodes(rf.nodes as FlowNode[]);
-                  setEdges(rf.edges as FlowEdge[]);
-                  setTimeout(() => {
-                    rfInstance?.fitView?.({ padding: 0.2, duration: 300 });
-                  }, 100);
-                }}
-              >
-                {ex.name}
+            {EXAMPLES.map((example) => (
+              <DropdownMenuItem key={example.id} onClick={() => onLoadExample(example)}>
+                {example.name}
               </DropdownMenuItem>
             ))}
           </DropdownMenuContent>
