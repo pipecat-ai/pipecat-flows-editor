@@ -2,11 +2,11 @@
 
 import { IconBook, IconBrandGithub, IconDots, IconHome } from "@tabler/icons-react";
 import {
-  ChevronRight,
   Download,
   FilePlusCorner,
   FileText,
   FolderOpen,
+  LayoutGrid,
   MoreHorizontal,
   Redo2,
   Undo2,
@@ -39,6 +39,7 @@ import { formatFlowConfigError } from "@/lib/validation/flowConfigValidator";
 type Props = {
   nodes: FlowNode[];
   onOpenFlow: (text: string, flowName: string) => void;
+  onAutoLayout: () => void;
   canUndo: boolean;
   canRedo: boolean;
   onUndo: () => void;
@@ -51,6 +52,7 @@ const ACCEPTED_FILES = ".yaml,.yml,.json,application/x-yaml,application/yaml,app
 export default function Toolbar({
   nodes,
   onOpenFlow,
+  onAutoLayout,
   canUndo,
   canRedo,
   onUndo,
@@ -58,8 +60,6 @@ export default function Toolbar({
   onNewFlow,
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const showNodesPanel = useEditorStore((state) => state.showNodesPanel);
-  const setShowNodesPanel = useEditorStore((state) => state.setShowNodesPanel);
   const showFlowPanel = useEditorStore((state) => state.showFlowPanel);
   const setShowFlowPanel = useEditorStore((state) => state.setShowFlowPanel);
   const selectedNodeId = useEditorStore((state) => state.selectedNodeId);
@@ -154,28 +154,7 @@ export default function Toolbar({
 
   return (
     <TooltipProvider>
-      <div
-        className={`absolute top-2 md:top-4 left-2 z-10 flex gap-2 rounded-md bg-white/80 p-2 text-sm shadow backdrop-blur dark:bg-black/40 transition-all duration-300 ${
-          showNodesPanel ? "left-[232px]" : ""
-        }`}
-      >
-        {!showNodesPanel && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  className="h-8 w-8 p-0"
-                  onClick={() => setShowNodesPanel(true)}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent align="start">Show nodes panel</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
+      <div className="absolute top-2 md:top-4 left-2 z-10 flex gap-2 rounded-md bg-white/80 p-2 text-sm shadow backdrop-blur dark:bg-black/40">
         <Button variant="secondary" size="sm" onClick={onNewFlow} title="Create a new flow">
           <FilePlusCorner className="h-4 w-4" />
           <span className="sr-only lg:not-sr-only">New Flow</span>
@@ -252,6 +231,15 @@ export default function Toolbar({
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
+            <Button variant="secondary" size="sm" onClick={onAutoLayout} className="hidden md:flex">
+              <LayoutGrid className="h-4 w-4 md:mr-1.5" />
+              <span className="sr-only lg:not-sr-only">Layout</span>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Lay the nodes out automatically</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
             <Button
               variant={flowPanelOpen ? "default" : "secondary"}
               size="sm"
@@ -284,6 +272,10 @@ export default function Toolbar({
             <DropdownMenuItem onClick={toggleFlowPanel}>
               <Workflow className="mr-2 h-4 w-4" />
               Flow
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onAutoLayout}>
+              <LayoutGrid className="mr-2 h-4 w-4" />
+              Layout
             </DropdownMenuItem>
             <div className="my-1 h-px bg-neutral-200 dark:bg-neutral-700" />
             {EXAMPLES.map((example) => (

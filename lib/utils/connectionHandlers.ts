@@ -8,7 +8,7 @@ import {
 } from "@/lib/convert/configToCanvas";
 import { type FlowConfigFunction, isBranch } from "@/lib/schema/flowConfig";
 import { addCase } from "@/lib/utils/branchEdits";
-import { generateNodeIdFromLabel } from "@/lib/utils/nodeId";
+import { newFunctionName } from "@/lib/utils/nodeCreation";
 
 type SetNodes = (updater: (nodes: CanvasNode[]) => CanvasNode[]) => void;
 
@@ -73,9 +73,10 @@ export function handleRegularConnection(
   if (!sourceNode || sourceNode.type === "decision") return;
 
   const functions = nodeFunctions(sourceNode);
-  const existingNames = functions.map((fn) => fn.name).filter(Boolean);
-  const name = generateNodeIdFromLabel(`function_${existingNames.length + 1}`, existingNames);
-  const newFunction: FlowConfigFunction = { name, transition_to: params.target };
+  const newFunction: FlowConfigFunction = {
+    name: newFunctionName(functions),
+    transition_to: params.target,
+  };
 
   setNodes((nds) =>
     nds.map((n) =>

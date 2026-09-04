@@ -161,7 +161,7 @@ export function configToGraph(config: FlowConfig): Canvas {
       const transition = fn.transition_to;
       if (transition === undefined || transition === null) continue;
       if (isBranch(transition)) {
-        const branch = branchNode(name, fn, transition);
+        const branch = branchCanvasNode(name, fn, transition);
         nodes.push(branch);
         edges.push(...branchEdges(name, fn, transition, branch.id));
       } else {
@@ -195,7 +195,8 @@ function transitionEdge(sourceNodeId: string, functionName: string, target: stri
   };
 }
 
-function branchNode(
+/** The canvas node for a function's branch table, at the origin. */
+export function branchCanvasNode(
   sourceNodeId: string,
   fn: FlowConfigFunction,
   branch: FlowConfigBranch

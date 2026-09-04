@@ -195,11 +195,16 @@ export default function InspectorPanel({
                   size="sm"
                   className="h-6 w-6 p-0"
                   onClick={() => onDelete(id as string, "node")}
+                  disabled={displayedType === "initial"}
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="left">Delete node</TooltipContent>
+              <TooltipContent side="left">
+                {displayedType === "initial"
+                  ? "The initial node cannot be deleted; make another node initial first"
+                  : "Delete node"}
+              </TooltipContent>
             </Tooltip>
           </TooltipProvider>
         </div>
