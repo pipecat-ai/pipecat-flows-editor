@@ -12,6 +12,8 @@ interface Props {
   className?: string;
   placeholder?: string;
   ariaLabel: string;
+  /** Longer values show their first characters and an ellipsis; the full value is in the tooltip and when editing. */
+  maxChars?: number;
 }
 
 /**
@@ -28,6 +30,7 @@ export default function InlineText({
   className = "",
   placeholder,
   ariaLabel,
+  maxChars = 20,
 }: Props) {
   const [draft, setDraft] = useState(value);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -53,9 +56,9 @@ export default function InlineText({
           e.stopPropagation();
           onStartEdit();
         }}
-        title="Double-click to rename"
+        title={`${value ? `${value}\n` : ""}Double-click to rename`}
       >
-        {value || placeholder}
+        {value ? (value.length > maxChars ? `${value.slice(0, maxChars)}…` : value) : placeholder}
       </span>
     );
   }

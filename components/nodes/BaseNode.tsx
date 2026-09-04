@@ -14,6 +14,13 @@ import { useCanvasActions } from "./canvasActions";
 import InlineText from "./InlineText";
 import NodeAddToolbar from "./NodeAddToolbar";
 
+/**
+ * How many characters of each name the card shows before an ellipsis. The
+ * full text is in the tooltip and when editing. These are independent of the
+ * card's width, which is NODE_CARD.width in lib/layout/autoLayout.ts.
+ */
+const NAME_LIMITS = { node: 30, tool: 25, caseValue: 20, field: 25 };
+
 /** Which text on the card is being edited in place. */
 type Editing =
   | { kind: "node" }
@@ -50,7 +57,7 @@ export default function BaseNode({ id, data, selected, type }: NodeProps<ConfigC
       className={`relative rounded-lg border-2 bg-white text-xs shadow-sm dark:bg-neutral-800 ${
         selected ? "border-blue-500" : "border-neutral-300 dark:border-neutral-600"
       }`}
-      style={{ minWidth: NODE_CARD.minWidth }}
+      style={{ width: NODE_CARD.width }}
       onMouseEnter={() => setHovering(true)}
       onMouseLeave={() => setHovering(false)}
     >
@@ -61,13 +68,13 @@ export default function BaseNode({ id, data, selected, type }: NodeProps<ConfigC
         style={{ top: NODE_CARD.headerHeight / 2 }}
       />
       <div
-        className={`flex items-center gap-1.5 px-2.5 font-medium ${
+        className={`flex items-center gap-1.5 px-2.5 text-[13px] font-semibold ${
           functions.length > 0 ? "border-b border-neutral-200 dark:border-neutral-700" : ""
         }`}
         style={{ height: NODE_CARD.headerHeight }}
       >
         {isInitialNode && (
-          <Play className="h-3 w-3 text-neutral-400 dark:text-neutral-500 shrink-0" />
+          <Play className="h-[13px] w-[13px] text-neutral-400 dark:text-neutral-500 shrink-0" />
         )}
         <InlineText
           value={data.label || id}
@@ -80,8 +87,11 @@ export default function BaseNode({ id, data, selected, type }: NodeProps<ConfigC
           onCancel={() => setEditing(null)}
           className="flex-1 text-nowrap"
           ariaLabel="Node name"
+          maxChars={NAME_LIMITS.node}
         />
-        {isEndNode && <LogOut className="h-3 w-3 text-neutral-400 dark:text-neutral-500" />}
+        {isEndNode && (
+          <LogOut className="h-[13px] w-[13px] text-neutral-400 dark:text-neutral-500" />
+        )}
       </div>
 
       {functions.length > 0 && (
@@ -184,10 +194,10 @@ function FunctionRows({
       onCancel={() => setEditing(null)}
       className={`font-mono ${fn.name ? "" : "italic text-neutral-400"}`}
       ariaLabel="Tool name"
+      maxChars={NAME_LIMITS.tool}
     />
   );
-  const removeFunction =
-    active && actions ? () => actions.removeFunction(nodeId, functionIndex) : undefined;
+  const removeFunction = actions ? () => actions.removeFunction(nodeId, functionIndex) : undefined;
 
   if (isBranch(transition)) {
     const cases = Object.entries(transition.cases);
@@ -206,17 +216,19 @@ function FunctionRows({
         />
         <Row
           label={nameText}
-          icon={<Split className="h-3 w-3 shrink-0 text-purple-600 dark:text-purple-400" />}
+          icon={
+            <Split className="h-[13px] w-[13px] shrink-0 text-purple-600 dark:text-purple-400" />
+          }
           selected={selectedCase === "function"}
           onClick={() => select(null)}
           onRemove={removeFunction}
           removeTitle="Remove this function and its branch"
           trailing={
             <span
-              className="flex min-w-0 items-center gap-1 text-neutral-500"
+              className="flex max-w-[45%] shrink-0 items-center gap-1 text-neutral-500"
               title="The field of the tool result the branch keys on"
             >
-              <ArrowRight className="h-3 w-3 shrink-0" />
+              <ArrowRight className="h-[13px] w-[13px] shrink-0" />
               <InlineText
                 value={transition.field}
                 placeholder="field"
@@ -229,6 +241,7 @@ function FunctionRows({
                 onCancel={() => setEditing(null)}
                 className={`font-mono ${transition.field ? "" : "italic text-neutral-400"}`}
                 ariaLabel="Branch field"
+                maxChars={NAME_LIMITS.field}
               />
             </span>
           }
@@ -252,6 +265,7 @@ function FunctionRows({
                 }}
                 onCancel={() => setEditing(null)}
                 ariaLabel="Case value"
+                maxChars={NAME_LIMITS.caseValue}
               />
             }
             indent
@@ -259,7 +273,7 @@ function FunctionRows({
             selected={selectedCase === caseIndex}
             onClick={() => select(caseIndex)}
             onRemove={
-              active && actions && cases.length > 1
+              actions && cases.length > 1
                 ? () => actions.removeBranchCase(nodeId, functionIndex, caseIndex)
                 : undefined
             }
@@ -276,9 +290,7 @@ function FunctionRows({
             selected={selectedCase === -1}
             onClick={() => select(-1)}
             onRemove={
-              active && actions
-                ? () => actions.removeBranchCase(nodeId, functionIndex, -1)
-                : undefined
+              actions ? () => actions.removeBranchCase(nodeId, functionIndex, -1) : undefined
             }
             removeTitle="Remove the default"
           />
@@ -297,7 +309,7 @@ function FunctionRows({
   }
 
   const target = typeof transition === "string" ? transition : null;
-  const iconClass = "h-3 w-3 shrink-0 text-neutral-400";
+  const iconClass = "h-[13px] w-[13px] shrink-0 text-neutral-400";
   const icon =
     target === null ? (
       <Wrench className={iconClass} />
@@ -363,13 +375,13 @@ function Row({
       >
         {icon}
         {label}
-        {missing && <AlertTriangle className="h-3 w-3 shrink-0" />}
+        {missing && <AlertTriangle className="h-[13px] w-[13px] shrink-0" />}
       </button>
       {trailing}
-      {onRemove && (
+      {onRemove ? (
         <button
           type="button"
-          className="nodrag nopan rounded p-0.5 text-neutral-400 opacity-0 hover:text-red-600 group-hover:opacity-100"
+          className="nodrag nopan shrink-0 rounded p-0.5 text-neutral-400 opacity-0 hover:text-red-600 group-hover:opacity-100"
           title={removeTitle}
           aria-label={removeTitle}
           onClick={(e) => {
@@ -379,6 +391,8 @@ function Row({
         >
           <X className="h-3 w-3" />
         </button>
+      ) : (
+        <span aria-hidden className="h-4 w-4 shrink-0" />
       )}
       {handle && (
         <Handle
