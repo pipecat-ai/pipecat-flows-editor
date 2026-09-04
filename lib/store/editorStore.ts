@@ -24,6 +24,11 @@ interface EditorState {
   // Scroll target for inspector panel
   scrollTarget: ScrollTarget | null;
 
+  // YAML pane state
+  showYaml: boolean;
+  yamlPanelHeight: number;
+  isYamlPanelResizing: boolean;
+
   // Inspector panel state
   inspectorPanelWidth: number;
   isInspectorResizing: boolean;
@@ -45,6 +50,9 @@ interface EditorState {
   setSelectedFunctionIndex: (index: number | null) => void;
   setSelectedConditionIndex: (index: number | null) => void;
   setScrollTarget: (target: ScrollTarget | null) => void;
+  setShowYaml: (show: boolean) => void;
+  setYamlPanelHeight: (height: number) => void;
+  setIsYamlPanelResizing: (isResizing: boolean) => void;
   setInspectorPanelWidth: (width: number) => void;
   setIsInspectorResizing: (isResizing: boolean) => void;
   setShowNodesPanel: (show: boolean) => void;
@@ -92,6 +100,9 @@ export const useEditorStore = create<EditorState>((set, get) => {
     selectedFunctionIndex: null,
     selectedConditionIndex: null,
     scrollTarget: null,
+    showYaml: false,
+    yamlPanelHeight: 360,
+    isYamlPanelResizing: false,
     inspectorPanelWidth: 384,
     isInspectorResizing: false,
     showNodesPanel: true,
@@ -125,6 +136,9 @@ export const useEditorStore = create<EditorState>((set, get) => {
       set({ scrollTarget: target });
     },
 
+    setShowYaml: (show) => set({ showYaml: show }),
+    setYamlPanelHeight: (height) => set({ yamlPanelHeight: height }),
+    setIsYamlPanelResizing: (isResizing) => set({ isYamlPanelResizing: isResizing }),
     setInspectorPanelWidth: (width) => set({ inspectorPanelWidth: width }),
     setIsInspectorResizing: (isResizing) => set({ isInspectorResizing: isResizing }),
     setShowNodesPanel: (show) => set({ showNodesPanel: show }),

@@ -21,12 +21,14 @@ import DecisionNode from "@/components/nodes/DecisionNode";
 import NodeContextMenu from "@/components/nodes/NodeContextMenu";
 import NodePalette from "@/components/palette/NodePalette";
 import ToastContainer, { showToast } from "@/components/ui/Toast";
+import YamlPanel from "@/components/yaml/YamlPanel";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { deriveCanvasGraph, reconcileEdges } from "@/lib/convert/canvasGraph";
 import { configToCanvas, nodeFunctions } from "@/lib/convert/configToCanvas";
-import { parseFlowYaml } from "@/lib/document/flowDocument";
+import { type FlowProblem, parseFlowYaml } from "@/lib/document/flowDocument";
 import { serializeFlow } from "@/lib/document/serializeFlow";
 import { getTemplateByType } from "@/lib/nodes/templates";
+import type { FlowConfig } from "@/lib/schema/flowConfig";
 import { loadCurrentFlow, saveCurrentFlow } from "@/lib/storage/localStore";
 import { loadPositions, positionsFromNodes, savePositions } from "@/lib/storage/positionStore";
 import { useEditorStore } from "@/lib/store/editorStore";
@@ -47,6 +49,20 @@ import {
 import { formatFlowConfigError } from "@/lib/validation/flowConfigValidator";
 
 type History = { nodes: FlowNode[]; edges: FlowEdge[] };
+
+/** Structural equality with key order ignored, for comparing configs from different sources. */
+function sameConfig(a: FlowConfig | null, b: FlowConfig | null): boolean {
+  return stableStringify(a) === stableStringify(b);
+}
+
+function stableStringify(value: unknown): string {
+  if (value === null || typeof value !== "object") return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(",")}]`;
+  const entries = Object.entries(value as Record<string, unknown>)
+    .filter(([, v]) => v !== undefined)
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  return `{${entries.map(([k, v]) => `${JSON.stringify(k)}:${stableStringify(v)}`).join(",")}}`;
+}
 
 /** The canvas for a new flow: one initial node from its template. */
 function newFlowNodes(): FlowNode[] {
@@ -89,6 +105,21 @@ export default function EditorShell() {
   const isInspectorResizing = useEditorStore((state) => state.isInspectorResizing);
   const loadFlow = useFlowStore((state) => state.loadFlow);
   const resetFlow = useFlowStore((state) => state.reset);
+  const flowName = useFlowStore((state) => state.flowName);
+  const globalFunctions = useFlowStore((state) => state.globalFunctions);
+  const showYaml = useEditorStore((state) => state.showYaml);
+  const yamlPanelHeight = useEditorStore((state) => state.yamlPanelHeight);
+
+  // The YAML pane. `paneConfigRef` is the config the pane's text last parsed
+  // to; the canvas rewrites the pane only when it holds something different,
+  // so the author's formatting and cursor survive canvas-side changes that
+  // do not touch the config, and echoes of pane edits are ignored.
+  const [yamlText, setYamlText] = useState("");
+  const [yamlProblems, setYamlProblems] = useState<FlowProblem[]>([]);
+  const paneConfigRef = useRef<FlowConfig | null>(null);
+  const paneApplyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const nodesRef = useRef<FlowNode[]>([]);
+  nodesRef.current = nodes;
 
   const undoManagerRef = useRef(new UndoManager<History>({ nodes: [], edges: [] }));
   const skipUndoPushRef = useRef(false);
@@ -157,6 +188,10 @@ export default function EditorShell() {
         document: parsed.document,
         globalFunctions: parsed.config.global_functions ?? [],
       });
+      // The pane shows the file as written
+      paneConfigRef.current = parsed.config;
+      setYamlText(text);
+      setYamlProblems(parsed.problems);
       if (parsed.referenceErrors.length > 0) {
         showToast(
           `Opened ${flowName} with ${parsed.referenceErrors.length} unresolved reference${
@@ -216,17 +251,57 @@ export default function EditorShell() {
     }
   }, [selectedNodeId, rfInstance]);
 
-  // Autosave (debounced): the flow as YAML, and the canvas positions beside it
+  // Document sync (debounced): serialize the canvas, autosave it with the
+  // canvas positions, and rewrite the YAML pane when the config changed.
   useEffect(() => {
     if (!hydratedRef.current) return;
     const id = setTimeout(() => {
-      const { flowName, document, globalFunctions } = useFlowStore.getState();
-      const { text } = serializeFlow(nodes, { document, globalFunctions });
+      const { document } = useFlowStore.getState();
+      const { text, config } = serializeFlow(nodes, { document, globalFunctions });
       saveCurrentFlow({ flowName, yaml: text });
       savePositions(flowName, positionsFromNodes(nodes));
-    }, 400);
+      if (!sameConfig(config, paneConfigRef.current)) {
+        paneConfigRef.current = config;
+        setYamlText(text);
+        setYamlProblems(parseFlowYaml(text).problems);
+      }
+    }, 300);
     return () => clearTimeout(id);
-  }, [nodes]);
+  }, [nodes, globalFunctions, flowName]);
+
+  // Pane edits re-parse onto the canvas after a pause in typing. Text that
+  // does not parse or match the schema only updates the markers.
+  const applyYamlText = useCallback(
+    (text: string) => {
+      const parsed = parseFlowYaml(text);
+      setYamlProblems(parsed.problems);
+      if (!parsed.config) return;
+      paneConfigRef.current = parsed.config;
+      const { flowName: name, setDocument, setGlobalFunctions } = useFlowStore.getState();
+      const positions = { ...loadPositions(name), ...positionsFromNodes(nodesRef.current) };
+      const canvas = configToCanvas(parsed.config, { positions });
+      setNodes(canvas.nodes);
+      setEdges(canvas.edges);
+      setDocument(parsed.document);
+      setGlobalFunctions(parsed.config.global_functions ?? []);
+    },
+    [setNodes, setEdges]
+  );
+
+  const onYamlChange = useCallback(
+    (text: string) => {
+      setYamlText(text);
+      if (paneApplyTimerRef.current) clearTimeout(paneApplyTimerRef.current);
+      paneApplyTimerRef.current = setTimeout(() => applyYamlText(text), 400);
+    },
+    [applyYamlText]
+  );
+
+  useEffect(() => {
+    return () => {
+      if (paneApplyTimerRef.current) clearTimeout(paneApplyTimerRef.current);
+    };
+  }, []);
 
   // push to undo history on changes (debounced, skip if from undo/redo)
   useEffect(() => {
@@ -294,13 +369,15 @@ export default function EditorShell() {
 
   const { theme } = useTheme();
   const showInspector = Boolean(selectedNodeId) || showFlowPanel;
+  const columnHeight = `calc(100vh - ${showYaml ? yamlPanelHeight : 0}px)`;
 
   return (
     <div className="h-screen w-screen flex overflow-hidden">
       <div
-        className={`flex flex-col overflow-hidden transition-all duration-300 ease-in-out h-screen ${
+        className={`flex flex-col overflow-hidden transition-all duration-300 ease-in-out ${
           showNodesPanel ? "w-56" : "w-0"
         }`}
+        style={{ height: columnHeight }}
       >
         <div
           className={`w-56 shrink-0 h-full transition-transform duration-300 ease-in-out ${
@@ -333,7 +410,7 @@ export default function EditorShell() {
         }}
         onNewFlow={startNewFlow}
       />
-      <div className="flex-1 min-w-0 relative overflow-hidden h-screen">
+      <div className="flex-1 min-w-0 relative overflow-hidden" style={{ height: columnHeight }}>
         <ReactFlow
           colorMode={theme as ColorMode}
           nodes={nodes}
@@ -436,10 +513,11 @@ export default function EditorShell() {
         />
       </div>
       <div
-        className={`flex flex-col overflow-hidden h-screen ${
+        className={`flex flex-col overflow-hidden ${
           isInspectorResizing ? "" : "transition-all duration-300 ease-in-out"
         } ${showInspector ? "" : "w-0"}`}
         style={{
+          height: columnHeight,
           width: showInspector ? `${inspectorPanelWidth}px` : "0px",
           maxWidth: showInspector ? "min(100vw, 800px)" : "0px",
         }}
@@ -495,6 +573,7 @@ export default function EditorShell() {
           </div>
         )}
       </div>
+      <YamlPanel text={yamlText} problems={yamlProblems} onChange={onYamlChange} />
       <ToastContainer />
     </div>
   );

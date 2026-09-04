@@ -179,3 +179,58 @@ describe("flowNameFromFileName", () => {
     expect(flowNameFromFileName(".yaml")).toBe("untitled");
   });
 });
+
+describe("parseFlowYaml problems", () => {
+  const lines = (text: string) =>
+    parseFlowYaml(text).problems.map((p) => [p.severity, p.startLine]);
+
+  it("locates YAML syntax errors", () => {
+    const problems = parseFlowYaml("initial_node: a\nnodes:\n  a: [\n").problems;
+    expect(problems[0].severity).toBe("error");
+    expect(problems[0].startLine).toBeGreaterThanOrEqual(3);
+  });
+
+  it("points an unknown key at the key and a missing key at its object", () => {
+    const text = [
+      "initial_node: a",
+      "nodes:",
+      "  a:",
+      "    task_messages: []",
+      "    position: 1",
+    ].join("\n");
+    const [unknown] = parseFlowYaml(text).problems;
+    expect(unknown).toMatchObject({
+      severity: "error",
+      message: "unknown key 'position'",
+      startLine: 5,
+    });
+
+    const missing = ["initial_node: a", "nodes:", "  a:", "    functions: []"].join("\n");
+    expect(parseFlowYaml(missing).problems[0]).toMatchObject({
+      message: "missing required key 'task_messages'",
+      startLine: 3,
+      endLine: 3,
+    });
+  });
+
+  it("points reference problems at the offending value", () => {
+    const text = [
+      "initial_node: nowhere",
+      "nodes:",
+      "  a:",
+      "    task_messages: []",
+      "    functions:",
+      "      - name: go",
+      "        transition_to: gone",
+    ].join("\n");
+    expect(lines(text)).toEqual([
+      ["warning", 1],
+      ["warning", 7],
+    ]);
+    expect(parseFlowYaml(text).problems[1].startColumn).toBe(24);
+  });
+
+  it("has no problems for Pipecat's example", () => {
+    expect(parseFlowYaml(foodOrderingText).problems).toEqual([]);
+  });
+});
