@@ -1,106 +1,108 @@
-import type { FlowFunctionJson } from "@/lib/schema/flow.schema";
-import type { FlowNode, FlowNodeData } from "@/lib/types/flowTypes";
+import {
+  type CanvasEdge,
+  type CanvasNode,
+  type ConfigNodeData,
+  isConfigNode,
+} from "@/lib/convert/configToCanvas";
+import { type FlowConfigFunction, isBranch } from "@/lib/schema/flowConfig";
 
 import { deriveNodeType } from "./nodeType";
 
-/**
- * Update a node's data and derive its type
- */
+/** Merges `updates` into a node's data and re-derives its display type. */
 export function updateNodeData(
-  nodes: FlowNode[],
+  nodes: CanvasNode[],
   nodeId: string,
-  updates: Partial<FlowNodeData>
-): FlowNode[] {
-  return nodes.map((n) => {
-    if (n.id === nodeId) {
-      const newData = { ...n.data, ...updates };
-      const derivedType = deriveNodeType(newData, n.type as string);
-      return { ...n, type: derivedType as FlowNode["type"], data: newData };
-    }
-    return n;
+  updates: Partial<ConfigNodeData>
+): CanvasNode[] {
+  return nodes.map((node) => {
+    if (node.id !== nodeId || !isConfigNode(node)) return node;
+    const type = deriveNodeType({ ...node.data, ...updates }, node.type);
+    return { ...node, type, data: { ...node.data, ...updates, type } };
   });
 }
 
-/**
- * Clear the next_node_id connection for a specific function
- * Returns updated nodes array
- */
+function updateFunctions(
+  nodes: CanvasNode[],
+  nodeId: string,
+  update: (functions: FlowConfigFunction[]) => FlowConfigFunction[]
+): CanvasNode[] {
+  return nodes.map((node) => {
+    if (node.id !== nodeId || !isConfigNode(node)) return node;
+    return { ...node, data: { ...node.data, functions: update(node.data.functions ?? []) } };
+  });
+}
+
+/** Removes a function's destination so the tool stays on its node. */
 export function clearFunctionConnection(
-  nodes: FlowNode[],
+  nodes: CanvasNode[],
   nodeId: string,
   functionIndex: number
-): FlowNode[] {
-  return nodes.map((node) => {
-    if (node.id !== nodeId) return node;
-
-    const nodeData = node.data as FlowNodeData;
-    const functions = (nodeData?.functions || []) as FlowFunctionJson[];
-
-    if (functionIndex < 0 || functionIndex >= functions.length) return node;
-
-    const updatedFunctions = [...functions];
-    updatedFunctions[functionIndex] = {
-      ...updatedFunctions[functionIndex],
-      next_node_id: undefined,
-    };
-
-    return {
-      ...node,
-      data: {
-        ...nodeData,
-        functions: updatedFunctions,
-      },
-    };
-  });
+): CanvasNode[] {
+  return updateFunctions(nodes, nodeId, (functions) =>
+    functions.map((fn, i) => {
+      if (i !== functionIndex) return fn;
+      const { transition_to: _transition, ...rest } = fn;
+      return rest;
+    })
+  );
 }
 
 /**
- * Update function references when a node ID changes
+ * Removes what an edge stands for: the destination of a transition, or one
+ * case or the default of a branch table.
  */
-export function updateFunctionReferences(
-  nodes: FlowNode[],
+export function removeEdgeRoute(nodes: CanvasNode[], edge: CanvasEdge): CanvasNode[] {
+  const data = edge.data;
+  if (!data) return nodes;
+  return updateFunctions(nodes, data.sourceNodeId, (functions) =>
+    functions.map((fn) => {
+      if (fn.name !== data.functionName) return fn;
+      if (data.kind === "transition" || data.kind === "branch") {
+        const { transition_to: _transition, ...rest } = fn;
+        return rest;
+      }
+      if (!isBranch(fn.transition_to)) return fn;
+      if (data.kind === "default") {
+        const { default: _default, ...branch } = fn.transition_to;
+        return { ...fn, transition_to: branch };
+      }
+      const cases = { ...fn.transition_to.cases };
+      if (data.caseValue !== undefined) delete cases[data.caseValue];
+      return { ...fn, transition_to: { ...fn.transition_to, cases } };
+    })
+  );
+}
+
+/** Rewrites every destination naming `oldId` to `newId`. */
+export function renameFunctionTargets(
+  functions: FlowConfigFunction[],
   oldId: string,
   newId: string
-): FlowNode[] {
+): FlowConfigFunction[] {
+  return functions.map((fn) => {
+    const transition = fn.transition_to;
+    if (transition === oldId) return { ...fn, transition_to: newId };
+    if (!isBranch(transition)) return fn;
+    const cases = Object.fromEntries(
+      Object.entries(transition.cases).map(([value, target]) => [
+        value,
+        target === oldId ? newId : target,
+      ])
+    );
+    const branch = { ...transition, cases };
+    if (branch.default === oldId) branch.default = newId;
+    return { ...fn, transition_to: branch };
+  });
+}
+
+/** Renames a node and rewrites every destination that pointed at it. */
+export function renameNode(nodes: CanvasNode[], oldId: string, newId: string): CanvasNode[] {
   return nodes.map((node) => {
-    const nodeData = node.data as FlowNodeData;
-    const functions = (nodeData?.functions || []) as FlowFunctionJson[];
-    const updatedFunctions = functions.map((func) => {
-      if (func.next_node_id === oldId) {
-        return { ...func, next_node_id: newId };
-      }
-      // Also update decision condition references
-      if (func.decision) {
-        const updatedConditions = func.decision.conditions.map((cond) => {
-          if (cond.next_node_id === oldId) {
-            return { ...cond, next_node_id: newId };
-          }
-          return cond;
-        });
-        const defaultUpdated =
-          func.decision.default_next_node_id === oldId ? newId : func.decision.default_next_node_id;
-
-        return {
-          ...func,
-          decision: {
-            ...func.decision,
-            conditions: updatedConditions,
-            default_next_node_id: defaultUpdated,
-          },
-        };
-      }
-      return func;
-    });
-
-    const hasChanges = updatedFunctions.some((f, i) => f !== functions[i]);
-    if (!hasChanges) return node;
-
-    return {
-      ...node,
-      data: {
-        ...nodeData,
-        functions: updatedFunctions,
-      },
-    };
+    if (!isConfigNode(node)) return node;
+    const functions = renameFunctionTargets(node.data.functions ?? [], oldId, newId);
+    if (node.id === oldId) {
+      return { ...node, id: newId, data: { ...node.data, name: newId, label: newId, functions } };
+    }
+    return { ...node, data: { ...node.data, functions } };
   });
 }

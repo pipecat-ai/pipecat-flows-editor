@@ -16,7 +16,7 @@ import type { FlowConfig } from "@/lib/schema/flowConfig";
 import { clearPositions, loadPositions, savePositions } from "@/lib/storage/positionStore";
 
 function loadExample(name: string): FlowConfig {
-  return parse(readFileSync(resolve(__dirname, "../lib/examples", name), "utf8"));
+  return parse(readFileSync(resolve(__dirname, "../public/examples", name), "utf8"));
 }
 
 const foodOrdering = loadExample("food_ordering.yaml");

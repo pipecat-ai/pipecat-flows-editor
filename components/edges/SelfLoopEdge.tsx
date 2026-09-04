@@ -2,8 +2,7 @@
 
 import { BaseEdge, EdgeProps, useNodes } from "@xyflow/react";
 
-import type { FlowFunctionJson } from "@/lib/schema/flow.schema";
-import type { FlowNodeData } from "@/lib/types/flowTypes";
+import { type CanvasNode, nodeFunctions } from "@/lib/convert/configToCanvas";
 
 /**
  * Builds the geometry for a self-loop edge
@@ -74,10 +73,10 @@ export default function SelfLoopEdge({
 }: EdgeProps) {
   // Get the source node to determine its actual dimensions for label spacing
   const nodes = useNodes();
-  const sourceNode = nodes.find((n) => n.id === source);
-  const sourceNodeData = sourceNode?.data as FlowNodeData | undefined;
-  const sourceFunctions = (sourceNodeData?.functions ?? []) as FlowFunctionJson[];
-  const selfLoopFunctions = sourceFunctions.filter((func) => func.next_node_id === sourceNode?.id);
+  const sourceNode = nodes.find((n) => n.id === source) as CanvasNode | undefined;
+  const selfLoopFunctions = nodeFunctions(sourceNode).filter(
+    (func) => func.transition_to === sourceNode?.id
+  );
   const nodeWidth = sourceNode?.width ?? 150;
 
   // For self-loops, source and target are the same node

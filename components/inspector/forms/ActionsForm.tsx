@@ -3,20 +3,20 @@
 import { Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import type { ActionJson } from "@/lib/schema/flow.schema";
+import type { FlowConfigAction } from "@/lib/schema/flowConfig";
 
 import { ActionItem } from "./ActionItem";
 
 type Props = {
   label: string;
-  actions: ActionJson[] | undefined;
-  onChange: (actions: ActionJson[]) => void;
+  actions: FlowConfigAction[] | undefined;
+  onChange: (actions: FlowConfigAction[]) => void;
 };
 
 export default function ActionsForm({ label, actions, onChange }: Props) {
   const items = actions ?? [];
 
-  const updateItem = (index: number, updates: Partial<ActionJson>) => {
+  const updateItem = (index: number, updates: Partial<FlowConfigAction>) => {
     const next = [...items];
     next[index] = { ...next[index], ...updates };
     onChange(next);

@@ -1,104 +1,92 @@
 import type { Connection } from "@xyflow/react";
 
-import type { DecisionConditionJson, FlowFunctionJson } from "@/lib/schema/flow.schema";
-import type { FlowNode } from "@/lib/types/flowTypes";
-import { findDecisionSource, parseDecisionNodeId } from "@/lib/utils/decisionNodes";
+import {
+  type CanvasNode,
+  isBranchNode,
+  nodeFunctions,
+  parseBranchNodeId,
+} from "@/lib/convert/configToCanvas";
+import { type FlowConfigFunction, isBranch } from "@/lib/schema/flowConfig";
 import { generateNodeIdFromLabel } from "@/lib/utils/nodeId";
 
+type SetNodes = (updater: (nodes: CanvasNode[]) => CanvasNode[]) => void;
+
 /**
- * Handle connection from a decision node - adds a condition
+ * A connection drawn out of a branch node adds a case to its branch table.
+ * The case value is a placeholder for the author to rename.
  */
-export function handleDecisionNodeConnection(
+export function handleBranchConnection(
   params: Connection,
-  nodes: FlowNode[],
-  setNodes: (updater: (nodes: FlowNode[]) => FlowNode[]) => void,
-  selectNode: (nodeId: string, functionIndex: number, conditionIndex: number) => void
+  nodes: CanvasNode[],
+  setNodes: SetNodes,
+  selectNode: (nodeId: string, functionIndex: number, caseIndex: number) => void
 ): boolean {
   if (!params.source || !params.target) return false;
+  const branchNode = nodes.find((n) => n.id === params.source);
+  if (!branchNode || !isBranchNode(branchNode)) return false;
 
-  const sourceNode = nodes.find((n) => n.id === params.source);
-  if (!sourceNode || sourceNode.type !== "decision") return false;
-
-  const parsed = parseDecisionNodeId(sourceNode.id);
+  const parsed = parseBranchNodeId(branchNode.id);
   if (!parsed) return false;
+  const sourceNode = nodes.find((n) => n.id === parsed.sourceNodeId);
+  const functions = nodeFunctions(sourceNode);
+  const functionIndex = functions.findIndex(
+    (fn) => fn.name === parsed.functionName && isBranch(fn.transition_to)
+  );
+  if (!sourceNode || functionIndex < 0) return false;
 
-  const decisionSource = findDecisionSource(sourceNode.id, nodes);
-  if (!decisionSource || !decisionSource.function.decision) return false;
-
-  const { sourceNode: actualSourceNode, functionIndex, function: func } = decisionSource;
-
-  // Add new condition
-  const newCondition: DecisionConditionJson = {
-    operator: "==",
-    value: "",
-    next_node_id: params.target,
-  };
-
-  const updatedFunctions = [...((actualSourceNode.data?.functions ?? []) as FlowFunctionJson[])];
-  updatedFunctions[functionIndex] = {
-    ...func,
-    decision: {
-      ...func.decision!,
-      conditions: [...func.decision!.conditions, newCondition],
-    },
+  const fn = functions[functionIndex];
+  if (!isBranch(fn.transition_to)) return false;
+  const cases = fn.transition_to.cases;
+  const caseValue = nextCaseValue(cases);
+  const updated: FlowConfigFunction = {
+    ...fn,
+    transition_to: { ...fn.transition_to, cases: { ...cases, [caseValue]: params.target } },
   };
 
   setNodes((nds) =>
     nds.map((n) =>
-      n.id === actualSourceNode.id
+      n.id === sourceNode.id && n.type !== "decision"
         ? {
             ...n,
             data: {
               ...n.data,
-              functions: updatedFunctions,
+              functions: functions.map((f, i) => (i === functionIndex ? updated : f)),
             },
           }
         : n
     )
   );
 
-  // Select the source node, function, and new condition
-  const newConditionIndex = func.decision!.conditions.length;
-  selectNode(actualSourceNode.id, functionIndex, newConditionIndex);
-
+  selectNode(sourceNode.id, functionIndex, Object.keys(cases).length);
   return true;
 }
 
-/**
- * Handle regular connection - creates a new function
- */
+function nextCaseValue(cases: Record<string, string>): string {
+  let n = Object.keys(cases).length + 1;
+  while (`value_${n}` in cases) n += 1;
+  return `value_${n}`;
+}
+
+/** A connection drawn out of a node adds a function with that destination. */
 export function handleRegularConnection(
   params: Connection,
-  nodes: FlowNode[],
-  setNodes: (updater: (nodes: FlowNode[]) => FlowNode[]) => void,
+  nodes: CanvasNode[],
+  setNodes: SetNodes,
   selectNode: (nodeId: string, functionIndex: number) => void
 ): void {
   if (!params.source || !params.target) return;
-
   const sourceNode = nodes.find((n) => n.id === params.source);
-  if (!sourceNode) return;
+  if (!sourceNode || sourceNode.type === "decision") return;
 
-  const functions = (sourceNode.data?.functions ?? []) as FlowFunctionJson[];
-  const existingFunctionNames = functions.map((f) => f.name).filter(Boolean);
-  const defaultFunctionName = `function_${existingFunctionNames.length + 1}`;
-  const functionName = generateNodeIdFromLabel(defaultFunctionName, existingFunctionNames);
-
-  const newFunction: FlowFunctionJson = {
-    name: functionName,
-    description: "",
-    next_node_id: params.target,
-  };
+  const functions = nodeFunctions(sourceNode);
+  const existingNames = functions.map((fn) => fn.name).filter(Boolean);
+  const name = generateNodeIdFromLabel(`function_${existingNames.length + 1}`, existingNames);
+  const newFunction: FlowConfigFunction = { name, transition_to: params.target };
 
   setNodes((nds) =>
     nds.map((n) =>
-      n.id === params.source
-        ? {
-            ...n,
-            data: {
-              ...n.data,
-              functions: [...functions, newFunction],
-            },
-          }
+      n.id === params.source && n.type !== "decision"
+        ? { ...n, data: { ...n.data, functions: [...functions, newFunction] } }
         : n
     )
   );

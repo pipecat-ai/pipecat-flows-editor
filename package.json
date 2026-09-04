@@ -33,7 +33,6 @@
     "@radix-ui/react-slot": "^1.2.3",
     "@radix-ui/react-tabs": "^1.1.13",
     "@radix-ui/react-tooltip": "^1.2.8",
-    "@sinclair/typebox": "^0.34.41",
     "@tabler/icons-react": "^3.35.0",
     "@xyflow/react": "^12.9.2",
     "ajv": "^8.17.1",
