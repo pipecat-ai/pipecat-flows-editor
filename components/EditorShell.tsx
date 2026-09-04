@@ -230,10 +230,15 @@ export default function EditorShell() {
 
   /**
    * Opens YAML text as the current flow. YAML and schema errors refuse the
-   * file; reference errors open it and are shown on the canvas.
+   * file; reference errors open it and are shown on the canvas. A file is
+   * laid out fresh; only the autosave restore keeps the stored arrangement.
    */
   const openFlow = useCallback(
-    (text: string, flowName: string, options: { silent?: boolean } = {}): boolean => {
+    (
+      text: string,
+      flowName: string,
+      options: { silent?: boolean; keepPositions?: boolean } = {}
+    ): boolean => {
       const legacy = convertLegacyText(text, flowName);
       if (legacy) {
         text = legacy.yaml;
@@ -255,7 +260,9 @@ export default function EditorShell() {
         console.error("Schema errors:", parsed.schemaErrors);
         return false;
       }
-      const canvas = configToCanvas(parsed.config, { positions: loadPositions(flowName) });
+      const canvas = configToCanvas(parsed.config, {
+        positions: options.keepPositions ? loadPositions(flowName) : undefined,
+      });
       replaceCanvas(canvas);
       loadFlow({
         flowName,
@@ -300,7 +307,9 @@ export default function EditorShell() {
     const saved = loadCurrentFlow();
     const legacy = saved ? null : readLegacyAutosave();
     if (saved) {
-      if (!openFlow(saved.yaml, saved.flowName, { silent: true })) startNewFlow();
+      if (!openFlow(saved.yaml, saved.flowName, { silent: true, keepPositions: true })) {
+        startNewFlow();
+      }
     } else if (!legacy || !openFlow(legacy, DEFAULT_FLOW_NAME)) {
       startNewFlow();
     }
