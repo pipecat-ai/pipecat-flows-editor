@@ -44,7 +44,8 @@ npm run lint  # ESLint + TypeScript rules
 ## Working With Flows
 
 - A flow is a `FlowConfig` YAML file. Its shape is defined by Pipecat's JSON Schema, vendored at `lib/schema/flow_config.schema.json`; the field descriptions there are Pipecat's own. See [docs/INTEGRATION.md](./docs/INTEGRATION.md) for the format and how a Pipecat application loads it.
-- The node palette offers `initial`, `node`, and `end` templates. Every node has the same shape; the templates differ only in defaults. The initial node is whichever node `initial_node` names, and an end node is one with an `end_conversation` post-action.
+- Nodes are added from other nodes. Hover a node and press its "+" to add a destination: a next node, an end node, or a branch on the tool's result. Each adds the function that leads there, so every node is reachable by construction. On a branch diamond, "+" adds a case leading to a new node.
+- The initial node is whichever node `initial_node` names; use "Make initial node" in a node's context menu to move it. An end node is one with an `end_conversation` post-action. Every node has the same shape.
 - A node's name is its key in the config. Renaming a node rewrites every destination that pointed at it.
 - Routing lives on functions as `transition_to`: a node name, or a branch table with `field`, `cases`, and an optional `default`. Drawing an edge from a node adds a function; drawing one from a branch diamond adds a case.
 - Tool descriptions and parameters are not in the config. They come from the direct functions in your Python tools module, referenced by name.
@@ -62,6 +63,7 @@ Toolbar actions let you:
 
 - **Open** – Read a `FlowConfig` file as YAML or JSON, validate it, and lay it out. A file in the editor's old JSON format is converted; what cannot convert (tool schemas, decisions) is reported by name.
 - **Save** – Download the flow as `<name>.yaml`, merged into the document it was opened from so comments are preserved.
+- **Layout** – Lay the nodes out automatically, the way a freshly opened file is.
 - **Flow** – Edit the flow's name and global functions, and see the tools, action handlers, and variables the config refers to.
 - **Show YAML** – Edit the document itself, with parse, schema, and reference problems marked inline.
 

@@ -20,7 +20,7 @@ export interface LayoutOptions {
   measure?: (node: Node) => { width: number; height: number };
 }
 
-const BRANCH_NODE_SIZE = { width: 150, height: 52 };
+export const BRANCH_NODE_SIZE = { width: 150, height: 52 };
 
 /**
  * Estimates a node's rendered size from its label. React Flow measures nodes

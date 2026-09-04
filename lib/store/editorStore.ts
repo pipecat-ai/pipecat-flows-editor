@@ -33,9 +33,6 @@ interface EditorState {
   inspectorPanelWidth: number;
   isInspectorResizing: boolean;
 
-  // Nodes panel state
-  showNodesPanel: boolean;
-
   // Flow panel: the inspector's flow-level view, shown when no node is selected
   showFlowPanel: boolean;
 
@@ -55,7 +52,6 @@ interface EditorState {
   setIsYamlPanelResizing: (isResizing: boolean) => void;
   setInspectorPanelWidth: (width: number) => void;
   setIsInspectorResizing: (isResizing: boolean) => void;
-  setShowNodesPanel: (show: boolean) => void;
   setShowFlowPanel: (show: boolean) => void;
   setRfInstance: (instance: ReactFlowInstance | null) => void;
 
@@ -105,7 +101,6 @@ export const useEditorStore = create<EditorState>((set, get) => {
     isYamlPanelResizing: false,
     inspectorPanelWidth: 384,
     isInspectorResizing: false,
-    showNodesPanel: true,
     showFlowPanel: false,
     rfInstance: null,
     _isDeletingFunction: false,
@@ -141,7 +136,6 @@ export const useEditorStore = create<EditorState>((set, get) => {
     setIsYamlPanelResizing: (isResizing) => set({ isYamlPanelResizing: isResizing }),
     setInspectorPanelWidth: (width) => set({ inspectorPanelWidth: width }),
     setIsInspectorResizing: (isResizing) => set({ isInspectorResizing: isResizing }),
-    setShowNodesPanel: (show) => set({ showNodesPanel: show }),
     setShowFlowPanel: (show) => set({ showFlowPanel: show }),
     setRfInstance: (instance) => set({ rfInstance: instance }),
 

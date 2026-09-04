@@ -6,8 +6,9 @@ export function deleteNode(nodes: CanvasNode[], nodeId: string): CanvasNode[] {
 
 /**
  * Whether a node can be deleted. Branch nodes cannot: they are derived from a
- * function's branch table and go away with it.
+ * function's branch table and go away with it. The initial node cannot: a
+ * flow always has an entry point, so make another node initial first.
  */
 export function canDeleteNode(node: CanvasNode | undefined): boolean {
-  return node !== undefined && node.type !== "decision";
+  return node !== undefined && node.type !== "decision" && node.type !== "initial";
 }

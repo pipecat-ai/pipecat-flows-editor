@@ -3,11 +3,17 @@
 import { Handle, type NodeProps, Position, useNodes } from "@xyflow/react";
 import { AlertTriangle, LogOut, Play } from "lucide-react";
 
+import { useHoverWithGrace } from "@/hooks/useHoverWithGrace";
 import type { ConfigCanvasNode } from "@/lib/convert/configToCanvas";
 import { functionTargets } from "@/lib/schema/flowConfig";
 
-export default function BaseNode({ data, selected, type }: NodeProps<ConfigCanvasNode>) {
+import { useCanvasActions } from "./canvasActions";
+import NodeAddToolbar from "./NodeAddToolbar";
+
+export default function BaseNode({ id, data, selected, type }: NodeProps<ConfigCanvasNode>) {
   const allNodes = useNodes();
+  const actions = useCanvasActions();
+  const [hovering, setHovering] = useHoverWithGrace();
 
   // A destination that names no node on the canvas
   const nodeIds = new Set(allNodes.map((n) => n.id));
@@ -23,6 +29,8 @@ export default function BaseNode({ data, selected, type }: NodeProps<ConfigCanva
       className={`rounded-lg border-2 bg-white px-2 py-1.5 shadow-sm dark:bg-neutral-800 ${
         selected ? "border-blue-500" : "border-neutral-300 dark:border-neutral-600"
       } ${hasBrokenReferences ? "border-orange-400 dark:border-orange-500" : ""}`}
+      onMouseEnter={() => setHovering(true)}
+      onMouseLeave={() => setHovering(false)}
     >
       <Handle type="target" position={Position.Top} className="bg-neutral-400!" />
       <div className="flex items-center gap-1.5">
@@ -39,6 +47,14 @@ export default function BaseNode({ data, selected, type }: NodeProps<ConfigCanva
       </div>
       {!isEndNode && (
         <Handle type="source" position={Position.Bottom} className="bg-neutral-400!" />
+      )}
+      {!isEndNode && actions && (
+        <NodeAddToolbar
+          visible={hovering || Boolean(selected)}
+          onAdd={(kind) => actions.addDestination(id, kind)}
+          title="Add a destination"
+          onHoverChange={setHovering}
+        />
       )}
     </div>
   );
