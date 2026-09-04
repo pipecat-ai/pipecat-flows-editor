@@ -1,6 +1,5 @@
 "use client";
 
-import { NodeToolbar, Position } from "@xyflow/react";
 import { ArrowRight, LogOut, Plus, Split, Wrench } from "lucide-react";
 import { useState } from "react";
 
@@ -77,20 +76,22 @@ interface Props {
   visible: boolean;
   onAdd: (kind: DestinationKind) => void;
   title: string;
-  onHoverChange: (hovering: boolean) => void;
 }
 
-/** The "+" under a node, the one place to add a function. Shown on hover and while selected. */
-export default function NodeAddToolbar({ visible, onAdd, title, onHoverChange }: Props) {
+/**
+ * The "+" under a card, the one place to add a function. It is part of the
+ * card, so it scales with the canvas and hovering it is hovering the card.
+ * Shown while the card is hovered or selected, or its menu is open.
+ */
+export default function NodeAddToolbar({ visible, onAdd, title }: Props) {
   const [open, setOpen] = useState(false);
+  const shown = visible || open;
 
   return (
-    <NodeToolbar
-      isVisible={visible || open}
-      position={Position.Bottom}
-      offset={4}
-      onMouseEnter={() => onHoverChange(true)}
-      onMouseLeave={() => onHoverChange(false)}
+    <div
+      className={`absolute left-1/2 top-full z-10 -translate-x-1/2 pt-2 transition-opacity ${
+        shown ? "opacity-100" : "pointer-events-none opacity-0"
+      }`}
     >
       <DestinationMenu
         onAdd={onAdd}
@@ -106,6 +107,6 @@ export default function NodeAddToolbar({ visible, onAdd, title, onHoverChange }:
           </button>
         }
       />
-    </NodeToolbar>
+    </div>
   );
 }
