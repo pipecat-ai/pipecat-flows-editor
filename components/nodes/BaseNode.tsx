@@ -91,6 +91,9 @@ export default function BaseNode({ id, data, selected, type }: NodeProps<ConfigC
         {isInitialNode && (
           <Play className="h-[13px] w-[13px] text-neutral-400 dark:text-neutral-500 shrink-0" />
         )}
+        {isEndNode && (
+          <LogOut className="h-[13px] w-[13px] text-neutral-400 dark:text-neutral-500 shrink-0" />
+        )}
         <InlineText
           value={data.label || id}
           editing={editing?.kind === "node"}
@@ -104,9 +107,6 @@ export default function BaseNode({ id, data, selected, type }: NodeProps<ConfigC
           ariaLabel="Node name"
           maxChars={NAME_LIMITS.node}
         />
-        {isEndNode && (
-          <LogOut className="h-[13px] w-[13px] text-neutral-400 dark:text-neutral-500" />
-        )}
       </div>
 
       {functions.length > 0 && (

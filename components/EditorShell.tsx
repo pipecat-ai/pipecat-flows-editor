@@ -595,6 +595,8 @@ export default function EditorShell() {
             zoomOnScroll={false}
             deleteKeyCode={null}
             zoomOnDoubleClick={false}
+            // Flows grow to the right; let a long one be seen whole
+            minZoom={0.2}
             onInit={(instance) => setRfInstance(instance as unknown as ReactFlowInstance)}
             onNodeContextMenu={handleNodeContextMenu}
             fitView
