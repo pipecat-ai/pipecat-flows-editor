@@ -73,7 +73,7 @@ import {
   setBranchField,
   updateNodeData,
 } from "@/lib/utils/nodeUpdates";
-import { formatFlowConfigError } from "@/lib/validation/flowConfigValidator";
+import { issueErrors, summarizeIssues } from "@/lib/validation/flowIssues";
 
 type History = { nodes: FlowNode[]; edges: FlowEdge[] };
 
@@ -254,10 +254,10 @@ export default function EditorShell() {
       }
       if (!parsed.config) {
         showToast(
-          `Not a valid flow config: ${formatFlowConfigError(parsed.schemaErrors[0])}`,
+          `Not a valid flow config: ${parsed.issues[0]?.message ?? "unknown error"}`,
           "error"
         );
-        console.error("Schema errors:", parsed.schemaErrors);
+        console.error("Schema errors:", parsed.issues);
         return false;
       }
       const canvas = configToCanvas(parsed.config, {
@@ -273,14 +273,13 @@ export default function EditorShell() {
       paneConfigRef.current = parsed.config;
       setYamlText(text);
       setYamlProblems(parsed.problems);
-      if (parsed.referenceErrors.length > 0) {
+      if (parsed.issues.length > 0) {
+        const errors = issueErrors(parsed.issues);
         showToast(
-          `Opened ${flowName} with ${parsed.referenceErrors.length} unresolved reference${
-            parsed.referenceErrors.length === 1 ? "" : "s"
-          }: ${formatFlowConfigError(parsed.referenceErrors[0])}`,
-          "info"
+          `Opened ${flowName} with ${summarizeIssues(parsed.issues)}: ${(errors[0] ?? parsed.issues[0]).message}`,
+          errors.length > 0 ? "info" : "info"
         );
-        console.warn("Reference errors:", parsed.referenceErrors);
+        console.warn("Flow issues:", parsed.issues);
       } else if (!options.silent) {
         showToast(`Opened ${flowName}`, "success");
       }

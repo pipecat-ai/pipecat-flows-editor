@@ -8,10 +8,8 @@ import type { Document } from "yaml";
 import { canvasToConfig } from "@/lib/convert/canvasToConfig";
 import type { CanvasNode } from "@/lib/convert/configToCanvas";
 import type { FlowConfig, FlowConfigFunction } from "@/lib/schema/flowConfig";
-import {
-  checkFlowConfigReferences,
-  type FlowConfigError,
-} from "@/lib/validation/flowConfigValidator";
+import { checkFlowConfigReferences, checkFlowGraph } from "@/lib/validation/flowConfigValidator";
+import type { LocatedIssue } from "@/lib/validation/flowIssues";
 
 import { applyConfigToDocument, createFlowDocument, stringifyFlowDocument } from "./flowDocument";
 
@@ -20,7 +18,13 @@ export interface SerializedFlow {
   config: FlowConfig;
   /** The document the text came from; the one passed in, updated in place, or a new one. */
   document: Document;
-  referenceErrors: FlowConfigError[];
+  /** Reference errors, or the graph warnings when there are none. */
+  issues: LocatedIssue[];
+}
+
+function issuesFor(config: FlowConfig): LocatedIssue[] {
+  const references = checkFlowConfigReferences(config);
+  return references.length > 0 ? references : checkFlowGraph(config);
 }
 
 export function serializeFlow(
@@ -38,6 +42,6 @@ export function serializeFlow(
     text: stringifyFlowDocument(document),
     config,
     document,
-    referenceErrors: checkFlowConfigReferences(config),
+    issues: issuesFor(config),
   };
 }

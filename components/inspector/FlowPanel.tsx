@@ -19,6 +19,7 @@ import {
 } from "@/lib/document/flowIntrospection";
 import type { FlowConfigFunction } from "@/lib/schema/flowConfig";
 import { useFlowStore } from "@/lib/store/flowStore";
+import { checkFlowConfigReferences, checkFlowGraph } from "@/lib/validation/flowConfigValidator";
 
 import { FunctionItem } from "./forms/FunctionItem";
 
@@ -45,6 +46,8 @@ export default function FlowPanel({ nodes, onCollapse }: Props) {
   const tools = referencedTools(config);
   const handlers = actionHandlers(config);
   const variables = templateVariables(config);
+  const references = checkFlowConfigReferences(config);
+  const issues = references.length > 0 ? references : checkFlowGraph(config);
 
   const updateGlobal = (index: number, updates: Partial<FlowConfigFunction>) => {
     setGlobalFunctions(globalFunctions.map((fn, i) => (i === index ? { ...fn, ...updates } : fn)));
@@ -128,6 +131,36 @@ export default function FlowPanel({ nodes, onCollapse }: Props) {
           ))}
           {globalFunctions.length === 0 && (
             <div className="text-xs opacity-40 italic py-2">No global functions.</div>
+          )}
+        </section>
+
+        <section className="rounded-lg border bg-neutral-50/50 dark:bg-neutral-900/30 p-3 space-y-2">
+          <div className="text-xs font-medium opacity-80">
+            Issues
+            {issues.length > 0 && <span className="ml-1 opacity-60">· {issues.length}</span>}
+          </div>
+          <div className="text-[11px] opacity-50">
+            What Pipecat would report for this config. Errors keep it from loading; warnings do not.
+          </div>
+          {issues.length === 0 ? (
+            <div className="text-xs opacity-40 italic py-1">No issues.</div>
+          ) : (
+            <ul className="space-y-1">
+              {issues.map((issue, i) => (
+                <li key={i} className="flex items-baseline gap-2 text-xs">
+                  <span
+                    className={`shrink-0 font-mono text-[10px] uppercase ${
+                      issue.level === "error"
+                        ? "text-red-600 dark:text-red-400"
+                        : "text-orange-600 dark:text-orange-400"
+                    }`}
+                  >
+                    {issue.level}
+                  </span>
+                  <span className="min-w-0">{issue.message}</span>
+                </li>
+              ))}
+            </ul>
           )}
         </section>
 

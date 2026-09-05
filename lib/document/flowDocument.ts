@@ -22,11 +22,8 @@ import {
 } from "yaml";
 
 import type { FlowConfig } from "@/lib/schema/flowConfig";
-import {
-  checkFlowConfigReferences,
-  type FlowConfigError,
-  validateFlowConfigSchema,
-} from "@/lib/validation/flowConfigValidator";
+import { validateFlow } from "@/lib/validation/flowConfigValidator";
+import { issueErrors, type LocatedIssue } from "@/lib/validation/flowIssues";
 
 /** Strings longer than this are written as folded block scalars. */
 const FOLD_THRESHOLD = 80;
@@ -37,7 +34,7 @@ export const DEFAULT_FLOW_NAME = "untitled";
 /** A problem in the YAML text, located for an editor. Lines and columns are 1-based. */
 export interface FlowProblem {
   message: string;
-  /** Errors keep the flow from loading; warnings are unresolved references. */
+  /** Errors keep the flow from loading; warnings do not. */
   severity: "error" | "warning";
   startLine: number;
   startColumn: number;
@@ -50,18 +47,18 @@ export interface ParsedFlow {
   /** The config when the YAML parsed and matched the schema; otherwise null. */
   config: FlowConfig | null;
   yamlErrors: string[];
-  schemaErrors: FlowConfigError[];
-  /** Cross-reference errors. A flow with these still opens; the canvas shows them. */
-  referenceErrors: FlowConfigError[];
-  /** Every error above, located in the text. */
+  /**
+   * Schema and reference errors, and graph warnings, as Pipecat reports them.
+   * A flow with reference errors still opens; the canvas shows them.
+   */
+  issues: LocatedIssue[];
+  /** Every YAML error and issue above, located in the text. */
   problems: FlowProblem[];
 }
 
 export function parseFlowYaml(text: string): ParsedFlow {
   const lineCounter = new LineCounter();
   const document = parseDocument(text, { prettyErrors: true, lineCounter });
-  const locate = (path: string, params: Record<string, unknown>) =>
-    rangeForPath(document, lineCounter, path, params);
 
   const yamlErrors = document.errors.map((error) => error.message);
   if (yamlErrors.length > 0) {
@@ -76,120 +73,24 @@ export function parseFlowYaml(text: string): ParsedFlow {
         endColumn: (end ?? start).col,
       };
     });
-    return { document, config: null, yamlErrors, schemaErrors: [], referenceErrors: [], problems };
+    return { document, config: null, yamlErrors, issues: [], problems };
   }
 
-  const schema = validateFlowConfigSchema(document.toJS());
-  if (!schema.valid) {
-    const problems = schema.errors.map((error) => ({
-      message: describeSchemaError(error),
-      severity: "error" as const,
-      ...locate(error.instancePath, error.params ?? {}),
-    }));
-    return {
-      document,
-      config: null,
-      yamlErrors,
-      schemaErrors: schema.errors,
-      referenceErrors: [],
-      problems,
-    };
-  }
-
-  const referenceErrors = checkFlowConfigReferences(schema.config);
-  const problems = referenceErrors.map((error) => ({
-    message: error.message ?? "Unresolved reference",
-    severity: "warning" as const,
-    ...locate(error.instancePath, error.params ?? {}),
+  const report = validateFlow(document.toJS());
+  const problems = report.issues.map((issue) => ({
+    message: issue.message,
+    severity: issue.level,
+    ...rangeForPath(document, lineCounter, issue.instancePath ?? "", {}),
   }));
-  return {
-    document,
-    config: schema.config,
-    yamlErrors,
-    schemaErrors: [],
-    referenceErrors,
-    problems,
-  };
+  return { document, config: report.config, yamlErrors, issues: report.issues, problems };
 }
 
-function describeSchemaError(error: FlowConfigError): string {
-  const params = error.params as Record<string, unknown> | undefined;
-  if (error.keyword === "additionalProperties") {
-    return `unknown key '${params?.additionalProperty}'`;
-  }
-  if (error.keyword === "required") {
-    return `missing required key '${params?.missingProperty}'`;
-  }
-  return error.message ?? error.keyword;
+/** Whether a parsed flow has errors, as opposed to warnings only. */
+export function hasFlowErrors(parsed: Pick<ParsedFlow, "yamlErrors" | "issues">): boolean {
+  return parsed.yamlErrors.length > 0 || issueErrors(parsed.issues).length > 0;
 }
 
 type TextRange = Pick<FlowProblem, "startLine" | "startColumn" | "endLine" | "endColumn">;
-
-/**
- * Where a JSON-pointer path lands in the text. A missing key points at the
- * object that lacks it, an unknown key at that key, and a collection at the
- * line its key is on rather than its whole body.
- */
-function rangeForPath(
-  document: Document,
-  lineCounter: LineCounter,
-  instancePath: string,
-  params: Record<string, unknown>
-): TextRange {
-  const segments = instancePath
-    .split("/")
-    .slice(1)
-    .map((segment) => segment.replace(/~1/g, "/").replace(/~0/g, "~"));
-
-  if (typeof params.additionalProperty === "string") {
-    const parent = document.getIn(segments, true);
-    if (isMap(parent)) {
-      const pair = parent.items.find((p) => keyOf(p) === params.additionalProperty);
-      if (pair && isNode(pair.key)) return toRange(lineCounter, pair.key.range, true);
-    }
-  }
-
-  for (let depth = segments.length; depth > 0; depth -= 1) {
-    const path = segments.slice(0, depth);
-    const parent = document.getIn(path.slice(0, -1), true);
-    const last = path[path.length - 1];
-    if (isMap(parent)) {
-      const pair = parent.items.find((p) => keyOf(p) === last);
-      if (!pair) continue;
-      const value = pair.value;
-      if (isNode(value) && !isCollection(value) && value.range) {
-        return toRange(lineCounter, value.range, false);
-      }
-      if (isNode(pair.key)) return toRange(lineCounter, pair.key.range, true);
-    } else if (isSeq(parent)) {
-      const item = parent.items[Number(last)];
-      if (isNode(item) && item.range) return toRange(lineCounter, item.range, isCollection(item));
-    }
-  }
-
-  const root = document.contents;
-  if (isNode(root) && root.range) return toRange(lineCounter, root.range, true);
-  return { startLine: 1, startColumn: 1, endLine: 1, endColumn: 1 };
-}
-
-function toRange(
-  lineCounter: LineCounter,
-  range: [number, number, number] | null | undefined,
-  firstLineOnly: boolean
-): TextRange {
-  if (!range) return { startLine: 1, startColumn: 1, endLine: 1, endColumn: 1 };
-  const start = lineCounter.linePos(range[0]);
-  const end = lineCounter.linePos(range[1]);
-  if (firstLineOnly && end.line > start.line) {
-    return {
-      startLine: start.line,
-      startColumn: start.col,
-      endLine: start.line,
-      endColumn: Number.MAX_SAFE_INTEGER,
-    };
-  }
-  return { startLine: start.line, startColumn: start.col, endLine: end.line, endColumn: end.col };
-}
 
 /** A new document for a config, with long strings in block style. */
 export function createFlowDocument(config: FlowConfig): Document {
@@ -289,4 +190,62 @@ function styleScalar(scalar: Scalar): void {
 function restyleScalar(scalar: Scalar): void {
   if (scalar.type === Scalar.BLOCK_LITERAL || scalar.type === Scalar.BLOCK_FOLDED) return;
   styleScalar(scalar);
+}
+
+/**
+ * Where a JSON-pointer path lands in the text. A missing key points at the
+ * object that lacks it, and a collection at the line its key is on rather
+ * than its whole body.
+ */
+function rangeForPath(
+  document: Document,
+  lineCounter: LineCounter,
+  instancePath: string,
+  _params: Record<string, unknown>
+): TextRange {
+  const segments = instancePath
+    .split("/")
+    .slice(1)
+    .map((segment) => segment.replace(/~1/g, "/").replace(/~0/g, "~"));
+
+  for (let depth = segments.length; depth > 0; depth -= 1) {
+    const path = segments.slice(0, depth);
+    const parent = document.getIn(path.slice(0, -1), true);
+    const last = path[path.length - 1];
+    if (isMap(parent)) {
+      const pair = parent.items.find((p) => keyOf(p) === last);
+      if (!pair) continue;
+      const value = pair.value;
+      if (isNode(value) && !isCollection(value) && value.range) {
+        return toRange(lineCounter, value.range, false);
+      }
+      if (isNode(pair.key)) return toRange(lineCounter, pair.key.range, true);
+    } else if (isSeq(parent)) {
+      const item = parent.items[Number(last)];
+      if (isNode(item) && item.range) return toRange(lineCounter, item.range, isCollection(item));
+    }
+  }
+
+  const root = document.contents;
+  if (isNode(root) && root.range) return toRange(lineCounter, root.range, true);
+  return { startLine: 1, startColumn: 1, endLine: 1, endColumn: 1 };
+}
+
+function toRange(
+  lineCounter: LineCounter,
+  range: [number, number, number] | null | undefined,
+  firstLineOnly: boolean
+): TextRange {
+  if (!range) return { startLine: 1, startColumn: 1, endLine: 1, endColumn: 1 };
+  const start = lineCounter.linePos(range[0]);
+  const end = lineCounter.linePos(range[1]);
+  if (firstLineOnly && end.line > start.line) {
+    return {
+      startLine: start.line,
+      startColumn: start.col,
+      endLine: start.line,
+      endColumn: Number.MAX_SAFE_INTEGER,
+    };
+  }
+  return { startLine: start.line, startColumn: start.col, endLine: end.line, endColumn: end.col };
 }

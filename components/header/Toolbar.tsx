@@ -34,7 +34,7 @@ import { EXAMPLES, fetchExample, type FlowExample } from "@/lib/examples";
 import { useEditorStore } from "@/lib/store/editorStore";
 import { useFlowStore } from "@/lib/store/flowStore";
 import type { FlowNode } from "@/lib/types/flowTypes";
-import { formatFlowConfigError } from "@/lib/validation/flowConfigValidator";
+import { summarizeIssues } from "@/lib/validation/flowIssues";
 
 type Props = {
   nodes: FlowNode[];
@@ -66,18 +66,15 @@ export default function Toolbar({
 
   function onSave() {
     const { document, globalFunctions } = useFlowStore.getState();
-    const { text, referenceErrors } = serializeFlow(nodes, { document, globalFunctions });
+    const { text, issues } = serializeFlow(nodes, { document, globalFunctions });
     const blob = new Blob([text], { type: "application/yaml" });
     const a = window.document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = `${flowName}${FLOW_FILE_EXTENSION}`;
     a.click();
     URL.revokeObjectURL(a.href);
-    if (referenceErrors.length > 0) {
-      showToast(
-        `Saved with ${referenceErrors.length} unresolved reference${referenceErrors.length === 1 ? "" : "s"}: ${formatFlowConfigError(referenceErrors[0])}`,
-        "info"
-      );
+    if (issues.length > 0) {
+      showToast(`Saved with ${summarizeIssues(issues)}: ${issues[0].message}`, "info");
     } else {
       showToast(`Saved ${flowName}${FLOW_FILE_EXTENSION}`, "success");
     }

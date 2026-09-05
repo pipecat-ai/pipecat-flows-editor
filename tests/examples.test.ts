@@ -20,13 +20,12 @@ describe("shipped examples", () => {
   });
 
   for (const example of EXAMPLES) {
-    it(`${example.id} is a valid config with no unresolved references`, () => {
+    it(`${example.id} is a valid config with no errors or warnings`, () => {
       const parsed = parseFlowYaml(
         readFileSync(resolve(dir, example.path.replace("/examples/", "")), "utf8")
       );
       expect(parsed.yamlErrors).toEqual([]);
-      expect(parsed.schemaErrors).toEqual([]);
-      expect(parsed.referenceErrors).toEqual([]);
+      expect(parsed.issues).toEqual([]);
       expect(parsed.config).not.toBeNull();
       // Every example is a starting point for a tools module
       expect(referencedTools(parsed.config!).length).toBeGreaterThan(0);

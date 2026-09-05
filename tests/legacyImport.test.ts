@@ -8,7 +8,7 @@ import {
   describeLegacyDrops,
   isLegacyFlowJson,
 } from "@/lib/document/legacyImport";
-import { validateFlowConfig } from "@/lib/validation/flowConfigValidator";
+import { validateFlow } from "@/lib/validation/flowConfigValidator";
 
 const legacyFoodOrdering = JSON.parse(
   readFileSync(resolve(__dirname, "fixtures/legacy_food_ordering.json"), "utf8")
@@ -29,7 +29,7 @@ describe("isLegacyFlowJson", () => {
 describe("convertLegacyFlow", () => {
   it("converts the old food-ordering example into a valid config with positions", () => {
     const { config, positions, dropped } = convertLegacyFlow(legacyFoodOrdering);
-    expect(validateFlowConfig(config).valid).toBe(true);
+    expect(validateFlow(config).ok).toBe(true);
     expect(config.initial_node).toBe("initial");
     expect(Object.keys(config.nodes)).toEqual(
       legacyFoodOrdering.nodes.map((n: { id: string }) => n.id)
@@ -105,7 +105,7 @@ describe("convertLegacyFlow", () => {
         "Decisions need a branch table; left without a destination: 'route on start'. " +
         "RESET_WITH_SUMMARY became reset; summary prompt dropped on 'start'."
     );
-    expect(validateFlowConfig(config).valid).toBe(true);
+    expect(validateFlow(config).ok).toBe(true);
   });
 
   it("converts the old autosave shape without meta", () => {
