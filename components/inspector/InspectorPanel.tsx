@@ -1,8 +1,8 @@
 "use client";
 
-import { Node } from "@xyflow/react";
-import { ChevronDown, ChevronUp, Trash2, X } from "lucide-react";
+import { ChevronDown, ChevronUp, PanelRightClose, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { stringify } from "yaml";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -11,19 +11,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { showToast } from "@/components/ui/Toast";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { configNodeFromData } from "@/lib/convert/canvasToConfig";
+import { type CanvasNode, type ConfigNodeData, isConfigNode } from "@/lib/convert/configToCanvas";
 import { useEditorStore } from "@/lib/store/editorStore";
-import { FlowNodeData } from "@/lib/types/flowTypes";
 import { generateNodeIdFromLabel } from "@/lib/utils/nodeId";
-import { deriveNodeType } from "@/lib/utils/nodeType";
 
+import FlowPanel from "./FlowPanel";
 import ActionsForm from "./forms/ActionsForm";
 import ContextStrategyForm from "./forms/ContextStrategyForm";
 import FunctionsForm from "./forms/FunctionsForm";
 import MessagesForm from "./forms/MessagesForm";
 
 type Props = {
-  nodes: Node[];
-  onChange: (next: { id: string; data: FlowNodeData }) => void;
+  nodes: CanvasNode[];
+  onChange: (next: { id: string; data: ConfigNodeData }) => void;
   onDelete: (id: string, kind: "node" | "edge") => void;
   onRenameNode?: (oldId: string, newId: string) => void;
   availableNodeIds?: string[];
@@ -43,12 +44,13 @@ export default function InspectorPanel({
   const setIsInspectorResizing = useEditorStore((state) => state.setIsInspectorResizing);
   const selectNode = useEditorStore((state) => state.selectNode);
   const rfInstance = useEditorStore((state) => state.rfInstance);
+  const setSidebarCollapsed = useEditorStore((state) => state.setSidebarCollapsed);
 
-  const selected = selectedNodeId ? (nodes.find((n) => n.id === selectedNodeId) ?? null) : null;
+  const found = selectedNodeId ? nodes.find((n) => n.id === selectedNodeId) : undefined;
+  const selected = found && isConfigNode(found) ? found : null;
   const id = selected?.id;
-  const data = selected?.data as FlowNodeData;
-  // Derive the displayed type from the node data (especially post_actions)
-  const displayedType = deriveNodeType(data, selected?.type);
+  const data = selected?.data;
+  const displayedType = selected?.type;
 
   const labelInputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
@@ -56,31 +58,26 @@ export default function InspectorPanel({
     labelInputRef.current.value = data?.label ?? "";
   }, [data?.label]);
 
-  const [showJson, setShowJson] = useState(false);
+  const [showYaml, setShowYaml] = useState(false);
 
   const update = useCallback(
-    (partial: Partial<{ label: string; [k: string]: unknown }>) => {
-      if (!selected || !id) return;
-
-      const next = { ...(data ?? {}), ...partial };
-
-      if (partial.label !== undefined && partial.label !== data?.label) {
-        const newLabel = partial.label as string;
-        if (newLabel && newLabel.trim() !== "") {
-          const otherNodeIds = availableNodeIds.filter((nodeId) => nodeId !== id);
-          const newId = generateNodeIdFromLabel(newLabel, otherNodeIds);
-
-          if (newId !== id) {
-            onChange({ id, data: next });
-            onRenameNode?.(id, newId);
-            return;
-          }
-        }
-      }
-
-      onChange({ id, data: next });
+    (partial: Partial<ConfigNodeData>) => {
+      if (!selected || !id || !data) return;
+      onChange({ id, data: { ...data, ...partial } });
     },
-    [selected, id, data, onChange, onRenameNode, availableNodeIds]
+    [selected, id, data, onChange]
+  );
+
+  // The node's name is its key in the config. Renaming rewrites every
+  // destination that pointed at it.
+  const rename = useCallback(
+    (name: string) => {
+      if (!id || !name.trim()) return;
+      const otherNodeIds = availableNodeIds.filter((nodeId) => nodeId !== id);
+      const newId = generateNodeIdFromLabel(name, otherNodeIds);
+      if (newId !== id) onRenameNode?.(id, newId);
+    },
+    [id, onRenameNode, availableNodeIds]
   );
 
   // Resize handle handler
@@ -131,12 +128,12 @@ export default function InspectorPanel({
           role="separator"
           aria-orientation="vertical"
         />
-        <div className="p-3 text-sm">
-          <div className="opacity-60">Select a node or edge</div>
-        </div>
+        <FlowPanel nodes={nodes} onCollapse={() => setSidebarCollapsed(true)} />
       </aside>
     );
   }
+
+  const nodeYaml = stringify({ [selected.id]: configNodeFromData(selected.data) });
 
   return (
     <aside
@@ -175,12 +172,28 @@ export default function InspectorPanel({
                       }))
                     );
                   }}
-                  aria-label="Close inspector"
+                  aria-label="Back to the flow"
                 >
                   <X className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="left">Close inspector</TooltipContent>
+              <TooltipContent side="left">Back to the flow</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0"
+                  onClick={() => setSidebarCollapsed(true)}
+                  aria-label="Hide the sidebar"
+                >
+                  <PanelRightClose className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="left">Hide the sidebar</TooltipContent>
             </Tooltip>
           </TooltipProvider>
           <TooltipProvider>
@@ -191,11 +204,16 @@ export default function InspectorPanel({
                   size="sm"
                   className="h-6 w-6 p-0"
                   onClick={() => onDelete(id as string, "node")}
+                  disabled={displayedType === "initial"}
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="left">Delete node</TooltipContent>
+              <TooltipContent side="left">
+                {displayedType === "initial"
+                  ? "The initial node cannot be deleted; make another node initial first"
+                  : "Delete node"}
+              </TooltipContent>
             </Tooltip>
           </TooltipProvider>
         </div>
@@ -228,18 +246,19 @@ export default function InspectorPanel({
           <div className="rounded-lg border bg-neutral-50/50 dark:bg-neutral-900/30 p-3 space-y-3">
             <div>
               <label htmlFor="node-label" className="block mb-1 text-xs font-medium opacity-80">
-                Label
+                Name
               </label>
               <Input
                 ref={labelInputRef}
                 id="node-label"
                 defaultValue={data?.label ?? ""}
-                onBlur={(ev) => {
-                  update({ label: ev.target.value });
+                onBlur={(ev) => rename(ev.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") e.currentTarget.blur();
                 }}
-                placeholder="Label"
-                className="text-sm"
-                aria-label="Node label"
+                placeholder="node_name"
+                className="text-sm font-mono"
+                aria-label="Node name"
               />
             </div>
             {displayedType && (
@@ -267,7 +286,7 @@ export default function InspectorPanel({
           </div>
           <div className="rounded-lg border bg-neutral-50/50 dark:bg-neutral-900/30 p-3">
             <ContextStrategyForm
-              contextStrategy={data?.context_strategy}
+              value={data?.context_strategy}
               onChange={(strategy) => update({ context_strategy: strategy })}
             />
           </div>
@@ -277,15 +296,22 @@ export default function InspectorPanel({
           value="messages"
           className="flex-1 overflow-y-auto min-h-0 space-y-4 pr-1 mt-0 pb-4"
         >
-          {displayedType === "initial" && (
-            <div className="rounded-lg border bg-neutral-50/50 dark:bg-neutral-900/30 p-3">
-              <MessagesForm
-                label="Role Messages"
-                messages={data?.role_messages}
-                onChange={(msgs) => update({ role_messages: msgs })}
-              />
+          <div className="rounded-lg border bg-neutral-50/50 dark:bg-neutral-900/30 p-3 space-y-2">
+            <label htmlFor="node-role-message" className="block text-xs opacity-60">
+              Role Message
+            </label>
+            <Textarea
+              id="node-role-message"
+              className="min-h-20 text-xs"
+              value={data?.role_message ?? ""}
+              onChange={(e) => update({ role_message: e.target.value || undefined })}
+              placeholder="The bot's role or personality, sent as the system instruction on entering this node"
+            />
+            <div className="text-[11px] opacity-50">
+              Persists across transitions until another node sets its own. Setting it on the initial
+              node covers the whole flow.
             </div>
-          )}
+          </div>
           <div className="rounded-lg border bg-neutral-50/50 dark:bg-neutral-900/30 p-3">
             <MessagesForm
               label="Task Messages"
@@ -332,31 +358,32 @@ export default function InspectorPanel({
           variant="ghost"
           size="sm"
           className="w-full justify-between h-8 text-xs"
-          onClick={() => setShowJson(!showJson)}
-          aria-label={showJson ? "Hide JSON data" : "Show JSON data"}
-          aria-expanded={showJson}
+          onClick={() => setShowYaml(!showYaml)}
+          aria-label={showYaml ? "Hide YAML" : "Show YAML"}
+          aria-expanded={showYaml}
         >
-          <span>Data (JSON)</span>
+          <span>Node YAML</span>
           <div className="transition-transform duration-200">
-            {showJson ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            {showYaml ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
           </div>
         </Button>
         <div
           className={`overflow-hidden transition-all duration-300 ease-in-out ${
-            showJson ? "max-h-[500px] opacity-100 mt-2" : "max-h-0 opacity-0"
+            showYaml ? "max-h-[500px] opacity-100 mt-2" : "max-h-0 opacity-0"
           }`}
         >
           <div className="rounded-lg border bg-neutral-50/50 dark:bg-neutral-900/30 p-3">
             <div className="mb-2 flex items-center justify-between">
-              <div className="text-xs font-medium opacity-80">JSON Data</div>
+              <div className="text-xs font-medium opacity-80">
+                <code>{id}</code> as YAML
+              </div>
               <Button
                 variant="ghost"
                 size="sm"
                 className="h-6 text-[10px] px-2"
                 onClick={async () => {
-                  const jsonText = JSON.stringify({ ...data, label: undefined }, null, 2);
                   try {
-                    await navigator.clipboard.writeText(jsonText);
+                    await navigator.clipboard.writeText(nodeYaml);
                     showToast("Copied to clipboard", "success");
                   } catch (err) {
                     console.warn(err);
@@ -364,16 +391,16 @@ export default function InspectorPanel({
                   }
                 }}
                 title="Copy to clipboard"
-                aria-label="Copy JSON data to clipboard"
+                aria-label="Copy node YAML to clipboard"
               >
                 Copy
               </Button>
             </div>
             <Textarea
               className="h-40 font-mono text-xs"
-              value={JSON.stringify({ ...data, label: undefined }, null, 2)}
+              value={nodeYaml}
               readOnly
-              aria-label="Node data in JSON format"
+              aria-label="Node as YAML"
             />
           </div>
         </div>

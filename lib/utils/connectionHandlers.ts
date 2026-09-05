@@ -1,107 +1,74 @@
 import type { Connection } from "@xyflow/react";
 
-import type { DecisionConditionJson, FlowFunctionJson } from "@/lib/schema/flow.schema";
-import type { FlowNode } from "@/lib/types/flowTypes";
-import { findDecisionSource, parseDecisionNodeId } from "@/lib/utils/decisionNodes";
-import { generateNodeIdFromLabel } from "@/lib/utils/nodeId";
+import { type CanvasNode, nodeFunctions, parseHandleId } from "@/lib/convert/configToCanvas";
+import { type FlowConfigFunction, isBranch } from "@/lib/schema/flowConfig";
+import { addCase, setCaseTarget } from "@/lib/utils/branchEdits";
+import { newFunctionName } from "@/lib/utils/nodeCreation";
 
-/**
- * Handle connection from a decision node - adds a condition
- */
-export function handleDecisionNodeConnection(
-  params: Connection,
-  nodes: FlowNode[],
-  setNodes: (updater: (nodes: FlowNode[]) => FlowNode[]) => void,
-  selectNode: (nodeId: string, functionIndex: number, conditionIndex: number) => void
-): boolean {
-  if (!params.source || !params.target) return false;
+type SetNodes = (updater: (nodes: CanvasNode[]) => CanvasNode[]) => void;
 
-  const sourceNode = nodes.find((n) => n.id === params.source);
-  if (!sourceNode || sourceNode.type !== "decision") return false;
-
-  const parsed = parseDecisionNodeId(sourceNode.id);
-  if (!parsed) return false;
-
-  const decisionSource = findDecisionSource(sourceNode.id, nodes);
-  if (!decisionSource || !decisionSource.function.decision) return false;
-
-  const { sourceNode: actualSourceNode, functionIndex, function: func } = decisionSource;
-
-  // Add new condition
-  const newCondition: DecisionConditionJson = {
-    operator: "==",
-    value: "",
-    next_node_id: params.target,
-  };
-
-  const updatedFunctions = [...((actualSourceNode.data?.functions ?? []) as FlowFunctionJson[])];
-  updatedFunctions[functionIndex] = {
-    ...func,
-    decision: {
-      ...func.decision!,
-      conditions: [...func.decision!.conditions, newCondition],
-    },
-  };
-
-  setNodes((nds) =>
-    nds.map((n) =>
-      n.id === actualSourceNode.id
-        ? {
-            ...n,
-            data: {
-              ...n.data,
-              functions: updatedFunctions,
-            },
-          }
-        : n
-    )
-  );
-
-  // Select the source node, function, and new condition
-  const newConditionIndex = func.decision!.conditions.length;
-  selectNode(actualSourceNode.id, functionIndex, newConditionIndex);
-
-  return true;
+export interface Connected {
+  sourceNodeId: string;
+  functionIndex: number;
+  caseIndex: number | null;
 }
 
 /**
- * Handle regular connection - creates a new function
+ * A connection drawn from a row's handle sets that row's destination: a
+ * function's `transition_to`, a case's target, or the branch default. From
+ * the "add a case" row it adds a case, and from the node's own handle it adds
+ * a function. Returns what to select, or null when nothing changed.
  */
-export function handleRegularConnection(
+export function handleConnection(
   params: Connection,
-  nodes: FlowNode[],
-  setNodes: (updater: (nodes: FlowNode[]) => FlowNode[]) => void,
-  selectNode: (nodeId: string, functionIndex: number) => void
-): void {
-  if (!params.source || !params.target) return;
+  nodes: CanvasNode[],
+  setNodes: SetNodes
+): Connected | null {
+  const { source, target } = params;
+  if (!source || !target) return null;
+  const sourceNode = nodes.find((n) => n.id === source);
+  if (!sourceNode) return null;
 
-  const sourceNode = nodes.find((n) => n.id === params.source);
-  if (!sourceNode) return;
+  const functions = nodeFunctions(sourceNode);
+  const handle = parseHandleId(params.sourceHandle);
+  const commit = (updated: FlowConfigFunction[]) =>
+    setNodes((nds) =>
+      nds.map((n) => (n.id === source ? { ...n, data: { ...n.data, functions: updated } } : n))
+    );
 
-  const functions = (sourceNode.data?.functions ?? []) as FlowFunctionJson[];
-  const existingFunctionNames = functions.map((f) => f.name).filter(Boolean);
-  const defaultFunctionName = `function_${existingFunctionNames.length + 1}`;
-  const functionName = generateNodeIdFromLabel(defaultFunctionName, existingFunctionNames);
+  if (handle.kind === "new-function") {
+    commit([...functions, { name: newFunctionName(functions), transition_to: target }]);
+    return { sourceNodeId: source, functionIndex: functions.length, caseIndex: null };
+  }
 
-  const newFunction: FlowFunctionJson = {
-    name: functionName,
-    description: "",
-    next_node_id: params.target,
-  };
+  const functionIndex = handle.functionIndex;
+  const fn = functions[functionIndex];
+  if (!fn) return null;
+  const replace = (updated: FlowConfigFunction) =>
+    commit(functions.map((f, i) => (i === functionIndex ? updated : f)));
 
-  setNodes((nds) =>
-    nds.map((n) =>
-      n.id === params.source
-        ? {
-            ...n,
-            data: {
-              ...n.data,
-              functions: [...functions, newFunction],
-            },
-          }
-        : n
-    )
-  );
+  if (handle.kind === "function") {
+    replace({ ...fn, transition_to: target });
+    return { sourceNodeId: source, functionIndex, caseIndex: null };
+  }
 
-  selectNode(params.source, functions.length);
+  if (!isBranch(fn.transition_to)) return null;
+  const branch = fn.transition_to;
+  switch (handle.kind) {
+    case "case": {
+      const caseIndex = Object.keys(branch.cases).indexOf(handle.caseValue);
+      if (caseIndex < 0) return null;
+      replace({
+        ...fn,
+        transition_to: { ...branch, cases: setCaseTarget(branch.cases, handle.caseValue, target) },
+      });
+      return { sourceNodeId: source, functionIndex, caseIndex };
+    }
+    case "default":
+      replace({ ...fn, transition_to: { ...branch, default: target } });
+      return { sourceNodeId: source, functionIndex, caseIndex: -1 };
+    case "new-case":
+      replace({ ...fn, transition_to: { ...branch, cases: addCase(branch.cases, target) } });
+      return { sourceNodeId: source, functionIndex, caseIndex: Object.keys(branch.cases).length };
+  }
 }

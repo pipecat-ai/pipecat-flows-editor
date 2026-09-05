@@ -1,60 +1,43 @@
-import type { FlowFunctionJson, MessageJson } from "@/lib/schema/flow.schema";
+import type { FlowConfigNode } from "@/lib/schema/flowConfig";
 
 export type NodeTemplate = {
-  type: string;
+  type: "initial" | "node" | "end";
   label: string;
-  data: Record<string, unknown>;
+  node: FlowConfigNode;
 };
 
-// Templates are just starting points - all nodes generate the same NodeConfig structure
-// These provide sensible defaults for common use cases
+/** Starting points for new nodes. Every node has the same shape; these differ only in defaults. */
 export const NODE_TEMPLATES: NodeTemplate[] = [
   {
     type: "initial",
     label: "Initial",
-    data: {
-      label: "Initial",
-      role_messages: [
-        {
-          role: "system",
-          content:
-            "You are a helpful assistant. You must ALWAYS use the available functions to progress the conversation.",
-        } as MessageJson,
-      ],
+    node: {
+      role_message:
+        "You are a helpful assistant. You must ALWAYS use the available functions to progress the conversation.",
       task_messages: [
-        {
-          role: "system",
-          content: "Greet the user and guide them through the conversation.",
-        } as MessageJson,
+        { role: "developer", content: "Greet the user and guide them through the conversation." },
       ],
-      functions: [] as FlowFunctionJson[],
     },
   },
   {
     type: "node",
     label: "Node",
-    data: {
-      label: "Node",
+    node: {
       task_messages: [
         {
-          role: "system",
+          role: "developer",
           content:
             "You are a helpful assistant. Ask the user questions and use available functions to proceed.",
-        } as MessageJson,
+        },
       ],
-      functions: [] as FlowFunctionJson[],
     },
   },
   {
     type: "end",
     label: "End",
-    data: {
-      label: "End",
+    node: {
       task_messages: [
-        {
-          role: "system",
-          content: "Thank the user and end the conversation politely.",
-        } as MessageJson,
+        { role: "developer", content: "Thank the user and end the conversation politely." },
       ],
       post_actions: [{ type: "end_conversation" }],
     },

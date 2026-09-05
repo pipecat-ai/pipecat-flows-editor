@@ -4,14 +4,14 @@ import { Plus } from "lucide-react";
 import { useEffect, useRef } from "react";
 
 import { Button } from "@/components/ui/button";
-import type { FlowFunctionJson } from "@/lib/schema/flow.schema";
+import type { FlowConfigFunction } from "@/lib/schema/flowConfig";
 import { useEditorStore } from "@/lib/store/editorStore";
 
 import { FunctionItem } from "./FunctionItem";
 
 type Props = {
-  functions: FlowFunctionJson[] | undefined;
-  onChange: (functions: FlowFunctionJson[]) => void;
+  functions: FlowConfigFunction[] | undefined;
+  onChange: (functions: FlowConfigFunction[]) => void;
   availableNodeIds: string[];
   currentNodeId?: string;
 };
@@ -34,7 +34,7 @@ export default function FunctionsForm({
   // Derive highlighted function index from store for scroll-into-view
   const highlightedFunctionIndex = selectedNodeId === currentNodeId ? selectedFunctionIndex : null;
 
-  const updateItem = (index: number, updates: Partial<FlowFunctionJson>) => {
+  const updateItem = (index: number, updates: Partial<FlowConfigFunction>) => {
     const next = [...items];
     next[index] = { ...next[index], ...updates };
     onChange(next);
@@ -42,7 +42,7 @@ export default function FunctionsForm({
 
   const addItem = () => {
     const newIndex = items.length;
-    onChange([...items, { name: "", description: "" }]);
+    onChange([...items, { name: "" }]);
     // Automatically select and expand the newly added function
     if (currentNodeId) {
       selectNode(currentNodeId, newIndex, null);

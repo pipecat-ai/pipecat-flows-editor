@@ -1,6 +1,6 @@
 "use client";
 
-import { Copy, Trash2 } from "lucide-react";
+import { Copy, Play, Trash2 } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 
@@ -12,7 +12,9 @@ interface NodeContextMenuProps {
   position: { x: number; y: number } | null;
   onDuplicate: () => void;
   onDelete: () => void;
-  isDecisionNode?: boolean;
+  onMakeInitial: () => void;
+  /** The initial node cannot be deleted and is already initial. */
+  isInitialNode?: boolean;
 }
 
 export default function NodeContextMenu({
@@ -21,7 +23,8 @@ export default function NodeContextMenu({
   position,
   onDuplicate,
   onDelete,
-  isDecisionNode = false,
+  onMakeInitial,
+  isInitialNode = false,
 }: NodeContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -64,12 +67,6 @@ export default function NodeContextMenu({
 
   if (!open || !position) return null;
 
-  // Decision nodes shouldn't be duplicated or deleted directly
-  // They're managed automatically by the useDecisionNodes hook
-  if (isDecisionNode) {
-    return null;
-  }
-
   const handleDuplicate = () => {
     onDuplicate();
     onOpenChange(false);
@@ -77,6 +74,11 @@ export default function NodeContextMenu({
 
   const handleDelete = () => {
     onDelete();
+    onOpenChange(false);
+  };
+
+  const handleMakeInitial = () => {
+    onMakeInitial();
     onOpenChange(false);
   };
 
@@ -105,13 +107,33 @@ export default function NodeContextMenu({
         <Copy className="h-4 w-4" />
         Duplicate
       </button>
+      {!isInitialNode && (
+        <button
+          onClick={handleMakeInitial}
+          className={cn(
+            "relative flex w-full cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none",
+            "transition-colors focus:bg-accent focus:text-accent-foreground",
+            "hover:bg-accent hover:text-accent-foreground"
+          )}
+        >
+          <Play className="h-4 w-4" />
+          Make initial node
+        </button>
+      )}
       <button
         onClick={handleDelete}
+        disabled={isInitialNode}
+        title={
+          isInitialNode
+            ? "The initial node cannot be deleted; make another node initial first"
+            : undefined
+        }
         className={cn(
           "relative flex w-full cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none",
           "transition-colors focus:bg-accent focus:text-accent-foreground",
           "hover:bg-accent hover:text-accent-foreground",
-          "text-destructive focus:text-destructive"
+          "text-destructive focus:text-destructive",
+          "disabled:opacity-40 disabled:hover:bg-transparent"
         )}
       >
         <Trash2 className="h-4 w-4" />

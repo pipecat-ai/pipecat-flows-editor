@@ -1,0 +1,78 @@
+# Lead qualification: learn what a caller needs, score the fit, and either book
+# a demo or send them resources. Shows a branch on a score the tool reports, a
+# node that waits for the caller rather than speaking first, and an end node
+# that says goodbye with a tts_say action.
+#
+# Tools the module must define: record_need, score_lead, schedule_demo,
+# decline_demo, send_resources.
+# Variables: company_name.
+
+initial_node: discover
+
+nodes:
+  discover:
+    role_message: >
+      You are a friendly sales development representative for {{ company_name }}.
+      You are curious and never pushy. This is a phone call, so keep replies
+      short and avoid special characters. Always use the available functions to
+      progress the conversation.
+    task_messages:
+      - role: developer
+        content: >
+          Greet the caller and ask what brought them to {{ company_name }}. Learn
+          the problem they are trying to solve and the size of their team. When
+          you have both, call record_need.
+    functions:
+      - name: record_need
+        transition_to: qualify
+
+  qualify:
+    task_messages:
+      - role: developer
+        content: >
+          Ask about their timeline and whether they have a budget in mind. Do
+          not press if they are vague. When you have what you can get, call
+          score_lead, which reports a fit of high, medium, or low.
+    functions:
+      - name: score_lead
+        transition_to:
+          field: fit
+          cases:
+            high: book_demo
+            medium: send_resources
+          default: send_resources
+
+  book_demo:
+    task_messages:
+      - role: developer
+        content: >
+          Offer a demo with a specialist this week. Ask for a day and time that
+          suits them and their email address, then call schedule_demo. If they
+          would rather not, call decline_demo.
+    functions:
+      - name: schedule_demo
+        transition_to: end
+      - name: decline_demo
+        transition_to: send_resources
+
+  send_resources:
+    task_messages:
+      - role: developer
+        content: >
+          Offer to email a short guide and case studies matched to what they
+          described. Ask for their email address and call send_resources.
+    respond_immediately: false
+    functions:
+      - name: send_resources
+        transition_to: end
+
+  end:
+    task_messages:
+      - role: developer
+        content: >
+          Thank the caller for their time in one sentence and end the
+          conversation.
+    post_actions:
+      - type: tts_say
+        text: Thanks again for calling. Have a great day.
+      - type: end_conversation
