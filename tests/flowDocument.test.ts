@@ -38,8 +38,7 @@ describe("parseFlowYaml", () => {
   it("parses and validates Pipecat's example", () => {
     const parsed = parseFlowYaml(foodOrderingText);
     expect(parsed.yamlErrors).toEqual([]);
-    expect(parsed.schemaErrors).toEqual([]);
-    expect(parsed.referenceErrors).toEqual([]);
+    expect(parsed.issues).toEqual([]);
     expect(parsed.config?.initial_node).toBe("initial");
     expect(parsed.document.commentBefore).toContain("The food-ordering flow as data");
   });
@@ -53,14 +52,15 @@ describe("parseFlowYaml", () => {
   it("reports schema errors without a config", () => {
     const parsed = parseFlowYaml("initial_node: a\nnodes:\n  a:\n    position: {x: 1}\n");
     expect(parsed.yamlErrors).toEqual([]);
-    expect(parsed.schemaErrors.length).toBeGreaterThan(0);
+    // The unknown key, and the missing task_messages
+    expect(parsed.issues.map((i) => i.code)).toEqual(["schema", "schema"]);
     expect(parsed.config).toBeNull();
   });
 
   it("returns a config alongside reference errors", () => {
     const parsed = parseFlowYaml("initial_node: missing\nnodes:\n  a:\n    task_messages: []\n");
     expect(parsed.config).not.toBeNull();
-    expect(parsed.referenceErrors.map((e) => e.message)).toEqual([
+    expect(parsed.issues.map((e) => e.message)).toEqual([
       "initial_node 'missing' is not a defined node",
     ]);
   });
@@ -147,11 +147,11 @@ describe("serializeFlow", () => {
   it("round-trips Pipecat's example through the canvas with its comments", () => {
     const parsed = parseFlowYaml(foodOrderingText);
     const canvas = configToCanvas(parsed.config!);
-    const { text, referenceErrors } = serializeFlow(canvas.nodes, {
+    const { text, issues } = serializeFlow(canvas.nodes, {
       document: parsed.document,
       globalFunctions: parsed.config!.global_functions ?? [],
     });
-    expect(referenceErrors).toEqual([]);
+    expect(issues).toEqual([]);
     expect(text.startsWith("# The food-ordering flow as data.")).toBe(true);
     expect(parse(text)).toEqual(parsed.config);
   });
@@ -159,13 +159,13 @@ describe("serializeFlow", () => {
   it("creates a document for a new flow and reports reference errors", () => {
     const canvas = configToCanvas(minimal());
     const nodes = canvas.nodes.filter((n) => n.id !== "end");
-    const { text, referenceErrors, document } = serializeFlow(nodes, {
+    const { text, issues, document } = serializeFlow(nodes, {
       document: null,
       globalFunctions: [],
     });
     expect(document).toBeDefined();
     expect(parse(text).initial_node).toBe("start");
-    expect(referenceErrors.map((e) => e.message)).toEqual([
+    expect(issues.map((e) => e.message)).toEqual([
       "node 'start' function 'finish' transitions to unknown node 'end'",
     ]);
   });
@@ -201,13 +201,13 @@ describe("parseFlowYaml problems", () => {
     const [unknown] = parseFlowYaml(text).problems;
     expect(unknown).toMatchObject({
       severity: "error",
-      message: "unknown key 'position'",
+      message: "nodes.a.position: unknown key",
       startLine: 5,
     });
 
     const missing = ["initial_node: a", "nodes:", "  a:", "    functions: []"].join("\n");
     expect(parseFlowYaml(missing).problems[0]).toMatchObject({
-      message: "missing required key 'task_messages'",
+      message: "nodes.a.task_messages: field required",
       startLine: 3,
       endLine: 3,
     });
@@ -223,9 +223,10 @@ describe("parseFlowYaml problems", () => {
       "      - name: go",
       "        transition_to: gone",
     ].join("\n");
+    // Reference problems are errors, as Pipecat reports them
     expect(lines(text)).toEqual([
-      ["warning", 1],
-      ["warning", 7],
+      ["error", 1],
+      ["error", 7],
     ]);
     expect(parseFlowYaml(text).problems[1].startColumn).toBe(24);
   });

@@ -14,7 +14,7 @@ A visual editor for Pipecat Flows. The document it edits is Pipecat's `FlowConfi
 - **The YAML is the document** – Open a `FlowConfig` file, edit it on the canvas or in the YAML pane, and save it. Comments, key order, and block scalars in a hand-written file survive the round trip.
 - **Two views, one document** – The canvas and the YAML pane stay in step: a change on either side updates the other, with problems shown inline in the pane.
 - **Routing as data** – A function is a tool name and a destination: a node, or a branch table keyed on a field of the tool's result. A node card lists its functions as rows, a branch's cases as sub-rows, and each row has its own port.
-- **Pipecat's schema** – Validation uses the JSON Schema Pipecat ships for `FlowConfig`, vendored and pinned, plus the same cross-reference checks Pipecat's own loader makes.
+- **Pipecat's schema and checks** – Validation uses the JSON Schema Pipecat ships for `FlowConfig`, vendored and pinned, plus the same cross-reference checks its loader makes and the same graph warnings its `validate_flow` reports: unreachable nodes, dead ends, and branches that always go one place. Every finding uses Pipecat's `FlowIssue` shape and codes.
 - **The handoff to code is a list** – The Flow panel lists every tool and action handler the config references and every `{{ variable }}` it uses, so you know what the Python side must provide.
 - **Local-first UX** – Autosave, undo/redo, keyboard shortcuts, dark mode, auto-layout on open, and Pipecat's own example flows.
 
@@ -64,7 +64,7 @@ Toolbar actions let you:
 - **Open** – Read a `FlowConfig` file as YAML or JSON, validate it, and lay it out. A file in the editor's old JSON format is converted; what cannot convert (tool schemas, decisions) is reported by name.
 - **Save** – Download the flow as `<name>.yaml`, merged into the document it was opened from so comments are preserved.
 - **Layout** – Lay the nodes out automatically, the way a freshly opened file is.
-- **Sidebar** – Always open: it shows the selected node, or the flow when nothing is selected, with the flow's name, its global functions, and the tools, action handlers, and variables the config refers to. It collapses from its header and reopens from the toolbar.
+- **Sidebar** – Always open: it shows the selected node, or the flow when nothing is selected, with the flow's name, its global functions, the issues Pipecat would report, and the tools, action handlers, and variables the config refers to. It collapses from its header and reopens from the toolbar.
 - **Show YAML** – Edit the document itself, with parse, schema, and reference problems marked inline.
 
 ### Example Flows
