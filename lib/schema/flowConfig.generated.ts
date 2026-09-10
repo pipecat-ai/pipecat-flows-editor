@@ -5,6 +5,20 @@
 /**
  * A conversation flow described as data.
  *
+ * Load one with :meth:`from_file` for a YAML or JSON file, :meth:`from_yaml`
+ * for YAML text, :meth:`from_json` for JSON text, or Pydantic's
+ * ``model_validate`` for a dict that is already parsed.
+ *
+ * Prompt text may refer to the manager's state with ``{{ key }}``
+ * placeholders: a node's ``role_message``, the ``content`` of its
+ * ``task_messages``, and the ``text`` of a ``tts_say`` action.
+ * :class:`~pipecat.flows.FlowManager` fills them from ``flow_manager.state``
+ * each time it enters the node, so a value stored by a handler earlier in the
+ * conversation can appear in a later prompt. ``{{ order.size }}`` walks into
+ * a stored mapping, and values are rendered with ``str()``. A key that is not
+ * in state raises :class:`~pipecat.flows.FlowError` when the node is entered.
+ * To show the LLM a literal ``{{ key }}``, escape it as ``\{{ key }}``.
+ *
  * Parameters:
  *     initial_node: Name of the node the flow starts in.
  *     nodes: The flow's nodes, keyed by name.
@@ -24,7 +38,8 @@ export interface FlowConfig {
  *     task_messages: What the LLM should do at this node.
  *     role_message: The bot's role or personality, sent as the LLM's
  *         system instruction on entering this node. It persists across
- *         transitions until another node sets its own.
+ *         transitions until another node sets its own. May contain
+ *         ``{{ key }}`` placeholders; see :class:`FlowConfig`.
  *     functions: Tools offered at this node, in addition to the
  *         config's ``global_functions``.
  *     pre_actions: Actions run before the LLM responds at this node.
@@ -48,26 +63,40 @@ export interface FlowConfigNode {
  *
  * Parameters:
  *     role: Message role, e.g. ``developer`` or ``system``.
- *     content: Message text. May contain ``{{ variable }}`` placeholders
- *         substituted when a :class:`~pipecat.flows.Flow` is constructed.
+ *     content: Message text. May contain ``{{ key }}`` placeholders;
+ *         see :class:`FlowConfig`.
  */
 export interface FlowConfigMessage {
   role: string;
   content: string;
 }
 /**
- * A tool offered at a node, referenced by name.
+ * A tool offered at a node.
+ *
+ * Ordinarily the entry names a Flows direct function in the handlers a
+ * :class:`~pipecat.flows.Flow` is constructed with, and the tool's
+ * description and parameters come from that function. A
+ * ``transition_only`` entry is defined entirely here instead: it takes
+ * no parameters, runs no code, and moves the conversation to
+ * ``transition_to`` when the LLM calls it.
  *
  * Parameters:
- *     name: Name of a Flows direct function in the tools a
- *         :class:`~pipecat.flows.Flow` is constructed with. The
- *         tool's description and parameters come from that function.
+ *     name: The tool's name, as the LLM sees it. For an ordinary
+ *         entry, also the name of the direct function in the handlers.
+ *     transition_only: Whether the tool is defined here rather than in
+ *         code. Requires ``description`` and a ``transition_to`` that
+ *         names a node.
+ *     description: What the tool is for, for the LLM. Only a
+ *         ``transition_only`` entry has one; a direct function
+ *         describes itself in its docstring.
  *     transition_to: Node to transition to after the tool completes,
  *         or a :class:`FlowConfig.Branch`. Omitted for tools that stay
  *         on the current node.
  */
 export interface FlowConfigFunction {
   name: string;
+  transition_only?: boolean;
+  description?: string | null;
   transition_to?: string | FlowConfigBranch | null;
 }
 /**
@@ -98,11 +127,12 @@ export interface FlowConfigBranch {
  * may name a handler too, which then runs immediately when the node's
  * actions execute; a custom type without one must be registered in code
  * with ``FlowManager.register_action``. Any additional keys pass through
- * to the handler.
+ * to the handler. The ``text`` of a ``tts_say`` action may contain
+ * ``{{ key }}`` placeholders; see :class:`FlowConfig`.
  *
  * Parameters:
  *     type: Action type identifier.
- *     handler: Name of the handler in the tools a
+ *     handler: Name of the handler in the handlers a
  *         :class:`~pipecat.flows.Flow` is constructed with. Required
  *         for ``function``, optional for custom types, not allowed on
  *         ``tts_say`` or ``end_conversation``.

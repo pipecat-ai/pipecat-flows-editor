@@ -261,6 +261,60 @@ describe("reference checks", () => {
     ]);
   });
 
+  it("words the transition-only shape errors as Pipecat's Function validator does", () => {
+    const withFunction = (fn: Record<string, unknown>, where: "node" | "global" = "node") => {
+      const config = minimal() as unknown as Record<string, unknown>;
+      if (where === "global") config.global_functions = [fn];
+      else (config.nodes as Record<string, { functions?: unknown[] }>).start.functions = [fn];
+      return validateFlowConfigSchema(config);
+    };
+    const messages = (fn: Record<string, unknown>, where?: "node" | "global") =>
+      withFunction(fn, where).issues.map((i) => [i.message, i.instancePath]);
+
+    expect(messages({ name: "go", description: "Move on." })).toEqual([
+      [
+        "nodes.start.functions.0: function 'go' has a description, which only a transition_only function takes; a direct function describes itself in its docstring",
+        "/nodes/start/functions/0/description",
+      ],
+    ]);
+    expect(messages({ name: "go", transition_only: true, transition_to: "end" })).toEqual([
+      [
+        "nodes.start.functions.0: function 'go' is transition_only and needs a description",
+        "/nodes/start/functions/0",
+      ],
+    ]);
+    expect(
+      messages({
+        name: "go",
+        transition_only: true,
+        description: "Move on.",
+        transition_to: { field: "ok", cases: { yes: "end" } },
+      })
+    ).toEqual([
+      [
+        "nodes.start.functions.0: function 'go' is transition_only and must name the node it transitions to",
+        "/nodes/start/functions/0/transition_to",
+      ],
+    ]);
+    expect(messages({ name: "go", transition_only: true }, "global")).toEqual([
+      [
+        "global_functions.0: function 'go' is transition_only and needs a description",
+        "/global_functions/0",
+      ],
+      [
+        "global_functions.0: function 'go' is transition_only and must name the node it transitions to",
+        "/global_functions/0/transition_to",
+      ],
+    ]);
+    const good = withFunction({
+      name: "go",
+      transition_only: true,
+      description: "Move on.",
+      transition_to: "end",
+    });
+    expect(good.valid).toBe(true);
+  });
+
   it("folds branch case keys to Pipecat's canonical form on load", () => {
     const report = validateFlow(
       parse(

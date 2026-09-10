@@ -2,11 +2,9 @@
  * Pipecat's `FlowConfig` JSON Schema, vendored and pinned.
  *
  * Source: pipecat/src/pipecat/flows/flow_config.schema.json
- *   repo:    github.com/pipecat-ai/pipecat, PR #5628 (unreleased)
- *   branch:  mb/flows-yaml-config
- *   commit:  75d9c59e5 (2026-09-09); unchanged through 36b48fb35 (2026-09-10),
- *            which the vendored examples come from
- *   version: v1.8.1-471-g75d9c59e5 (git describe)
+ *   repo:    github.com/pipecat-ai/pipecat, main
+ *   commit:  e91cfc249 (2026-09-10), the merge of PR #5628
+ *   version: v1.8.1-585-ge91cfc249 (git describe)
  *
  * The schema is generated on the Pipecat side from the `FlowConfig` Pydantic
  * model by `scripts/flows/write_flow_config_schema.py` and guarded there by a

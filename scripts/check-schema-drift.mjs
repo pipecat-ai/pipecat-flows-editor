@@ -2,18 +2,17 @@
 /* eslint-disable no-console -- a command-line tool reports on stdout */
 /*
  * Compares the vendored FlowConfig schema with Pipecat's copy at a git ref.
- * The vendored file comes from an upstream pull request, so this is how the
- * editor finds out that the contract moved before it shipped.
+ * This is how the editor finds out that the contract moved on Pipecat's main.
  *
  *   npm run check:schema            # the pinned commit; should match
- *   npm run check:schema -- main    # what shipped, once the PR merges
+ *   npm run check:schema -- main    # Pipecat's current main
  */
 
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const PINNED = "75d9c59e5";
+const PINNED = "e91cfc249";
 const ref = process.argv[2] ?? PINNED;
 const url = `https://raw.githubusercontent.com/pipecat-ai/pipecat/${ref}/src/pipecat/flows/flow_config.schema.json`;
 

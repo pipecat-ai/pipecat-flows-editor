@@ -41,7 +41,11 @@ export type FlowConfigValidation =
  */
 export function validateFlowConfigSchema(data: unknown): FlowConfigValidation {
   if (validateSchema(data)) return { valid: true, config: normalizeCaseKeys(data), issues: [] };
-  return { valid: false, config: null, issues: (validateSchema.errors ?? []).map(schemaIssue) };
+  const issues = (validateSchema.errors ?? []).flatMap((error) => {
+    const issue = schemaIssue(error, data);
+    return issue ? [issue] : [];
+  });
+  return { valid: false, config: null, issues };
 }
 
 /**
@@ -79,6 +83,9 @@ export function validateFlow(data: unknown): FlowReport & { config: FlowConfig |
  * - Every destination, including branch cases and defaults, names a node.
  * - A `function` action has a `handler`; the built-in `tts_say` and
  *   `end_conversation` take none; any other type may name one.
+ *
+ * The shape of a `transition_only` function is checked by the schema's
+ * if/then/else and worded by `functionShapeIssue` below.
  */
 export function checkFlowConfigReferences(config: FlowConfig): LocatedIssue[] {
   const issues: LocatedIssue[] = [];
@@ -226,8 +233,10 @@ export function checkFlowGraph(config: FlowConfig): LocatedIssue[] {
   return issues;
 }
 
-/** An Ajv error as a `schema` issue, worded and located the way Pydantic's would be. */
-function schemaIssue(error: ErrorObject): LocatedIssue {
+/** An Ajv error as a `schema` issue, worded and located the way Pydantic's would be; null for one to drop. */
+function schemaIssue(error: ErrorObject, data: unknown): LocatedIssue | null {
+  const shape = functionShapeIssue(error, data);
+  if (shape !== undefined) return shape;
   const params = error.params as Record<string, unknown>;
   const segments = error.instancePath.split("/").slice(1).map(unescapePointer);
   let loc = segments;
@@ -250,6 +259,52 @@ function schemaIssue(error: ErrorObject): LocatedIssue {
     message: loc.length > 0 ? `${loc.join(".")}: ${message}` : message,
     ...(node !== undefined ? { node } : {}),
     instancePath,
+  };
+}
+
+/**
+ * The `Function` schema carries an if/then/else for `transition_only`, which
+ * Ajv reports as the failing branch's errors plus an `if` error. Those become
+ * the three messages of `FlowConfig.Function._check_shape`, at the location
+ * Pydantic gives a model validator: the function entry itself. Returns
+ * undefined for an error that is not about the shape, null for the `if`.
+ */
+function functionShapeIssue(error: ErrorObject, data: unknown): LocatedIssue | null | undefined {
+  if (error.keyword === "if") return null;
+  const inThen = error.schemaPath.includes("/then/");
+  const inElse = error.schemaPath.includes("/else/");
+  if (!inThen && !inElse) return undefined;
+  const params = error.params as Record<string, unknown>;
+  const segments = error.instancePath.split("/").slice(1).map(unescapePointer);
+  const fnSegments = inThen && error.keyword === "type" ? segments.slice(0, -1) : segments;
+  const fn = fnSegments.reduce<unknown>(
+    (current, segment) =>
+      current && typeof current === "object"
+        ? (current as Record<string, unknown>)[segment]
+        : undefined,
+    data
+  ) as { name?: unknown } | undefined;
+  const name = typeof fn?.name === "string" ? fn.name : "";
+  let message: string;
+  let field: string;
+  if (inElse) {
+    message = `function '${name}' has a description, which only a transition_only function takes; a direct function describes itself in its docstring`;
+    field = "/description";
+  } else if (error.keyword === "required" && params.missingProperty === "description") {
+    message = `function '${name}' is transition_only and needs a description`;
+    field = "";
+  } else {
+    message = `function '${name}' is transition_only and must name the node it transitions to`;
+    field = "/transition_to";
+  }
+  const node = fnSegments[0] === "nodes" ? fnSegments[1] : undefined;
+  return {
+    level: "error",
+    code: "schema",
+    message: `${fnSegments.join(".")}: ${message}`,
+    ...(node !== undefined ? { node } : {}),
+    function: name,
+    instancePath: `/${fnSegments.map(escapePointer).join("/")}${field}`,
   };
 }
 
