@@ -4,6 +4,7 @@ import Link from "next/link";
 import { DailyLogo } from "@/components/icons/DailyLogo";
 import PipecatLogo from "@/components/icons/PipecatLogo";
 import PixelStreams from "@/components/site/PixelStreams";
+import { siteButton } from "@/components/site/siteButton";
 import { ThemeSwitch } from "@/components/ThemeSwitch";
 
 const resources = [
@@ -18,10 +19,6 @@ const resources = [
     href: "https://docs.pipecat.ai/server/frameworks/flows/pipecat-flows",
   },
 ];
-
-/* The site's button: mono caps, square corners, no shadow. */
-const buttonClass =
-  "type-mono-label inline-flex h-11 items-center justify-center gap-2 border px-6 transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50";
 
 export default function HomePage() {
   return (
@@ -56,18 +53,14 @@ export default function HomePage() {
                   </p>
                 </div>
                 <div className="flex flex-col gap-3 sm:flex-row">
-                  <Link
-                    href="/editor"
-                    prefetch
-                    className={`${buttonClass} border-transparent bg-primary text-primary-foreground hover:bg-primary/85`}
-                  >
+                  <Link href="/editor" prefetch className={siteButton.primary}>
                     Launch the editor
                   </Link>
                   <a
                     href="https://github.com/pipecat-ai/pipecat-flows-editor"
                     target="_blank"
                     rel="noreferrer"
-                    className={`${buttonClass} border-border bg-card hover:bg-accent`}
+                    className={siteButton.outline}
                   >
                     <IconBrandGithub className="size-4" />
                     Explore repository
