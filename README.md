@@ -16,6 +16,7 @@ A visual editor for Pipecat Flows. The document it edits is Pipecat's `FlowConfi
 - **Routing as data** – A function is a tool name and a destination: a node, or a branch table keyed on a field of the tool's result. A node card lists its functions as rows, a branch's cases as sub-rows, and each row has its own port.
 - **Pipecat's schema and checks** – Validation uses the JSON Schema Pipecat ships for `FlowConfig`, vendored and pinned, plus the same cross-reference checks its loader makes and the same graph warnings it reports: unreachable nodes, dead ends, and branches that always go one place. Every finding uses Pipecat's `FlowIssue` shape and codes.
 - **The handoff to code is a list** – The Flow panel lists every tool and action handler the config references and every `{{ variable }}` it uses, so you know what the Python side must provide.
+- **Built for flows that arrive written** – Most flows are written by an agent or by hand and opened here to be seen and corrected. The start screen leads with Open: pick a file, drop one anywhere on the canvas, or paste its YAML; then the examples; then a blank flow.
 - **Local-first UX** – Autosave, undo/redo, keyboard shortcuts, dark mode, auto-layout on open, and Pipecat's own example flows.
 
 ## Getting Started

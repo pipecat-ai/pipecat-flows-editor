@@ -25,6 +25,7 @@ import {
   CanvasNodeTypesContext,
 } from "@/components/nodes/canvasActions";
 import NodeContextMenu from "@/components/nodes/NodeContextMenu";
+import StartScreen from "@/components/start/StartScreen";
 import { Button } from "@/components/ui/button";
 import ToastContainer, { showToast } from "@/components/ui/Toast";
 import YamlPanel from "@/components/yaml/YamlPanel";
@@ -34,6 +35,7 @@ import { configToCanvas, nodeFunctions } from "@/lib/convert/configToCanvas";
 import {
   createFlowDocument,
   DEFAULT_FLOW_NAME,
+  flowNameFromFileName,
   type FlowProblem,
   parseFlowYaml,
   stringifyFlowDocument,
@@ -172,6 +174,8 @@ export default function EditorShell() {
   const resetFlow = useFlowStore((state) => state.reset);
   const flowName = useFlowStore((state) => state.flowName);
   const globalFunctions = useFlowStore((state) => state.globalFunctions);
+  const showStart = useEditorStore((state) => state.showStart);
+  const setShowStart = useEditorStore((state) => state.setShowStart);
   const showYaml = useEditorStore((state) => state.showYaml);
   const yamlPanelHeight = useEditorStore((state) => state.yamlPanelHeight);
 
@@ -306,6 +310,12 @@ export default function EditorShell() {
     fitViewSoon();
   }, [replaceCanvas, resetFlow, fitViewSoon]);
 
+  // New Flow shows the start screen over a blank flow; so does a first visit
+  const startOver = useCallback(() => {
+    startNewFlow();
+    setShowStart(true);
+  }, [startNewFlow, setShowStart]);
+
   // Selecting a node opens the sidebar on it, even if it was collapsed
   useEffect(() => {
     if (selectedNodeId) useEditorStore.getState().setSidebarCollapsed(false);
@@ -318,10 +328,10 @@ export default function EditorShell() {
     const legacy = saved ? null : readLegacyAutosave();
     if (saved) {
       if (!openFlow(saved.yaml, saved.flowName, { silent: true, keepPositions: true })) {
-        startNewFlow();
+        startOver();
       }
     } else if (!legacy || !openFlow(legacy, DEFAULT_FLOW_NAME)) {
-      startNewFlow();
+      startOver();
     }
     hydratedRef.current = true;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -604,9 +614,31 @@ export default function EditorShell() {
             useFlowStore.getState().setGlobalFunctions(state.globalFunctions);
           }
         }}
-        onNewFlow={startNewFlow}
+        onNewFlow={startOver}
       />
-      <div className="flex-1 min-w-0 relative overflow-hidden" style={{ height: columnHeight }}>
+      <div
+        className="flex-1 min-w-0 relative overflow-hidden"
+        style={{ height: columnHeight }}
+        onDragOver={(e) => {
+          if (e.dataTransfer.types.includes("Files")) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = "copy";
+          }
+        }}
+        onDrop={(e) => {
+          const file = e.dataTransfer.files?.[0];
+          if (!file) return;
+          e.preventDefault();
+          const reader = new FileReader();
+          reader.onload = () => {
+            if (openFlow(String(reader.result), flowNameFromFileName(file.name))) {
+              setShowStart(false);
+            }
+          };
+          reader.onerror = () => showToast("Could not read the file", "error");
+          reader.readAsText(file);
+        }}
+      >
         <CanvasActionsContext.Provider value={canvasActions}>
           <CanvasNodeTypesContext.Provider value={canvasNodeTypes}>
             <ReactFlow
@@ -652,6 +684,13 @@ export default function EditorShell() {
             </ReactFlow>
           </CanvasNodeTypesContext.Provider>
         </CanvasActionsContext.Provider>
+        {showStart && (
+          <StartScreen
+            onOpenFlow={(text, flowName) => openFlow(text, flowName)}
+            onStartFromScratch={() => setShowStart(false)}
+            onDismiss={() => setShowStart(false)}
+          />
+        )}
         {sidebarCollapsed && (
           <Button
             variant="secondary"

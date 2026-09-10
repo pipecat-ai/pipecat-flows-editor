@@ -19,6 +19,9 @@ interface EditorState {
   // Scroll target for inspector panel
   scrollTarget: ScrollTarget | null;
 
+  // The start screen: shown on first visit and on New Flow
+  showStart: boolean;
+
   // YAML pane state
   showYaml: boolean;
   yamlPanelHeight: number;
@@ -43,6 +46,7 @@ interface EditorState {
   setSelectedFunctionIndex: (index: number | null) => void;
   setSelectedConditionIndex: (index: number | null) => void;
   setScrollTarget: (target: ScrollTarget | null) => void;
+  setShowStart: (show: boolean) => void;
   setShowYaml: (show: boolean) => void;
   setYamlPanelHeight: (height: number) => void;
   setIsYamlPanelResizing: (isResizing: boolean) => void;
@@ -104,6 +108,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
     selectedFunctionIndex: null,
     selectedConditionIndex: null,
     scrollTarget: null,
+    showStart: false,
     showYaml: false,
     yamlPanelHeight: 360,
     isYamlPanelResizing: false,
@@ -139,6 +144,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
       set({ scrollTarget: target });
     },
 
+    setShowStart: (show) => set({ showStart: show }),
     setShowYaml: (show) => set({ showYaml: show }),
     setYamlPanelHeight: (height) => set({ yamlPanelHeight: height }),
     setIsYamlPanelResizing: (isResizing) => set({ isYamlPanelResizing: isResizing }),

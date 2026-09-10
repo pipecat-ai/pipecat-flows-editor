@@ -47,9 +47,8 @@ export default function HomePage() {
               Design and launch <span className="whitespace-nowrap">Pipecat Flows</span> in minutes
             </p>
             <p className="text-balance text-lg text-muted-foreground">
-              Pipecat Flows Editor is the low-code entry point into Pipecat. Design your
-              conversational flow in the browser and save it as the YAML config your Pipecat
-              application loads.
+              Open a flow written by an agent or by hand, see it as a graph, correct it in place,
+              and save it as the YAML config your Pipecat application loads.
             </p>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row">
