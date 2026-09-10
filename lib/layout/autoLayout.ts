@@ -8,7 +8,9 @@
 import dagre from "@dagrejs/dagre";
 import type { Edge, Node } from "@xyflow/react";
 
+import type { ConfigNodeData } from "@/lib/convert/configToCanvas";
 import { type FlowConfigFunction, isBranch } from "@/lib/schema/flowConfig";
+import { cardActionLines } from "@/lib/utils/actionSummary";
 
 export type LayoutDirection = "TB" | "LR";
 
@@ -45,10 +47,12 @@ export function nodeRowCount(node: Node): number {
  */
 export function estimateNodeSize(node: Node): { width: number; height: number } {
   const rows = nodeRowCount(node);
+  const { before, after } = cardActionLines(node.data as ConfigNodeData);
+  const block = (count: number) =>
+    count * NODE_CARD.rowHeight + (count > 0 ? NODE_CARD.padding : 0);
   return {
     width: NODE_CARD.width,
-    height:
-      NODE_CARD.headerHeight + rows * NODE_CARD.rowHeight + (rows > 0 ? NODE_CARD.padding : 0),
+    height: NODE_CARD.headerHeight + block(before.length) + block(rows) + block(after.length),
   };
 }
 

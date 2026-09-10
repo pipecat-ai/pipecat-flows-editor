@@ -1,7 +1,19 @@
 "use client";
 
 import { Handle, type NodeProps, Position, useUpdateNodeInternals } from "@xyflow/react";
-import { AlertTriangle, ArrowRight, LogOut, Play, Plus, Split, Wrench, X } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowRight,
+  LogOut,
+  Play,
+  Plug,
+  Plus,
+  Split,
+  Volume2,
+  Wrench,
+  X,
+  Zap,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { useHoverWithGrace } from "@/hooks/useHoverWithGrace";
@@ -9,6 +21,7 @@ import { type ConfigCanvasNode, handleId, NEW_FUNCTION_HANDLE } from "@/lib/conv
 import { NODE_CARD } from "@/lib/layout/autoLayout";
 import { type FlowConfigFunction, isBranch } from "@/lib/schema/flowConfig";
 import { useEditorStore } from "@/lib/store/editorStore";
+import { type ActionLine, cardActionLines } from "@/lib/utils/actionSummary";
 
 import { useCanvasActions, useCanvasNodeTypes } from "./canvasActions";
 import InlineText from "./InlineText";
@@ -46,6 +59,9 @@ export default function BaseNode({ id, data, selected, type }: NodeProps<ConfigC
 
   const nodeTypes = useCanvasNodeTypes();
   const functions = data.functions ?? [];
+  const script = cardActionLines(data);
+  const hasBelowHeader =
+    script.before.length > 0 || functions.length > 0 || script.after.length > 0;
 
   // React Flow measures handles when the card mounts or resizes. Renaming a
   // case, or removing a row above another, changes handle ids without a
@@ -83,7 +99,7 @@ export default function BaseNode({ id, data, selected, type }: NodeProps<ConfigC
       />
       <div
         className={`flex items-center gap-1.5 px-2.5 text-[13px] font-semibold ${
-          functions.length > 0 ? "border-b" : ""
+          hasBelowHeader ? "border-b" : ""
         }`}
         style={{ height: NODE_CARD.headerHeight }}
       >
@@ -104,8 +120,17 @@ export default function BaseNode({ id, data, selected, type }: NodeProps<ConfigC
         />
       </div>
 
+      {/* On entry: above the functions. */}
+      {script.before.length > 0 && (
+        <ActionLines
+          nodeId={id}
+          lines={script.before}
+          className={functions.length > 0 || script.after.length > 0 ? "border-b" : ""}
+        />
+      )}
+
       {functions.length > 0 && (
-        <div className="py-1">
+        <div className={`py-1 ${script.after.length > 0 ? "border-b" : ""}`}>
           {functions.map((fn, functionIndex) => (
             <FunctionRows
               key={functionIndex}
@@ -125,6 +150,9 @@ export default function BaseNode({ id, data, selected, type }: NodeProps<ConfigC
           ))}
         </div>
       )}
+
+      {/* On exit: below the functions. */}
+      {script.after.length > 0 && <ActionLines nodeId={id} lines={script.after} />}
 
       {!isEndNode && (
         <Handle
@@ -156,6 +184,54 @@ export default function BaseNode({ id, data, selected, type }: NodeProps<ConfigC
           title="Add a function"
         />
       )}
+    </div>
+  );
+}
+
+const ACTION_ICONS = { says: Volume2, handler: Zap, custom: Plug, more: Plus };
+
+/**
+ * The node's actions as a short script under its name: what it says, in
+ * quotes, and what it runs, so what happens on entry and exit is visible
+ * without opening the node. A click opens the inspector's Actions tab.
+ */
+function ActionLines({
+  nodeId,
+  lines,
+  className,
+}: {
+  nodeId: string;
+  lines: ActionLine[];
+  className?: string;
+}) {
+  const selectNode = useEditorStore((state) => state.selectNode);
+  const requestInspectorTab = useEditorStore((state) => state.requestInspectorTab);
+  const setSidebarCollapsed = useEditorStore((state) => state.setSidebarCollapsed);
+  const open = () => {
+    setSidebarCollapsed(false);
+    requestInspectorTab("actions");
+    selectNode(nodeId);
+  };
+  return (
+    <div className={`py-1 ${className ?? ""}`}>
+      {lines.map((line, i) => {
+        const Icon = ACTION_ICONS[line.kind];
+        return (
+          <button
+            key={i}
+            type="button"
+            className="nodrag flex w-full min-w-0 items-center gap-1.5 px-2.5 text-left text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+            style={{ height: NODE_CARD.rowHeight }}
+            title={line.title}
+            onClick={open}
+          >
+            <Icon className="h-[13px] w-[13px] shrink-0" />
+            <span className={`truncate ${line.kind === "says" ? "italic" : "font-mono"}`}>
+              {line.text}
+            </span>
+          </button>
+        );
+      })}
     </div>
   );
 }

@@ -40,6 +40,8 @@ interface EditorState {
 
   // Internal state for tracking
   _isDeletingFunction: boolean;
+  /** A tab the inspector should show next, set by a card and cleared once shown. */
+  requestedInspectorTab: string | null;
 
   // Basic setters
   setSelectedNodeId: (id: string | null) => void;
@@ -53,6 +55,7 @@ interface EditorState {
   setInspectorPanelWidth: (width: number) => void;
   setIsInspectorResizing: (isResizing: boolean) => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
+  requestInspectorTab: (tab: string | null) => void;
   setRfInstance: (instance: ReactFlowInstance | null) => void;
 
   // Selection actions (with validation and logic)
@@ -117,6 +120,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
     sidebarCollapsed: readSidebarCollapsed(),
     rfInstance: null,
     _isDeletingFunction: false,
+    requestedInspectorTab: null,
 
     // Basic setters
     setSelectedNodeId: (id) => {
@@ -157,6 +161,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
       set({ sidebarCollapsed: collapsed });
     },
     setRfInstance: (instance) => set({ rfInstance: instance }),
+    requestInspectorTab: (tab) => set({ requestedInspectorTab: tab }),
 
     // Selection actions with validation
     selectNode: (nodeId, functionIndex = null, conditionIndex = null) => {

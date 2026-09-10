@@ -107,11 +107,22 @@ export default function InspectorPanel({
   const [activeTab, setActiveTab] = useState<string>(
     selectedFunctionIndex !== null ? "functions" : "general"
   );
+  const requestedTab = useEditorStore((state) => state.requestedInspectorTab);
+  const requestInspectorTab = useEditorStore((state) => state.requestInspectorTab);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (requestedTab) return; // a card asked for a tab; that wins
+
     setActiveTab(selectedFunctionIndex !== null ? "functions" : "general");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedFunctionIndex]);
+
+  useEffect(() => {
+    if (!requestedTab) return;
+
+    setActiveTab(requestedTab);
+    requestInspectorTab(null);
+  }, [requestedTab, requestInspectorTab]);
 
   // Early return after all hooks
   if (!selected) {
