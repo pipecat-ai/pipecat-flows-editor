@@ -1,7 +1,7 @@
 "use client";
 
 import { NodeToolbar, Position } from "@xyflow/react";
-import { GitBranch, LogOut, Plus, SquarePlus } from "lucide-react";
+import { ArrowRight, LogOut, Plus, Split, Wrench } from "lucide-react";
 import { useState } from "react";
 
 import {
@@ -12,13 +12,40 @@ import {
 } from "@/components/ui/dropdown-menu";
 import type { DestinationKind } from "@/lib/utils/nodeCreation";
 
-const DESTINATIONS: { kind: DestinationKind; label: string; Icon: typeof SquarePlus }[] = [
-  { kind: "node", label: "Next node", Icon: SquarePlus },
-  { kind: "end", label: "End", Icon: LogOut },
-  { kind: "branch", label: "Branch on the result", Icon: GitBranch },
+/** Where a new function leads. Every function is a tool call; the kinds differ only in the destination. */
+const DESTINATIONS: {
+  kind: DestinationKind;
+  label: string;
+  description: string;
+  Icon: typeof ArrowRight;
+}[] = [
+  {
+    kind: "node",
+    label: "Next node",
+    description: "A function that leads to a new node",
+    Icon: ArrowRight,
+  },
+  {
+    kind: "stay",
+    label: "Stay on this node",
+    description: "A function that does work here",
+    Icon: Wrench,
+  },
+  {
+    kind: "branch",
+    label: "Branch on the result",
+    description: "A function whose result picks the next node",
+    Icon: Split,
+  },
+  {
+    kind: "end",
+    label: "End",
+    description: "A function that leads to the end of the conversation",
+    Icon: LogOut,
+  },
 ];
 
-/** The three kinds of destination, as a dropdown around any trigger. */
+/** What a new function can lead to, as a dropdown around any trigger. */
 export function DestinationMenu({
   trigger,
   onAdd,
@@ -32,10 +59,13 @@ export function DestinationMenu({
     <DropdownMenu onOpenChange={onOpenChange}>
       <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
       <DropdownMenuContent align="center" side="bottom" className="nodrag nopan">
-        {DESTINATIONS.map(({ kind, label, Icon }) => (
-          <DropdownMenuItem key={kind} onClick={() => onAdd(kind)}>
-            <Icon className="mr-2 h-4 w-4" />
-            {label}
+        {DESTINATIONS.map(({ kind, label, description, Icon }) => (
+          <DropdownMenuItem key={kind} onClick={() => onAdd(kind)} className="items-start gap-2">
+            <Icon className="mt-0.5 h-4 w-4 shrink-0" />
+            <span className="flex flex-col">
+              <span>{label}</span>
+              <span className="text-[11px] text-neutral-500">{description}</span>
+            </span>
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>
@@ -50,7 +80,7 @@ interface Props {
   onHoverChange: (hovering: boolean) => void;
 }
 
-/** A "+" under a node that adds a function leading to a new node. Shown on hover and while selected. */
+/** The "+" under a node, the one place to add a function. Shown on hover and while selected. */
 export default function NodeAddToolbar({ visible, onAdd, title, onHoverChange }: Props) {
   const [open, setOpen] = useState(false);
 
@@ -68,11 +98,11 @@ export default function NodeAddToolbar({ visible, onAdd, title, onHoverChange }:
         trigger={
           <button
             type="button"
-            className="nodrag nopan flex h-7 w-7 items-center justify-center rounded-full border border-neutral-300 bg-white text-neutral-600 shadow-sm hover:border-blue-500 hover:text-blue-600 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-300"
+            className="nodrag nopan flex h-8 w-8 items-center justify-center rounded-md border border-neutral-300 bg-white text-neutral-600 shadow-sm hover:border-blue-500 hover:text-blue-600 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-300"
             title={title}
             aria-label={title}
           >
-            <Plus className="h-4 w-4" />
+            <Plus className="h-5 w-5" />
           </button>
         }
       />

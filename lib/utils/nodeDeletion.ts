@@ -1,7 +1,15 @@
 import type { CanvasNode } from "@/lib/convert/configToCanvas";
 
+import { dropFunctionTargets } from "./nodeUpdates";
+
+/** Removes a node and every destination on the other nodes that pointed at it. */
 export function deleteNode(nodes: CanvasNode[], nodeId: string): CanvasNode[] {
-  return nodes.filter((n) => n.id !== nodeId);
+  return nodes
+    .filter((n) => n.id !== nodeId)
+    .map((n) => ({
+      ...n,
+      data: { ...n.data, functions: dropFunctionTargets(n.data.functions ?? [], nodeId) },
+    }));
 }
 
 /**

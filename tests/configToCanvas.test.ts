@@ -48,12 +48,12 @@ describe("configToGraph", () => {
       ["end", "end"],
     ]);
     expect(edges.map((e) => [e.source, e.sourceHandle, e.target])).toEqual([
-      ["initial", "fn:choose_pizza", "choose_pizza"],
-      ["initial", "fn:choose_sushi", "choose_sushi"],
-      ["choose_pizza", "fn:select_pizza_order", "confirm"],
-      ["choose_sushi", "fn:select_sushi_order", "confirm"],
-      ["confirm", "fn:complete_order", "end"],
-      ["confirm", "fn:revise_order", "initial"],
+      ["initial", "fn:0", "choose_pizza"],
+      ["initial", "fn:1", "choose_sushi"],
+      ["choose_pizza", "fn:0", "confirm"],
+      ["choose_sushi", "fn:0", "confirm"],
+      ["confirm", "fn:0", "end"],
+      ["confirm", "fn:1", "initial"],
     ]);
     expect(edges.every((e) => e.type === "default" && e.label === undefined)).toBe(true);
   });
@@ -81,8 +81,8 @@ describe("configToGraph", () => {
     expect(
       branchEdges.map((e) => [e.sourceHandle, e.target, e.data?.kind, e.data?.caseIndex])
     ).toEqual([
-      ["fn:check_availability:case:available", "confirm", "case", 0],
-      ["fn:check_availability:case:unavailable", "no_availability", "case", 1],
+      ["fn:0:case:available", "confirm", "case", 0],
+      ["fn:0:case:unavailable", "no_availability", "case", 1],
     ]);
   });
 
@@ -101,8 +101,8 @@ describe("configToGraph", () => {
     };
     const { edges } = configToGraph(config);
     expect(edges.map((e) => [e.id, e.sourceHandle, e.target, e.type])).toEqual([
-      ["edge:a:f:case:x", "fn:f:case:x", "b", "default"],
-      ["edge:a:f:default", "fn:f:default", "a", "selfloop"],
+      ["edge:a:0:case:x", "fn:0:case:x", "b", "default"],
+      ["edge:a:0:default", "fn:0:default", "a", "selfloop"],
     ]);
   });
 
@@ -122,20 +122,21 @@ describe("configToGraph", () => {
     const { nodes, edges } = configToGraph(foodOrdering);
     expect(foodOrdering.global_functions).toEqual([{ name: "get_delivery_estimate" }]);
     expect(nodes).toHaveLength(5);
-    expect(edges.some((e) => e.sourceHandle?.includes("get_delivery_estimate"))).toBe(false);
+    expect(edges).toHaveLength(6);
   });
 
   it("round-trips handle ids, including case values with the separator", () => {
     const refs = [
-      { kind: "function", functionName: "f" },
-      { kind: "case", functionName: "f", caseValue: "a:b" },
-      { kind: "default", functionName: "f" },
-      { kind: "new-case", functionName: "f" },
+      { kind: "function", functionIndex: 0 },
+      { kind: "case", functionIndex: 2, caseValue: "a:b" },
+      { kind: "default", functionIndex: 1 },
+      { kind: "new-case", functionIndex: 1 },
       { kind: "new-function" },
     ] as const;
     for (const ref of refs) expect(parseHandleId(handleId(ref))).toEqual(ref);
     expect(parseHandleId(null)).toEqual({ kind: "new-function" });
     expect(parseHandleId("garbage")).toEqual({ kind: "new-function" });
+    expect(parseHandleId("fn:x")).toEqual({ kind: "new-function" });
   });
 });
 

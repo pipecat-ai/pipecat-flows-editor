@@ -41,7 +41,7 @@ export function handleConnection(
     return { sourceNodeId: source, functionIndex: functions.length, caseIndex: null };
   }
 
-  const functionIndex = functions.findIndex((fn) => fn.name === handle.functionName);
+  const functionIndex = handle.functionIndex;
   const fn = functions[functionIndex];
   if (!fn) return null;
   const replace = (updated: FlowConfigFunction) =>
