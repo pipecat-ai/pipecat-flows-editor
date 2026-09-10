@@ -1,48 +1,41 @@
-# Patient intake: verify who is calling, collect their medical details one
-# section at a time, then read everything back before finishing. Ported from
-# examples/flows/patient_intake.py in the Pipecat repository; the tool names
-# match the direct functions there.
-#
-# Shows a branch on a tool's result (verify_birthday reports `verified`), a
-# context reset when moving from identity to intake, and template variables
-# for the practice and the patient.
-#
-# Tools the module must define: verify_birthday, record_prescriptions,
-# record_allergies, record_conditions, record_visit_reasons,
-# revise_information, confirm_information, complete_intake.
-# Variables: practice_name, patient_name.
+# The patient intake flow as data. Loaded by patient_intake_yaml.py and joined
+# to the tools in patient_intake_tools.py. Every function named here is a
+# direct function in that module; its description and parameters come from the
+# code. {{ practice_name }} and {{ patient_name }} are filled in per session.
 
 initial_node: start
 
 nodes:
   start:
     role_message: >
-      You are Jessica, an agent for {{ practice_name }}. You must ALWAYS use one
-      of the available functions to progress the conversation. Be professional
-      but friendly.
+      You are Jessica, an agent for {{ practice_name }}. You must ALWAYS use
+      one of the available functions to progress the conversation. Be
+      professional but friendly.
     task_messages:
       - role: developer
         content: >
           Start by introducing yourself to {{ patient_name }}, then ask for
           their date of birth, including the year. Once they provide their
-          birthday, use verify_birthday to check it. If it does not verify, ask
-          them to try again.
+          birthday, use verify_birthday to check it. If verified (1983-01-01),
+          proceed to prescriptions.
     functions:
       - name: verify_birthday
-        transition_to:
-          field: verified
-          cases:
-            "True": get_prescriptions
+        transition_to: get_prescriptions
 
   get_prescriptions:
+    role_message: >
+      You are Jessica, an agent for {{ practice_name }}. You must ALWAYS use
+      one of the available functions to progress the conversation. Be
+      professional but friendly.
     task_messages:
       - role: developer
         content: >
-          This step is for collecting prescriptions. Ask them what prescriptions
-          they're taking, including the dosage. Get to the point by saying
-          "Thanks for confirming that. First up, what prescriptions are you
-          currently taking, including the dosage for each medication?" After
-          recording prescriptions (or confirming none), proceed to allergies.
+          This step is for collecting prescriptions. Ask them what
+          prescriptions they're taking, including the dosage. Get to the point
+          by saying 'Thanks for confirming that. First up, what prescriptions
+          are you currently taking, including the dosage for each medication?'.
+          After recording prescriptions (or confirming none), proceed to
+          allergies.
     context_strategy: reset
     functions:
       - name: record_prescriptions
@@ -52,8 +45,8 @@ nodes:
     task_messages:
       - role: developer
         content: >
-          Collect allergy information. Ask about any allergies they have. After
-          recording allergies (or confirming none), proceed to medical
+          Collect allergy information. Ask about any allergies they have.
+          After recording allergies (or confirming none), proceed to medical
           conditions.
     functions:
       - name: record_allergies
@@ -100,7 +93,9 @@ nodes:
   confirm:
     task_messages:
       - role: developer
-        content: Once confirmed, thank them, then use the complete_intake function to end the conversation.
+        content: >
+          Once confirmed, thank them, then use the complete_intake function to
+          end the conversation.
     functions:
       - name: complete_intake
         transition_to: end

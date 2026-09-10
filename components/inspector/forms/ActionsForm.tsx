@@ -3,7 +3,7 @@
 import { Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import type { FlowConfigAction } from "@/lib/schema/flowConfig";
+import { BUILT_IN_ACTIONS_WITHOUT_HANDLER, type FlowConfigAction } from "@/lib/schema/flowConfig";
 
 import { ActionItem } from "./ActionItem";
 
@@ -19,8 +19,8 @@ export default function ActionsForm({ label, actions, onChange }: Props) {
   const updateItem = (index: number, updates: Partial<FlowConfigAction>) => {
     const next = [...items];
     const merged = { ...next[index], ...updates };
-    // Only a function action takes a handler; moving to another type drops it
-    if (updates.type !== undefined && updates.type !== "function") {
+    // The two fixed built-ins take no handler; moving to one drops it
+    if (updates.type !== undefined && BUILT_IN_ACTIONS_WITHOUT_HANDLER.has(updates.type)) {
       const { handler: _handler, ...rest } = merged;
       next[index] = rest;
     } else {

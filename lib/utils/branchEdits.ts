@@ -1,7 +1,10 @@
 /**
  * Edits to a branch table's cases. Cases are a map from result value to
- * node name, and its key order is the order the rows show in.
+ * node name, and its key order is the order the rows show in. Keys are kept
+ * in the canonical form Pipecat matches on, so `True` becomes `true`.
  */
+
+import { caseKey } from "@/lib/schema/flowConfig";
 
 export type BranchCases = Record<string, string>;
 
@@ -20,8 +23,9 @@ export function addCase(cases: BranchCases, target: string, value?: string): Bra
 export function renameCase(
   cases: BranchCases,
   oldValue: string,
-  newValue: string
+  requested: string
 ): BranchCases | null {
+  const newValue = requested === "" ? "" : caseKey(requested);
   if (newValue === oldValue) return cases;
   if (newValue === "" || newValue in cases) return null;
   return Object.fromEntries(

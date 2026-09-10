@@ -7,6 +7,7 @@ import { parse } from "yaml";
 import {
   actionHandlers,
   referencedTools,
+  registeredActionTypes,
   templateVariables,
 } from "@/lib/document/flowIntrospection";
 import type { FlowConfig } from "@/lib/schema/flowConfig";
@@ -48,25 +49,34 @@ describe("referencedTools", () => {
 });
 
 describe("actionHandlers", () => {
-  it("lists function action handlers from pre and post actions", () => {
+  it("lists handlers named on function and custom actions, and custom types registered in code", () => {
     const config: FlowConfig = {
       initial_node: "a",
       nodes: {
         a: {
           task_messages: [],
-          pre_actions: [{ type: "function", handler: "warm_up" }],
+          pre_actions: [{ type: "function", handler: "warm_up" }, { type: "ring_bell" }],
           post_actions: [
             { type: "tts_say", text: "Bye" },
             { type: "function", handler: "log" },
           ],
         },
-        b: { task_messages: [], post_actions: [{ type: "function", handler: "log" }] },
+        b: {
+          task_messages: [],
+          post_actions: [
+            { type: "function", handler: "log" },
+            { type: "notify", handler: "send_notification" },
+            { type: "ring_bell" },
+          ],
+        },
       },
     };
     expect(actionHandlers(config)).toEqual([
       { name: "log", usedBy: ["a", "b"] },
+      { name: "send_notification", usedBy: ["b"] },
       { name: "warm_up", usedBy: ["a"] },
     ]);
+    expect(registeredActionTypes(config)).toEqual([{ name: "ring_bell", usedBy: ["a", "b"] }]);
     expect(actionHandlers(foodOrdering)).toEqual([
       { name: "check_kitchen_status", usedBy: ["initial"] },
     ]);

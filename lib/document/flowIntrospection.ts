@@ -4,7 +4,7 @@
  * This list is the handoff to code; the editor generates no Python.
  */
 
-import { type FlowConfig, type FlowConfigNode } from "@/lib/schema/flowConfig";
+import { type FlowConfig, type FlowConfigNode, isRegisteredInCode } from "@/lib/schema/flowConfig";
 
 /** A name the config uses, and the nodes that use it (`global` for global functions). */
 export interface NameReference {
@@ -43,12 +43,23 @@ export function referencedTools(config: FlowConfig): NameReference[] {
   return refs.sorted();
 }
 
-/** Every `function` action handler the config references, by node. */
+/** Every action handler the config names, on `function` actions and on custom types, by node. */
 export function actionHandlers(config: FlowConfig): NameReference[] {
   const refs = new References();
   for (const [nodeName, node] of Object.entries(config.nodes)) {
     for (const action of [...(node.pre_actions ?? []), ...(node.post_actions ?? [])]) {
-      if (action.type === "function" && action.handler) refs.add(action.handler, nodeName);
+      if (action.handler) refs.add(action.handler, nodeName);
+    }
+  }
+  return refs.sorted();
+}
+
+/** Every custom action type the config uses without naming a handler; its handler is registered in code. */
+export function registeredActionTypes(config: FlowConfig): NameReference[] {
+  const refs = new References();
+  for (const [nodeName, node] of Object.entries(config.nodes)) {
+    for (const action of [...(node.pre_actions ?? []), ...(node.post_actions ?? [])]) {
+      if (isRegisteredInCode(action)) refs.add(action.type, nodeName);
     }
   }
   return refs.sorted();

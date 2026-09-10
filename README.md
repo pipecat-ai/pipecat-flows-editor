@@ -14,7 +14,7 @@ A visual editor for Pipecat Flows. The document it edits is Pipecat's `FlowConfi
 - **The YAML is the document** – Open a `FlowConfig` file, edit it on the canvas or in the YAML pane, and save it. Comments, key order, block scalar styles, and every key in a hand-written file survive the round trip; the one change on save is that long lines, folded or plain, are re-wrapped at 80 columns.
 - **Two views, one document** – The canvas and the YAML pane stay in step: a change on either side updates the other, with problems shown inline in the pane.
 - **Routing as data** – A function is a tool name and a destination: a node, or a branch table keyed on a field of the tool's result. A node card lists its functions as rows, a branch's cases as sub-rows, and each row has its own port.
-- **Pipecat's schema and checks** – Validation uses the JSON Schema Pipecat ships for `FlowConfig`, vendored and pinned, plus the same cross-reference checks its loader makes and the same graph warnings its `validate_flow` reports: unreachable nodes, dead ends, and branches that always go one place. Every finding uses Pipecat's `FlowIssue` shape and codes.
+- **Pipecat's schema and checks** – Validation uses the JSON Schema Pipecat ships for `FlowConfig`, vendored and pinned, plus the same cross-reference checks its loader makes and the same graph warnings it reports: unreachable nodes, dead ends, and branches that always go one place. Every finding uses Pipecat's `FlowIssue` shape and codes.
 - **The handoff to code is a list** – The Flow panel lists every tool and action handler the config references and every `{{ variable }}` it uses, so you know what the Python side must provide.
 - **Local-first UX** – Autosave, undo/redo, keyboard shortcuts, dark mode, auto-layout on open, and Pipecat's own example flows.
 
@@ -70,7 +70,7 @@ Toolbar actions let you:
 
 ### Example Flows
 
-The examples under **Load Example** are served from `public/examples/`. Food ordering and restaurant reservation are Pipecat's own, copied verbatim from `examples/flows/` in the Pipecat repository; patient intake is a port of the Python example there; order status and lead qualification are written for the editor. Each file's header comment lists the tools its module must define.
+The examples under **Load Example** are served from `public/examples/`. Hello world, food ordering, restaurant reservation, patient intake, and podcast interview are Pipecat's own, copied verbatim from `examples/flows/` in the Pipecat repository at the commit the schema is vendored from, so each has a tools module and scenarios there. Order status and lead qualification are written for the editor; their header comments list the tools a module must define.
 
 ## Tech Stack
 

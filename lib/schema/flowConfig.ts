@@ -4,8 +4,8 @@
  * Source: pipecat/src/pipecat/flows/flow_config.schema.json
  *   repo:    github.com/pipecat-ai/pipecat, PR #5628 (unreleased)
  *   branch:  mb/flows-yaml-config
- *   commit:  35a4ef5d4039d4bb0b6910b3009a07b9e11cf751 (2026-09-03)
- *   version: v1.8.1-275-g35a4ef5d4 (git describe)
+ *   commit:  75d9c59e5 (2026-09-09), the PR's final head
+ *   version: v1.8.1-471-g75d9c59e5 (git describe)
  *
  * The schema is generated on the Pipecat side from the `FlowConfig` Pydantic
  * model by `scripts/flows/write_flow_config_schema.py` and guarded there by a
@@ -28,7 +28,75 @@ export type {
   FlowConfigNode,
 } from "./flowConfig.generated";
 
-import type { FlowConfigBranch, FlowConfigFunction } from "./flowConfig.generated";
+import type {
+  FlowConfig,
+  FlowConfigAction,
+  FlowConfigBranch,
+  FlowConfigFunction,
+} from "./flowConfig.generated";
+
+/** Built-in action types whose behavior is fixed, so a `handler` is not allowed. */
+export const BUILT_IN_ACTIONS_WITHOUT_HANDLER: ReadonlySet<string> = new Set([
+  "tts_say",
+  "end_conversation",
+]);
+
+/** Every action type the runtime provides without registration. */
+export const BUILT_IN_ACTIONS: ReadonlySet<string> = new Set([
+  ...BUILT_IN_ACTIONS_WITHOUT_HANDLER,
+  "function",
+]);
+
+/** Whether an action is a custom type whose handler the config does not name; it is registered in code. */
+export function isRegisteredInCode(action: FlowConfigAction): boolean {
+  return !BUILT_IN_ACTIONS.has(action.type) && action.handler == null;
+}
+
+/**
+ * The canonical string a branch matches a case key or result value on,
+ * mirroring `case_key` in `pipecat/flows/config.py`. Booleans, and strings
+ * spelling one in any case, become `true` and `false`; everything else is
+ * its string form. So `true:`, `"True":`, and a result of Python `True` all
+ * meet at the same case.
+ */
+export function caseKey(value: unknown): string {
+  if (typeof value === "boolean") return value ? "true" : "false";
+  const text = String(value);
+  const lowered = text.toLowerCase();
+  return lowered === "true" || lowered === "false" ? lowered : text;
+}
+
+/** Whether a case key is written to YAML as a boolean or a number rather than a quoted string. */
+export function caseKeyScalar(key: string): boolean | number | string {
+  if (key === "true") return true;
+  if (key === "false") return false;
+  if (/^-?(0|[1-9]\d*)(\.\d+)?$/.test(key)) return Number(key);
+  return key;
+}
+
+/** A config with every branch's case keys in canonical form, the last of two that meet winning. */
+export function normalizeCaseKeys(config: FlowConfig): FlowConfig {
+  const normalizeFunction = (fn: FlowConfigFunction): FlowConfigFunction => {
+    const transition = fn.transition_to;
+    if (!isBranch(transition)) return fn;
+    const cases: Record<string, string> = {};
+    for (const [key, target] of Object.entries(transition.cases)) cases[caseKey(key)] = target;
+    return { ...fn, transition_to: { ...transition, cases } };
+  };
+  const nodes: FlowConfig["nodes"] = {};
+  for (const [name, node] of Object.entries(config.nodes)) {
+    nodes[name] = node.functions
+      ? { ...node, functions: node.functions.map(normalizeFunction) }
+      : node;
+  }
+  return {
+    ...config,
+    nodes,
+    ...(config.global_functions
+      ? { global_functions: config.global_functions.map(normalizeFunction) }
+      : {}),
+  };
+}
 
 /** A function's destination: a node name, a branch table, or nothing. */
 export type TransitionTo = FlowConfigFunction["transition_to"];

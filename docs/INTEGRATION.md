@@ -71,17 +71,17 @@ global_functions:
   - name: get_delivery_estimate # no transition_to: stays on the current node
 ```
 
-| Key                                | Meaning                                                                                                                                |
-| ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `initial_node`                     | Name of the node the flow starts in.                                                                                                   |
-| `nodes.<name>.role_message`        | The bot's role, sent as the system instruction on entering the node. Persists until another node sets its own.                         |
-| `nodes.<name>.task_messages`       | What the LLM should do at this node. Roles are `developer`, `user`, or `assistant`; Pipecat maps `developer` to `system` where needed. |
-| `nodes.<name>.functions`           | Tools offered at this node, each a `name` and an optional `transition_to`.                                                             |
-| `nodes.<name>.pre_actions`         | Actions run before the LLM responds. Built-in types are `tts_say` and `end_conversation`; `function` names a `handler`.                |
-| `nodes.<name>.post_actions`        | Actions run after the LLM responds.                                                                                                    |
-| `nodes.<name>.context_strategy`    | `append` or `reset`. Omitted, the `FlowManager`'s strategy applies.                                                                    |
-| `nodes.<name>.respond_immediately` | Whether the LLM responds as soon as the node is entered. Defaults to true.                                                             |
-| `global_functions`                 | Tools offered at every node.                                                                                                           |
+| Key                                | Meaning                                                                                                                                                                           |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `initial_node`                     | Name of the node the flow starts in.                                                                                                                                              |
+| `nodes.<name>.role_message`        | The bot's role, sent as the system instruction on entering the node. Persists until another node sets its own.                                                                    |
+| `nodes.<name>.task_messages`       | What the LLM should do at this node. Roles are `developer`, `user`, or `assistant`; Pipecat maps `developer` to `system` where needed.                                            |
+| `nodes.<name>.functions`           | Tools offered at this node, each a `name` and an optional `transition_to`.                                                                                                        |
+| `nodes.<name>.pre_actions`         | Actions run before the LLM responds. Built-in types are `tts_say` and `end_conversation`; `function` names a `handler`; a custom type may name one too, or be registered in code. |
+| `nodes.<name>.post_actions`        | Actions run after the LLM responds.                                                                                                                                               |
+| `nodes.<name>.context_strategy`    | `append` or `reset`. Omitted, the `FlowManager`'s strategy applies.                                                                                                               |
+| `nodes.<name>.respond_immediately` | Whether the LLM responds as soon as the node is entered. Defaults to true.                                                                                                        |
+| `global_functions`                 | Tools offered at every node.                                                                                                                                                      |
 
 ### Branches
 
@@ -107,23 +107,21 @@ The authoritative definition of the format is Pipecat's JSON Schema, generated f
 
 ## The tools module
 
-Tools are ordinary Flows direct functions. They return `(result, None)`: the config owns every transition, so a tool in a configured flow never returns a node. A pure transition is a tool with nothing in it.
+Tools are ordinary Flows direct functions. They return `(result, TRANSITION_IN_YAML)`: the config owns every transition, so a tool in a configured flow never returns a node, and the sentinel says so in the code. A pure transition is a tool with nothing in it.
 
 ```python
 # tools.py
 from datetime import datetime, timedelta
 
-from pipecat.flows import FlowManager
+from pipecat.flows import TRANSITION_IN_YAML, FlowManager
 
 
-async def choose_pizza(flow_manager: FlowManager) -> tuple[None, None]:
+async def choose_pizza(flow_manager: FlowManager):
     """User wants to order pizza."""
-    return None, None
+    return None, TRANSITION_IN_YAML
 
 
-async def select_pizza_order(
-    flow_manager: FlowManager, size: str, pizza_type: str
-) -> tuple[dict, None]:
+async def select_pizza_order(flow_manager: FlowManager, size: str, pizza_type: str):
     """Record the pizza order details.
 
     Args:
@@ -132,13 +130,13 @@ async def select_pizza_order(
     """
     price = {"small": 10.0, "medium": 15.0, "large": 20.0}[size]
     flow_manager.state["order"] = {"type": "pizza", "size": size, "price": price}
-    return {"size": size, "type": pizza_type, "price": price}, None
+    return {"size": size, "type": pizza_type, "price": price}, TRANSITION_IN_YAML
 
 
-async def get_delivery_estimate(flow_manager: FlowManager) -> tuple[dict, None]:
+async def get_delivery_estimate(flow_manager: FlowManager):
     """Get a delivery estimate for the current order."""
     eta = datetime.now() + timedelta(minutes=30)
-    return {"time": eta.isoformat()}, None
+    return {"time": eta.isoformat()}, TRANSITION_IN_YAML
 
 
 async def check_kitchen_status(action: dict, flow_manager: FlowManager) -> None:
@@ -146,7 +144,7 @@ async def check_kitchen_status(action: dict, flow_manager: FlowManager) -> None:
     ...
 ```
 
-The Flow panel in the editor lists exactly the names this module must define.
+The sidebar's flow view lists exactly the names this module must define, plus any custom action types whose handler is registered in code rather than named in the config.
 
 ## Running it
 
@@ -174,12 +172,12 @@ async def on_client_connected(transport, client):
     await flow_manager.initialize(flow.initial_node)
 ```
 
-`FlowConfig.from_yaml(text)` loads from a string, for a config fetched from a database or CMS at session start, and `FlowConfig.from_file` also accepts `.json`. `Flow` takes a module or a mapping of names to callables; anything in the module the YAML does not mention is left alone.
+`FlowConfig.from_yaml(text)` loads from a string, for a config fetched from a database or CMS at session start, and `FlowConfig.from_file` also accepts `.json`. `Flow` takes a module, an object, or a mapping of names to callables, or a list of those searched in order with the first match winning, so a flow's own module can sit in front of shared ones; anything the YAML does not mention is left alone.
 
 Validation happens in two passes, both before the bot takes a call:
 
 - **Loading** validates structure: the initial node exists, every destination names a node, every branch has a field and at least one case. The editor makes the same checks, against the same schema.
-- **Constructing the `Flow`** validates references to code: every tool and handler resolves, every tool passes signature validation, every template variable is supplied.
+- **Constructing the `Flow`** validates references to code: every tool and handler resolves, every tool passes signature validation, every template variable is supplied. Every unresolved reference is reported at once, so constructing the `Flow` and starting the bot is the smoke test for a config.
 
 For a complete bot, see `examples/flows/food_ordering_yaml.py` and `food_ordering_tools.py` in the Pipecat repository.
 

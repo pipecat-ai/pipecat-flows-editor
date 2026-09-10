@@ -16,12 +16,14 @@ import {
   templateVariables,
 } from "@/lib/document/flowIntrospection";
 import {
+  BUILT_IN_ACTIONS_WITHOUT_HANDLER,
   type FlowConfig,
   type FlowConfigAction,
   type FlowConfigFunction,
   flowConfigSchema,
   functionTargets,
   isBranch,
+  normalizeCaseKeys,
 } from "@/lib/schema/flowConfig";
 
 import type { FlowReport, LocatedIssue } from "./flowIssues";
@@ -33,9 +35,12 @@ export type FlowConfigValidation =
   | { valid: true; config: FlowConfig; issues: [] }
   | { valid: false; config: null; issues: LocatedIssue[] };
 
-/** Schema validation only. On success the input is typed as a `FlowConfig`. */
+/**
+ * Schema validation only. On success the input is typed as a `FlowConfig`,
+ * with branch case keys in canonical form as Pipecat's loader leaves them.
+ */
 export function validateFlowConfigSchema(data: unknown): FlowConfigValidation {
-  if (validateSchema(data)) return { valid: true, config: data, issues: [] };
+  if (validateSchema(data)) return { valid: true, config: normalizeCaseKeys(data), issues: [] };
   return { valid: false, config: null, issues: (validateSchema.errors ?? []).map(schemaIssue) };
 }
 
@@ -72,7 +77,8 @@ export function validateFlow(data: unknown): FlowReport & { config: FlowConfig |
  * - Function names are unique in `global_functions` and within each node.
  * - A node's function does not share a name with a global function.
  * - Every destination, including branch cases and defaults, names a node.
- * - A `function` action has a `handler`; no other action type does.
+ * - A `function` action has a `handler`; the built-in `tts_say` and
+ *   `end_conversation` take none; any other type may name one.
  */
 export function checkFlowConfigReferences(config: FlowConfig): LocatedIssue[] {
   const issues: LocatedIssue[] = [];
@@ -308,13 +314,11 @@ function checkAction(
       node,
       instancePath: `${path}/handler`,
     });
-  } else if (action.type !== "function" && action.handler != null) {
+  } else if (BUILT_IN_ACTIONS_WITHOUT_HANDLER.has(action.type) && action.handler != null) {
     issues.push({
       level: "error",
       code: "schema",
-      message:
-        `${loc}: action type '${action.type}' does not take a 'handler'; ` +
-        "register custom action types with FlowManager.register_action",
+      message: `${loc}: the built-in '${action.type}' action does not take a 'handler'`,
       node,
       instancePath: `${path}/handler`,
     });

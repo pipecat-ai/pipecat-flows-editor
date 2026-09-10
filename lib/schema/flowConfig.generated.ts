@@ -75,7 +75,10 @@ export interface FlowConfigFunction {
  *
  * Parameters:
  *     field: Key of the tool's result whose value selects the case.
- *     cases: Result value to node name.
+ *     cases: Result value to node name. Keys may be written as strings,
+ *         booleans, or numbers; they match the result value by its
+ *         canonical string (see :func:`case_key`), so ``true:`` matches a
+ *         result of ``True``.
  *     default: Node to transition to when the value matches no case.
  *         When omitted, an unmatched value stays on the current node.
  */
@@ -89,15 +92,20 @@ export interface FlowConfigBranch {
 /**
  * A pre- or post-action on a node.
  *
- * Built-in action types (``tts_say``, ``end_conversation``) need nothing
- * else. The ``function`` type names a handler in the tools a
- * :class:`~pipecat.flows.Flow` is constructed with. Custom
- * types registered with ``FlowManager.register_action`` are referenced by
- * type alone. Any additional keys pass through to the action handler.
+ * The built-in ``tts_say`` and ``end_conversation`` types take no
+ * handler. The built-in ``function`` type requires one: the handler runs
+ * inline in the pipeline, queued behind the bot's turn. A custom type
+ * may name a handler too, which then runs immediately when the node's
+ * actions execute; a custom type without one must be registered in code
+ * with ``FlowManager.register_action``. Any additional keys pass through
+ * to the handler.
  *
  * Parameters:
  *     type: Action type identifier.
- *     handler: For the ``function`` type, the name of the handler.
+ *     handler: Name of the handler in the tools a
+ *         :class:`~pipecat.flows.Flow` is constructed with. Required
+ *         for ``function``, optional for custom types, not allowed on
+ *         ``tts_say`` or ``end_conversation``.
  */
 export interface FlowConfigAction {
   type: string;

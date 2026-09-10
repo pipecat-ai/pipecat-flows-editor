@@ -245,14 +245,33 @@ describe("reference checks", () => {
     );
   });
 
-  it("requires a handler on function actions and forbids it elsewhere, located like Pydantic", () => {
+  it("requires a handler on function actions and forbids it on the fixed built-ins, located like Pydantic", () => {
     const config = minimal();
     config.nodes.start.pre_actions = [{ type: "function" }];
-    config.nodes.end.post_actions = [{ type: "end_conversation", handler: "x" }];
+    config.nodes.end.post_actions = [
+      { type: "end_conversation", handler: "x" },
+      { type: "tts_say", handler: "x" },
+      { type: "custom_thing", handler: "x" },
+      { type: "custom_registered" },
+    ];
     expect(checkFlowConfigReferences(config).map((e) => e.message)).toEqual([
       "nodes.start.pre_actions.0: a 'function' action requires a 'handler' name",
-      "nodes.end.post_actions.0: action type 'end_conversation' does not take a 'handler'; register custom action types with FlowManager.register_action",
+      "nodes.end.post_actions.0: the built-in 'end_conversation' action does not take a 'handler'",
+      "nodes.end.post_actions.1: the built-in 'tts_say' action does not take a 'handler'",
     ]);
+  });
+
+  it("folds branch case keys to Pipecat's canonical form on load", () => {
+    const report = validateFlow(
+      parse(
+        'initial_node: a\nnodes:\n  a:\n    task_messages: []\n    functions:\n      - name: f\n        transition_to:\n          field: ok\n          cases:\n            True: b\n            "False": a\n            3: b\n  b:\n    task_messages: []\n    post_actions: [{type: end_conversation}]\n'
+      )
+    );
+    expect(report.ok).toBe(true);
+    expect(report.config?.nodes.a.functions?.[0].transition_to).toEqual({
+      field: "ok",
+      cases: { true: "b", false: "a", "3": "b" },
+    });
   });
 
   it("escapes node names in instance paths", () => {

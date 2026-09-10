@@ -171,6 +171,47 @@ describe("serializeFlow", () => {
   });
 });
 
+describe("branch case keys in YAML", () => {
+  it("writes boolean and numeric keys unquoted and merges onto them", () => {
+    const config: FlowConfig = {
+      initial_node: "a",
+      nodes: {
+        a: {
+          task_messages: [],
+          functions: [
+            {
+              name: "f",
+              transition_to: {
+                field: "ok",
+                cases: { true: "b", false: "a", "3": "b", other: "b" },
+              },
+            },
+          ],
+        },
+        b: { task_messages: [], post_actions: [{ type: "end_conversation" }] },
+      },
+    };
+    const text = stringifyFlowDocument(createFlowDocument(config));
+    expect(text).toContain(
+      "            3: b\n            true: b\n            false: a\n            other: b"
+    );
+    // Reading it back folds the keys to the same strings
+    expect(parseFlowYaml(text).config).toEqual(config);
+
+    // Merging onto a document with a boolean key updates that pair in place
+    const parsed = parseFlowYaml(text);
+    const next = structuredClone(config);
+    next.nodes.a.functions![0].transition_to = {
+      field: "ok",
+      cases: { true: "a", false: "a", "3": "b", other: "b" },
+    };
+    applyConfigToDocument(parsed.document, next);
+    const out = stringifyFlowDocument(parsed.document);
+    expect(out).toContain("            true: a\n            false: a\n");
+    expect(out.match(/true:/g)).toHaveLength(1);
+  });
+});
+
 describe("round trip of an unresolved initial_node", () => {
   it("keeps the opened name so the problem stays visible", () => {
     const text = "initial_node: greeting_typo\nnodes:\n  greeting:\n    task_messages: []\n";

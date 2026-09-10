@@ -21,7 +21,7 @@ import {
   YAMLSeq,
 } from "yaml";
 
-import type { FlowConfig } from "@/lib/schema/flowConfig";
+import { caseKeyScalar, type FlowConfig } from "@/lib/schema/flowConfig";
 import { validateFlow } from "@/lib/validation/flowConfigValidator";
 import { issueErrors, type LocatedIssue } from "@/lib/validation/flowIssues";
 
@@ -95,7 +95,7 @@ type TextRange = Pick<FlowProblem, "startLine" | "startColumn" | "endLine" | "en
 /** A new document for a config, with long strings in block style. */
 export function createFlowDocument(config: FlowConfig): Document {
   const document = new Document();
-  document.contents = buildNode(config);
+  document.contents = buildNode(config, []);
   return document;
 }
 
@@ -105,7 +105,7 @@ export function createFlowDocument(config: FlowConfig): Document {
  * are appended.
  */
 export function applyConfigToDocument(document: Document, config: FlowConfig): void {
-  document.contents = mergeNode(document.contents, config);
+  document.contents = mergeNode(document.contents, config, []);
 }
 
 export function stringifyFlowDocument(document: Document): string {
@@ -126,25 +126,45 @@ function keyOf(pair: Pair): string {
   return isScalar(pair.key) ? String(pair.key.value) : String(pair.key);
 }
 
-function mergeNode(target: unknown, value: unknown): YamlNode {
+/** Whether `path` is a branch's `cases` map, whose keys may be booleans or numbers. */
+function isCasesPath(path: string[]): boolean {
+  return (
+    path.length >= 2 &&
+    path[path.length - 1] === "cases" &&
+    path[path.length - 2] === "transition_to"
+  );
+}
+
+/** The YAML key for a config key: unquoted `true`, `false`, or a number in a cases map. */
+function keyScalar(key: string, path: string[]): Scalar {
+  return new Scalar(isCasesPath(path) ? caseKeyScalar(key) : key);
+}
+
+function mergeNode(target: unknown, value: unknown, path: string[]): YamlNode {
   if (isPlainObject(value)) {
-    if (!isMap(target)) return buildNode(value);
+    if (!isMap(target)) return buildNode(value, path);
     const keys = new Set(Object.keys(value));
     for (const pair of [...target.items]) {
       if (!keys.has(keyOf(pair))) target.delete(pair.key);
     }
     for (const [key, item] of Object.entries(value)) {
-      const existing = target.get(key, true);
-      const merged = mergeNode(existing, item);
-      if (merged !== existing) target.set(key, merged);
+      // Match on the key's string form, so a boolean or numeric key in the
+      // document meets the string key the config carries.
+      const pair = target.items.find((p) => keyOf(p) === key);
+      if (pair) {
+        const merged = mergeNode(pair.value, item, [...path, key]);
+        if (merged !== pair.value) pair.value = merged;
+      } else {
+        target.items.push(new Pair(keyScalar(key, path), buildNode(item, [...path, key])));
+      }
     }
     return target;
   }
   if (Array.isArray(value)) {
-    if (!isSeq(target)) return buildNode(value);
+    if (!isSeq(target)) return buildNode(value, path);
     value.forEach((item, i) => {
       const existing = target.items[i];
-      const merged = mergeNode(existing, item);
+      const merged = mergeNode(existing, item, [...path, String(i)]);
       if (merged !== existing) target.items[i] = merged;
     });
     target.items.length = value.length;
@@ -157,21 +177,21 @@ function mergeNode(target: unknown, value: unknown): YamlNode {
     }
     return target;
   }
-  return buildNode(value);
+  return buildNode(value, path);
 }
 
-function buildNode(value: unknown): YamlNode {
+function buildNode(value: unknown, path: string[]): YamlNode {
   if (isPlainObject(value)) {
     const map = new YAMLMap();
     for (const [key, item] of Object.entries(value)) {
       if (item === undefined) continue;
-      map.items.push(new Pair(new Scalar(key), buildNode(item)));
+      map.items.push(new Pair(keyScalar(key, path), buildNode(item, [...path, key])));
     }
     return map;
   }
   if (Array.isArray(value)) {
     const seq = new YAMLSeq();
-    for (const item of value) seq.items.push(buildNode(item));
+    value.forEach((item, i) => seq.items.push(buildNode(item, [...path, String(i)])));
     return seq;
   }
   const scalar = new Scalar(value);

@@ -14,6 +14,12 @@ describe("branch case edits", () => {
     expect(addCase(cases, "end", "maybe")).toEqual({ ...cases, maybe: "end" });
   });
 
+  it("folds a renamed case to its canonical key", () => {
+    expect(renameCase(cases, "ok", "True")).toEqual({ true: "confirm", bad: "retry" });
+    expect(Object.keys(renameCase(cases, "ok", "False")!)).toEqual(["false", "bad"]);
+    expect(renameCase({ ...cases, true: "x" }, "ok", "TRUE")).toBeNull();
+  });
+
   it("renames a case in place and rejects empty or duplicate values", () => {
     expect(Object.entries(renameCase(cases, "ok", "available")!)).toEqual([
       ["available", "confirm"],

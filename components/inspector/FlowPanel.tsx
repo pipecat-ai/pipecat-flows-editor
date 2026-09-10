@@ -15,6 +15,7 @@ import {
   GLOBAL_SCOPE,
   type NameReference,
   referencedTools,
+  registeredActionTypes,
   templateVariables,
 } from "@/lib/document/flowIntrospection";
 import type { FlowConfigFunction } from "@/lib/schema/flowConfig";
@@ -43,12 +44,13 @@ export default function FlowPanel({ nodes, onCollapse }: Props) {
   const [selectedGlobal, setSelectedGlobal] = useState<number | null>(null);
 
   const availableNodeIds = nodes.map((n) => n.id);
-  const { tools, handlers, variables, issues } = useMemo(() => {
+  const { tools, handlers, registered, variables, issues } = useMemo(() => {
     const config = canvasToConfig(nodes, globalFunctions, initialNode);
     const references = checkFlowConfigReferences(config);
     return {
       tools: referencedTools(config),
       handlers: actionHandlers(config),
+      registered: registeredActionTypes(config),
       variables: templateVariables(config),
       issues: references.length > 0 ? references : checkFlowGraph(config),
     };
@@ -177,9 +179,15 @@ export default function FlowPanel({ nodes, onCollapse }: Props) {
         />
         <ReferenceList
           title="Action handlers"
-          description="Handlers for function actions, from the same tools module."
-          empty="No function actions."
+          description="Handlers named on function and custom actions, from the same tools module."
+          empty="No handlers named."
           items={handlers}
+        />
+        <ReferenceList
+          title="Registered in code"
+          description="Custom action types with no handler named; register each with FlowManager.register_action."
+          empty="No custom action types."
+          items={registered}
         />
         <ReferenceList
           title="Variables"
