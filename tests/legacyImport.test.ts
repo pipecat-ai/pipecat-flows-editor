@@ -34,14 +34,28 @@ describe("convertLegacyFlow", () => {
     expect(Object.keys(config.nodes)).toEqual(
       legacyFoodOrdering.nodes.map((n: { id: string }) => n.id)
     );
+    // A described function without parameters is a transition-only entry now
     expect(config.nodes.initial.functions).toEqual([
-      { name: "choose_pizza", transition_to: "pizza_task" },
-      { name: "choose_sushi", transition_to: "sushi_task" },
+      {
+        name: "choose_pizza",
+        transition_only: true,
+        description: "User wants to order pizza",
+        transition_to: "pizza_task",
+      },
+      {
+        name: "choose_sushi",
+        transition_only: true,
+        description: "User wants to order sushi",
+        transition_to: "sushi_task",
+      },
     ]);
     expect(typeof config.nodes.initial.role_message).toBe("string");
     expect(positions.initial).toEqual({ x: 100, y: 100 });
+    // Only the functions with parameters lose their schema
     expect(dropped.every((d) => d.kind === "tool_schema")).toBe(true);
-    expect(dropped.map((d) => d.kind === "tool_schema" && d.name)).toContain("choose_pizza");
+    const droppedNames = dropped.map((d) => d.kind === "tool_schema" && d.name);
+    expect(droppedNames).toContain("select_pizza_order");
+    expect(droppedNames).not.toContain("choose_pizza");
   });
 
   it("flags decisions, summary prompts, and schemas, and joins role messages", () => {
@@ -105,7 +119,7 @@ describe("convertLegacyFlow", () => {
       { kind: "tool_schema", name: "help" },
     ]);
     expect(describeLegacyDrops(dropped)).toBe(
-      "Tool schemas now belong in the tools module; dropped for 'tool', 'help'. " +
+      "A tool's description and parameters now belong in the Python handlers; dropped for 'tool', 'help'. " +
         "Decisions need a branch table; conditions dropped and the default kept as the destination for 'route on start'. " +
         "RESET_WITH_SUMMARY became reset; summary prompt dropped on 'start'."
     );

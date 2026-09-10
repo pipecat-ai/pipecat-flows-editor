@@ -2,11 +2,13 @@
  * A one-way converter for the editor's old JSON document: the format with
  * `meta`, `edges`, canvas positions, `next_node_id` routing, decisions with
  * Python snippets, and tool schemas on every function. The graph, messages,
- * actions, and plain routing convert. Two things have no home in a
- * FlowConfig and are reported by name: tool schemas, which now live in the
- * Python tools module, and a decision's conditions, which compared a Python
- * result with operators and need a branch table instead. A decision's
- * default is a plain node name and is kept as the destination.
+ * actions, and plain routing convert. A function with a description and no
+ * parameters is exactly a transition-only entry now, and converts to one
+ * with its description intact. Two things have no home in a FlowConfig and
+ * are reported by name: the schema of a function with parameters, which now
+ * lives in the Python handlers, and a decision's conditions, which compared
+ * a Python result with operators and need a branch table instead. A
+ * decision's default is a plain node name and is kept as the destination.
  *
  * The same shape, without `meta`, is what the old editor autosaved.
  */
@@ -128,19 +130,31 @@ function convertFunction(
   dropped: LegacyDrop[]
 ): FlowConfigFunction {
   const name = fn.name ?? "";
-  const hasSchema =
-    Boolean(fn.description) ||
+  const hasParameters =
     (fn.properties && Object.keys(fn.properties).length > 0) ||
-    (fn.required && fn.required.length > 0) ||
-    fn.cancel_on_interruption !== undefined ||
-    fn.timeout_secs !== undefined;
-  if (hasSchema && name) dropped.push({ kind: "tool_schema", name });
+    (fn.required && fn.required.length > 0);
+  const hasSchema =
+    hasParameters || fn.cancel_on_interruption !== undefined || fn.timeout_secs !== undefined;
 
   if (fn.decision) {
+    if (hasSchema || fn.description) {
+      if (name) dropped.push({ kind: "tool_schema", name });
+    }
     if (name) dropped.push({ kind: "decision", name, node });
     const fallback = fn.decision.default_next_node_id ?? fn.next_node_id;
     return fallback ? { name, transition_to: fallback } : { name };
   }
+  // A described function without parameters is a transition-only entry:
+  // defined in the config, no Python behind it.
+  if (fn.description && !hasSchema && fn.next_node_id) {
+    return {
+      name,
+      transition_only: true,
+      description: fn.description,
+      transition_to: fn.next_node_id,
+    };
+  }
+  if ((hasSchema || fn.description) && name) dropped.push({ kind: "tool_schema", name });
   return fn.next_node_id ? { name, transition_to: fn.next_node_id } : { name };
 }
 
@@ -171,7 +185,9 @@ export function describeLegacyDrops(dropped: LegacyDrop[]): string {
   const decisions = dropped.filter((d) => d.kind === "decision");
   const summaries = dropped.filter((d) => d.kind === "summary_prompt").map((d) => d.node);
   if (schemas.length > 0) {
-    parts.push(`Tool schemas now belong in the tools module; dropped for ${list(schemas)}.`);
+    parts.push(
+      `A tool's description and parameters now belong in the Python handlers; dropped for ${list(schemas)}.`
+    );
   }
   if (decisions.length > 0) {
     parts.push(
