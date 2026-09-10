@@ -13,7 +13,7 @@ A visual editor for Pipecat Flows. Build a flow with a coding agent, then visual
 
 - **The YAML is the document** – Open a `FlowConfig` file, edit it on the canvas or in the YAML pane, and save it. Comments, key order, block scalar styles, and every key in a hand-written file survive the round trip; the one change on save is that long lines, folded or plain, are re-wrapped at 80 columns.
 - **Two views, one document** – The canvas and the YAML pane stay in step: a change on either side updates the other, with problems shown inline in the pane.
-- **Routing as data** – A function is a tool name and a destination: a node, or a branch table keyed on a field of the tool's result. A node card lists its functions as rows, a branch's cases as sub-rows, and each row has its own port.
+- **Routing as data** – A function is a tool name and a destination: a node, or a branch table keyed on a field of the tool's result. A function that only moves the conversation is written in the config alone, as a transition-only entry with a description, and needs no Python. A node card lists its functions as rows, a branch's cases as sub-rows, and each row has its own port.
 - **Pipecat's schema and checks** – Validation uses the JSON Schema Pipecat ships for `FlowConfig`, vendored and pinned, plus the same cross-reference checks its loader makes and the same graph warnings it reports: unreachable nodes, dead ends, and branches that always go one place. Every finding uses Pipecat's `FlowIssue` shape and codes.
 - **The handoff to code is a list** – The Flow panel lists every tool and action handler the config references and every `{{ key }}` placeholder its prompts read from the manager's state, so you know what the Python side must provide.
 - **What a node does, on the card** – Besides its functions, a card shows the node's actions as a short script: what it says or runs on entry above the functions, what it says or runs on exit below. Click a line to open the node's actions.
@@ -55,7 +55,8 @@ npm run typecheck  # TypeScript
 - A node's name is its key in the config. Renaming a node rewrites every destination that pointed at it.
 - Routing lives on functions as `transition_to`: a node name, or a branch table with `field`, `cases`, and an optional `default`. Dragging from a row's port sets that row's destination; dragging from the node's bottom handle adds a function, and from a branch's "add case" row adds a case.
 - A `role_message` or a message's `content` may be `!include path`, which Pipecat fills in from a file beside the config when it loads. The editor keeps the reference as written and shows it as `!include path`; it cannot read the file, so placeholders in it are not listed. Type the same form into a field to make one.
-- Tool descriptions and parameters are not in the config. They come from the direct functions in your Python tools module, referenced by name.
+- Tool descriptions and parameters are not in the config. They come from the direct functions in your Python handlers, referenced by name. The exception is a transition-only function, which the config defines entirely: a name, a description for the LLM, and the node it leads to. Toggle it on a function in the sidebar.
+- `{{ key }}` in a role message, a task message, or a `tts_say` text is filled from `flow_manager.state` each time the node is entered. `{{ order.size }}` reads into a stored mapping, and `\{{ key }}` is a literal. The Flow panel lists the keys the prompts read.
 - Edges are derived from the routing data. Deleting or renaming nodes surfaces broken references on the canvas and in the YAML pane.
 - Canvas positions are not part of the document. A freshly opened file is auto-laid out; positions are then kept in `localStorage`, keyed by flow name.
 
