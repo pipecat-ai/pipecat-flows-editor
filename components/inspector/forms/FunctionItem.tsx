@@ -128,7 +128,7 @@ export const FunctionItem = React.forwardRef<HTMLDivElement, FunctionItemProps>(
             ) : (
               <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
             )}
-            <span className="text-xs font-medium truncate">
+            <span className="text-[13px] font-medium truncate">
               {functionName || func.name || `Function ${functionIndex + 1}`}
             </span>
           </button>
@@ -159,12 +159,12 @@ export const FunctionItem = React.forwardRef<HTMLDivElement, FunctionItemProps>(
         >
           <div className="p-4 space-y-4">
             <div className="space-y-2">
-              <label htmlFor={functionNameId} className="text-xs text-muted-foreground">
+              <label htmlFor={functionNameId} className="text-[13px] text-muted-foreground">
                 Tool name
               </label>
               <Input
                 id={functionNameId}
-                className={`h-8 text-xs ${nameError ? "border-red-500" : ""}`}
+                className={`h-8 text-[13px] ${nameError ? "border-red-500" : ""}`}
                 value={functionName}
                 onChange={(e) => {
                   setFunctionName(e.target.value);
@@ -177,8 +177,8 @@ export const FunctionItem = React.forwardRef<HTMLDivElement, FunctionItemProps>(
                 }}
                 placeholder="e.g., choose_pizza"
               />
-              {nameError && <div className="mt-1 text-xs text-red-600">{nameError}</div>}
-              <div className="text-[11px] text-muted-foreground">
+              {nameError && <div className="mt-1 text-[13px] text-red-600">{nameError}</div>}
+              <div className="text-xs text-muted-foreground">
                 A direct function in the tools module. Its description and parameters come from the
                 code.
               </div>
@@ -188,12 +188,12 @@ export const FunctionItem = React.forwardRef<HTMLDivElement, FunctionItemProps>(
               <div className="mb-2 flex items-center justify-between">
                 <label
                   htmlFor={destinationId}
-                  className="text-xs font-medium text-foreground flex items-center gap-1"
+                  className="text-[13px] font-medium text-foreground flex items-center gap-1"
                 >
                   Transition to
                   {hasInvalidTarget && (
                     <span
-                      className="text-orange-600 dark:text-orange-400 text-xs"
+                      className="text-orange-600 dark:text-orange-400 text-[13px]"
                       title="Invalid: target node was deleted"
                     >
                       ⚠
@@ -204,7 +204,7 @@ export const FunctionItem = React.forwardRef<HTMLDivElement, FunctionItemProps>(
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-6 text-xs px-2"
+                    className="h-6 text-[13px] px-2"
                     onClick={() => onChange({ transition_to: undefined })}
                   >
                     Clear
@@ -212,12 +212,12 @@ export const FunctionItem = React.forwardRef<HTMLDivElement, FunctionItemProps>(
                 )}
               </div>
               {hasInvalidTarget && (
-                <div className="mb-2 text-xs text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-orange-950/40 px-2 py-1 rounded">
+                <div className="mb-2 text-[13px] text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-orange-950/40 px-2 py-1 rounded">
                   Invalid: no node named {missingTargets.map((t) => `"${t}"`).join(", ")}
                 </div>
               )}
               <div
-                className="mb-2 inline-flex rounded-md border text-xs overflow-hidden"
+                className="mb-2 inline-flex rounded-md border text-[13px] overflow-hidden"
                 role="radiogroup"
                 aria-label="Destination kind"
               >
@@ -259,7 +259,7 @@ export const FunctionItem = React.forwardRef<HTMLDivElement, FunctionItemProps>(
                 >
                   <SelectTrigger
                     id={destinationId}
-                    className={`h-8 text-xs ${hasInvalidTarget ? "border-orange-400 dark:border-orange-500" : ""}`}
+                    className={`h-8 text-[13px] ${hasInvalidTarget ? "border-orange-400 dark:border-orange-500" : ""}`}
                     onFocus={handleFocus}
                   >
                     <SelectValue placeholder="Stay on this node" />
@@ -273,7 +273,9 @@ export const FunctionItem = React.forwardRef<HTMLDivElement, FunctionItemProps>(
                   </SelectContent>
                 </Select>
               ) : (
-                <div className="text-xs text-muted-foreground italic py-1">No nodes available</div>
+                <div className="text-[13px] text-muted-foreground italic py-1">
+                  No nodes available
+                </div>
               )}
             </div>
           </div>

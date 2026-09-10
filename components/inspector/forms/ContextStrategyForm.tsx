@@ -30,7 +30,7 @@ export default function ContextStrategyForm({ value, onChange }: Props) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <label htmlFor={selectId} className="text-xs text-muted-foreground">
+        <label htmlFor={selectId} className="text-[13px] text-muted-foreground">
           Context Strategy
         </label>
         {value && (
@@ -56,7 +56,7 @@ export default function ContextStrategyForm({ value, onChange }: Props) {
         value={current}
         onValueChange={(v) => onChange(v === DEFAULT ? undefined : (v as ContextStrategy))}
       >
-        <SelectTrigger id={selectId} className="h-8 text-xs">
+        <SelectTrigger id={selectId} className="h-8 text-[13px]">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -65,7 +65,7 @@ export default function ContextStrategyForm({ value, onChange }: Props) {
           <SelectItem value="reset">reset</SelectItem>
         </SelectContent>
       </Select>
-      <div className="text-xs text-muted-foreground italic py-1">
+      <div className="text-[13px] text-muted-foreground italic py-1">
         How the LLM context is updated on entering this node.
       </div>
     </div>

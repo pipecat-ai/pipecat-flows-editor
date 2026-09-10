@@ -40,7 +40,7 @@ export default function ActionsForm({ label, actions, onChange }: Props) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <div className="text-xs text-muted-foreground">{label}</div>
+        <div className="text-[13px] text-muted-foreground">{label}</div>
         <Button variant="ghost" size="sm" className="h-6 gap-1" onClick={addItem}>
           <Plus className="h-4 w-4" />
           Add
@@ -56,7 +56,7 @@ export default function ActionsForm({ label, actions, onChange }: Props) {
         />
       ))}
       {items.length === 0 && (
-        <div className="text-xs text-muted-foreground italic py-2">
+        <div className="text-[13px] text-muted-foreground italic py-2">
           No actions. Click "Add" to create one.
         </div>
       )}

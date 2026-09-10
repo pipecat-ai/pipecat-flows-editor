@@ -37,7 +37,7 @@ export function MessageItem({ message, index, onUpdate, onRemove }: MessageItemP
             Role
           </label>
           <Select value={message.role} onValueChange={(v) => onUpdate({ role: v })}>
-            <SelectTrigger id={messageRoleId} className="h-8 text-xs w-32">
+            <SelectTrigger id={messageRoleId} className="h-8 text-[13px] w-32">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -69,7 +69,7 @@ export function MessageItem({ message, index, onUpdate, onRemove }: MessageItemP
         </label>
         <Textarea
           id={messageContentId}
-          className="min-h-20 text-xs"
+          className="min-h-40 text-[13px]"
           value={message.content}
           onChange={(e) => onUpdate({ content: e.target.value })}
           placeholder="Message content"

@@ -20,7 +20,7 @@ import FlowPanel from "./FlowPanel";
 import ActionsForm from "./forms/ActionsForm";
 import ContextStrategyForm from "./forms/ContextStrategyForm";
 import FunctionsForm from "./forms/FunctionsForm";
-import MessagesForm from "./forms/MessagesForm";
+import MessagesForm, { FIELD_TAG_CLASS } from "./forms/MessagesForm";
 
 type Props = {
   nodes: CanvasNode[];
@@ -162,7 +162,7 @@ export default function InspectorPanel({
       {/* Header */}
       <div className="mb-2 flex items-center justify-between px-3 pt-3 type-mono-label text-muted-foreground shrink-0">
         <span className="truncate flex-1 min-w-0">
-          Inspector: <code className="text-xs font-mono lowercase">{id}</code>
+          Inspector: <code className="text-[13px] font-mono lowercase">{id}</code>
         </span>
         <div className="flex items-center gap-1 shrink-0">
           <TooltipProvider>
@@ -257,7 +257,7 @@ export default function InspectorPanel({
             <div>
               <label
                 htmlFor="node-label"
-                className="block mb-1 text-xs font-medium text-foreground"
+                className="block mb-1 text-[13px] font-medium text-foreground"
               >
                 Name
               </label>
@@ -276,8 +276,8 @@ export default function InspectorPanel({
             </div>
             {displayedType && (
               <div>
-                <div className="mb-1 text-xs font-medium text-foreground">Type</div>
-                <div className="text-xs" aria-label={`Node type: ${displayedType}`}>
+                <div className="mb-1 text-[13px] font-medium text-foreground">Type</div>
+                <div className="text-[13px]" aria-label={`Node type: ${displayedType}`}>
                   {displayedType}
                 </div>
               </div>
@@ -291,7 +291,7 @@ export default function InspectorPanel({
               />
               <label
                 htmlFor="respond_immediately"
-                className="text-xs text-foreground cursor-pointer leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                className="text-[13px] text-foreground cursor-pointer leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
               >
                 Respond Immediately
               </label>
@@ -309,27 +309,35 @@ export default function InspectorPanel({
           value="messages"
           className="flex-1 overflow-y-auto min-h-0 space-y-3 pr-1 mt-0 pb-4"
         >
-          <div className="border-t pt-3 space-y-2">
-            <label htmlFor="node-role-message" className="block text-xs text-muted-foreground">
-              Role Message
-            </label>
-            <Textarea
-              id="node-role-message"
-              className="min-h-20 text-xs"
-              value={data?.role_message ?? ""}
-              onChange={(e) => update({ role_message: e.target.value || undefined })}
-              placeholder="The bot's role or personality, sent as the system instruction on entering this node"
-            />
-            <div className="text-[11px] text-muted-foreground">
-              Persists across transitions until another node sets its own. Setting it on the initial
-              node covers the whole flow.
-            </div>
-          </div>
           <div className="border-t pt-3">
             <MessagesForm
               label="Task Messages"
+              tag="required"
+              hint="What the bot should do at this node."
               messages={data?.task_messages}
               onChange={(msgs) => update({ task_messages: msgs })}
+            />
+          </div>
+          <div className="border-t pt-3 space-y-2">
+            <div className="flex items-baseline gap-2">
+              <label
+                htmlFor="node-role-message"
+                className="block text-[13px] text-muted-foreground"
+              >
+                Role Message
+              </label>
+              <span className={FIELD_TAG_CLASS}>optional</span>
+            </div>
+            <div className="text-xs text-muted-foreground">
+              Persists across transitions until another node sets its own. Setting it on the initial
+              node covers the whole flow.
+            </div>
+            <Textarea
+              id="node-role-message"
+              className="min-h-40 text-[13px]"
+              value={data?.role_message ?? ""}
+              onChange={(e) => update({ role_message: e.target.value || undefined })}
+              placeholder="The bot's role or personality, sent as the system instruction on entering this node"
             />
           </div>
         </TabsContent>
@@ -370,7 +378,7 @@ export default function InspectorPanel({
         <Button
           variant="ghost"
           size="sm"
-          className="w-full justify-between h-8 text-xs"
+          className="w-full justify-between h-8 text-[13px]"
           onClick={() => setShowYaml(!showYaml)}
           aria-label={showYaml ? "Hide YAML" : "Show YAML"}
           aria-expanded={showYaml}
@@ -387,13 +395,13 @@ export default function InspectorPanel({
         >
           <div className="border-t pt-3">
             <div className="mb-2 flex items-center justify-between">
-              <div className="text-xs font-medium text-foreground">
+              <div className="text-[13px] font-medium text-foreground">
                 <code>{id}</code> as YAML
               </div>
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-6 text-[10px] px-2"
+                className="h-6 text-[11px] px-2"
                 onClick={async () => {
                   try {
                     await navigator.clipboard.writeText(nodeYaml);
@@ -410,7 +418,7 @@ export default function InspectorPanel({
               </Button>
             </div>
             <Textarea
-              className="h-40 font-mono text-xs"
+              className="h-40 font-mono text-[13px]"
               value={nodeYaml}
               readOnly
               aria-label="Node as YAML"

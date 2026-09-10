@@ -44,7 +44,7 @@ export function ActionItem({ action, index, onUpdate, onRemove }: ActionItemProp
           value={isCustom ? CUSTOM : action.type}
           onValueChange={(v) => onUpdate({ type: v === CUSTOM ? "" : v })}
         >
-          <SelectTrigger id={actionTypeId} className="h-8 text-xs flex-1">
+          <SelectTrigger id={actionTypeId} className="h-8 text-[13px] flex-1">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -62,7 +62,7 @@ export function ActionItem({ action, index, onUpdate, onRemove }: ActionItemProp
           </label>
           <Input
             id={actionCustomTypeId}
-            className="h-8 text-xs w-32 font-mono"
+            className="h-8 text-[13px] w-32 font-mono"
             value={action.type}
             onChange={(e) => onUpdate({ type: e.target.value })}
             placeholder="type"
@@ -77,7 +77,7 @@ export function ActionItem({ action, index, onUpdate, onRemove }: ActionItemProp
           </label>
           <Input
             id={actionHandlerId}
-            className="h-8 text-xs w-32"
+            className="h-8 text-[13px] w-32"
             value={action.handler ?? ""}
             onChange={(e) => onUpdate({ handler: e.target.value || undefined })}
             placeholder={isCustom ? "Handler (optional)" : "Handler"}
@@ -96,7 +96,7 @@ export function ActionItem({ action, index, onUpdate, onRemove }: ActionItemProp
           </label>
           <Input
             id={actionTextId}
-            className="h-8 text-xs flex-1"
+            className="h-8 text-[13px] flex-1"
             value={typeof action.text === "string" ? action.text : ""}
             onChange={(e) => onUpdate({ text: e.target.value })}
             placeholder="Text to say"

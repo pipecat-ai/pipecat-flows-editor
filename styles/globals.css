@@ -159,12 +159,16 @@
 .react-flow {
   --xy-edge-stroke: var(--accent-line);
   --xy-edge-stroke-selected: var(--color-sky-500);
-  --xy-background-pattern-color: var(--accent-line-soft);
+  /* Dots one step darker in light mode, where the soft line is too faint on zinc-50. */
+  --xy-background-pattern-color: var(--accent-line);
   --xy-controls-button-background-color: var(--card);
   --xy-controls-button-background-color-hover: var(--accent);
   --xy-controls-button-color: var(--foreground);
   --xy-controls-button-color-hover: var(--foreground);
   --xy-controls-button-border-color: var(--border);
+}
+.dark .react-flow {
+  --xy-background-pattern-color: var(--accent-line-soft);
 }
 .react-flow__controls {
   box-shadow: none;

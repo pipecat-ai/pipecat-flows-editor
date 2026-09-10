@@ -48,12 +48,12 @@ export default function BranchEditor({
   return (
     <div className="space-y-3">
       <div className="space-y-1">
-        <label htmlFor={fieldId} className="text-xs text-muted-foreground">
+        <label htmlFor={fieldId} className="text-[13px] text-muted-foreground">
           Field of the tool's result
         </label>
         <Input
           id={fieldId}
-          className="h-8 text-xs font-mono"
+          className="h-8 text-[13px] font-mono"
           value={branch.field}
           onChange={(e) => onChange({ ...branch, field: e.target.value })}
           onFocus={onFocus}
@@ -63,7 +63,7 @@ export default function BranchEditor({
 
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <div className="text-xs text-muted-foreground">Cases</div>
+          <div className="text-[13px] text-muted-foreground">Cases</div>
           <Button
             variant="ghost"
             size="sm"
@@ -79,7 +79,7 @@ export default function BranchEditor({
           </Button>
         </div>
         {rows.length === 0 && (
-          <div className="text-xs text-orange-600 dark:text-orange-400">
+          <div className="text-[13px] text-orange-600 dark:text-orange-400">
             A branch needs at least one case.
           </div>
         )}
@@ -109,7 +109,7 @@ export default function BranchEditor({
       <div className="space-y-1">
         <label
           htmlFor={defaultId}
-          className={`text-xs text-muted-foreground ${selectedConditionIndex === -1 ? "font-semibold" : ""}`}
+          className={`text-[13px] text-muted-foreground ${selectedConditionIndex === -1 ? "font-semibold" : ""}`}
         >
           Default
         </label>
@@ -125,7 +125,7 @@ export default function BranchEditor({
         >
           <SelectTrigger
             id={defaultId}
-            className={`h-8 text-xs ${
+            className={`h-8 text-[13px] ${
               branch.default && missing(branch.default)
                 ? "border-orange-400 dark:border-orange-500"
                 : ""
@@ -201,7 +201,7 @@ function CaseRow({
     >
       <div className="flex items-center gap-2">
         <Input
-          className={`h-8 text-xs font-mono flex-1 ${error ? "border-red-500" : ""}`}
+          className={`h-8 text-[13px] font-mono flex-1 ${error ? "border-red-500" : ""}`}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onFocus={onFocus}
@@ -212,7 +212,7 @@ function CaseRow({
           placeholder="value"
           aria-label="Case value"
         />
-        <span className="text-xs text-muted-foreground">→</span>
+        <span className="text-[13px] text-muted-foreground">→</span>
         <Select
           value={target || undefined}
           onValueChange={onTarget}
@@ -220,7 +220,11 @@ function CaseRow({
             if (open) onFocus?.();
           }}
         >
-          <SelectTrigger className="h-8 text-xs flex-1" onFocus={onFocus} aria-label="Case target">
+          <SelectTrigger
+            className="h-8 text-[13px] flex-1"
+            onFocus={onFocus}
+            aria-label="Case target"
+          >
             <SelectValue placeholder="Select node..." />
           </SelectTrigger>
           <SelectContent>
@@ -252,9 +256,9 @@ function CaseRow({
           </Tooltip>
         </TooltipProvider>
       </div>
-      {error && <div className="text-xs text-red-600">{error}</div>}
+      {error && <div className="text-[13px] text-red-600">{error}</div>}
       {targetMissing && (
-        <div className="text-xs text-orange-600 dark:text-orange-400">
+        <div className="text-[13px] text-orange-600 dark:text-orange-400">
           Invalid: no node named "{target}"
         </div>
       )}
