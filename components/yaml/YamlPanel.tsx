@@ -10,6 +10,9 @@ import { siteButton } from "@/components/site/siteButton";
 import type { FlowProblem } from "@/lib/document/flowDocument";
 import { useEditorStore } from "@/lib/store/editorStore";
 
+/** How long the drawer takes to slide; matches the transition's duration. */
+export const YAML_SLIDE_MS = 300;
+
 interface Props {
   text: string;
   problems: FlowProblem[];
@@ -28,6 +31,16 @@ export default function YamlPanel({ text, problems, onChange }: Props) {
   const setHeight = useEditorStore((state) => state.setYamlPanelHeight);
   const isResizing = useEditorStore((state) => state.isYamlPanelResizing);
   const setIsResizing = useEditorStore((state) => state.setIsYamlPanelResizing);
+
+  // Monaco mounts once the drawer has finished rising, so its first paint
+  // does not show through the slide, and stays mounted from then on so
+  // reopening never repeats it. Until then the drawer shows its own surface.
+  const [editorMounted, setEditorMounted] = useState(false);
+  useEffect(() => {
+    if (!showYaml || editorMounted) return;
+    const timer = setTimeout(() => setEditorMounted(true), YAML_SLIDE_MS + 20);
+    return () => clearTimeout(timer);
+  }, [showYaml, editorMounted]);
 
   const handleResizeStart = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -58,51 +71,52 @@ export default function YamlPanel({ text, problems, onChange }: Props) {
         : "Valid FlowConfig";
 
   return (
-    <>
-      <div
-        className={`fixed bottom-0 left-0 right-0 z-50 border-t bg-card overflow-hidden ${
-          isResizing ? "" : "transition-transform duration-300 ease-in-out"
-        } ${showYaml ? "translate-y-0" : "translate-y-full pointer-events-none"}`}
-        style={{ height: `${height}px` }}
-      >
-        <div className="relative h-full flex flex-col pointer-events-auto">
-          <div
-            className="absolute top-0 left-0 right-0 h-1 cursor-ns-resize hover:bg-sky-500 bg-transparent z-60 pointer-events-auto"
-            onMouseDown={handleResizeStart}
-          />
-          <div className="flex items-center justify-between border-b px-3 py-2 text-xs shrink-0">
-            <div className="type-mono-label text-muted-foreground">YAML</div>
-            <div
-              className={`font-mono ${
-                errors > 0
-                  ? "text-red-600 dark:text-red-400"
-                  : warnings > 0
-                    ? "text-orange-600 dark:text-orange-400"
-                    : "text-muted-foreground"
-              }`}
-            >
-              {status}
-            </div>
-          </div>
-          <div className="flex-1 min-h-0" data-monaco-editor="">
-            {showYaml && <YamlEditor text={text} problems={problems} onChange={onChange} />}
-          </div>
-        </div>
-      </div>
-      {/* A tab on the pane's top edge, in the chrome's language. */}
+    // The tab is a child of the sliding element, above its top edge, so the
+    // two move as one unit; when the pane is down, the tab rests on the
+    // window's bottom edge.
+    <div
+      className={`fixed bottom-0 left-0 right-0 z-50 ${
+        isResizing ? "" : "transition-transform duration-300 ease-in-out"
+      } ${showYaml ? "translate-y-0" : "translate-y-full"}`}
+      style={{ height: `${height}px` }}
+    >
       <button
         type="button"
-        className={`type-mono-label fixed left-1/2 z-60 flex h-8 -translate-x-1/2 items-center gap-2 border border-b-0 bg-card px-4 text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring ${
-          isResizing ? "" : "transition-all duration-300"
-        }`}
-        style={{ bottom: showYaml ? `${height}px` : 0 }}
+        className="type-mono-label absolute -top-8 left-1/2 z-10 flex h-8 -translate-x-1/2 items-center gap-2 border border-b-0 bg-card px-4 text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring"
         onClick={() => setShowYaml(!showYaml)}
         aria-expanded={showYaml}
       >
         {showYaml ? <ChevronDown className="size-3.5" /> : <ChevronUp className="size-3.5" />}
         YAML
       </button>
-    </>
+      <div
+        className={`relative flex h-full flex-col overflow-hidden border-t bg-card ${
+          showYaml ? "" : "pointer-events-none"
+        }`}
+      >
+        <div
+          className="absolute top-0 left-0 right-0 h-1 cursor-ns-resize hover:bg-sky-500 bg-transparent z-20"
+          onMouseDown={handleResizeStart}
+        />
+        <div className="flex items-center justify-between border-b px-3 py-2 text-xs shrink-0">
+          <div className="type-mono-label text-muted-foreground">YAML</div>
+          <div
+            className={`font-mono ${
+              errors > 0
+                ? "text-red-600 dark:text-red-400"
+                : warnings > 0
+                  ? "text-orange-600 dark:text-orange-400"
+                  : "text-muted-foreground"
+            }`}
+          >
+            {status}
+          </div>
+        </div>
+        <div className="flex-1 min-h-0 bg-card" data-monaco-editor="">
+          {editorMounted && <YamlEditor text={text} problems={problems} onChange={onChange} />}
+        </div>
+      </div>
+    </div>
   );
 }
 

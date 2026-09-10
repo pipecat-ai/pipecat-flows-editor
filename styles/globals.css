@@ -157,6 +157,9 @@
    and ports on the accent line, a selected edge in sky. Controls sit on the
    card surface with a hairline border. */
 .react-flow {
+  /* The canvas on the page's own ground, so a column that resizes around it
+     never exposes a different shade. */
+  --xy-background-color: var(--background);
   --xy-edge-stroke: var(--accent-line);
   --xy-edge-stroke-selected: var(--color-sky-500);
   /* Dots one step darker in light mode, where the soft line is too faint on zinc-50. */

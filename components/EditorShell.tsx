@@ -28,7 +28,7 @@ import NodeContextMenu from "@/components/nodes/NodeContextMenu";
 import StartScreen from "@/components/start/StartScreen";
 import { Button } from "@/components/ui/button";
 import ToastContainer, { showToast } from "@/components/ui/Toast";
-import YamlPanel from "@/components/yaml/YamlPanel";
+import YamlPanel, { YAML_SLIDE_MS } from "@/components/yaml/YamlPanel";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { deriveCanvasEdges, reconcileEdges } from "@/lib/convert/canvasGraph";
 import { canvasToConfig } from "@/lib/convert/canvasToConfig";
@@ -596,7 +596,30 @@ export default function EditorShell() {
 
   const { theme } = useTheme();
   const showInspector = !sidebarCollapsed && !showStart;
-  const columnHeight = `calc(100vh - ${showYaml ? yamlPanelHeight : 0}px)`;
+  // The inspector stays mounted while its column collapses, so the column is
+  // never empty mid-animation; it mounts at once when the column opens.
+  const [inspectorMounted, setInspectorMounted] = useState(showInspector);
+  useEffect(() => {
+    if (showInspector) {
+      setInspectorMounted(true);
+      return;
+    }
+    const timer = setTimeout(() => setInspectorMounted(false), YAML_SLIDE_MS + 20);
+    return () => clearTimeout(timer);
+  }, [showInspector]);
+  // The columns give the drawer its room only once it has finished rising,
+  // so the canvas is never exposed beneath a drawer still on its way up; on
+  // close they take the room back at once, under the drawer on its way down.
+  const [drawerRoom, setDrawerRoom] = useState(showYaml);
+  useEffect(() => {
+    if (!showYaml) {
+      setDrawerRoom(false);
+      return;
+    }
+    const timer = setTimeout(() => setDrawerRoom(true), YAML_SLIDE_MS + 20);
+    return () => clearTimeout(timer);
+  }, [showYaml]);
+  const columnHeight = `calc(100vh - ${drawerRoom ? yamlPanelHeight : 0}px)`;
 
   return (
     <div className="h-screen w-screen flex overflow-hidden">
@@ -728,7 +751,7 @@ export default function EditorShell() {
         <ToastContainer />
       </div>
       <div
-        className={`flex flex-col overflow-hidden ${
+        className={`flex flex-col overflow-hidden bg-card ${
           isInspectorResizing ? "" : "transition-all duration-300 ease-in-out"
         } ${showInspector ? "" : "w-0"}`}
         style={{
@@ -737,7 +760,7 @@ export default function EditorShell() {
           maxWidth: showInspector ? "min(100vw, 800px)" : "0px",
         }}
       >
-        {showInspector && (
+        {inspectorMounted && (
           <div
             className="shrink-0 h-full"
             style={{ width: `${inspectorPanelWidth}px`, maxWidth: "min(100vw, 800px)" }}
