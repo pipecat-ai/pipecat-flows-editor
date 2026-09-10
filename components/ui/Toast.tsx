@@ -43,12 +43,12 @@ export default function ToastContainer() {
       {current.map((toast) => (
         <div
           key={toast.id}
-          className={`pointer-events-auto rounded-md border px-4 py-2 text-sm shadow-lg backdrop-blur ${
+          className={`pointer-events-auto border border-l-2 bg-card px-4 py-2 text-sm text-foreground ${
             toast.type === "error"
-              ? "border-red-400 bg-red-50 text-red-900 dark:bg-red-950 dark:text-red-100"
+              ? "border-l-red-500"
               : toast.type === "success"
-                ? "border-green-400 bg-green-50 text-green-900 dark:bg-green-950 dark:text-green-100"
-                : "border-sky-400 bg-sky-50 text-sky-900 dark:bg-sky-950 dark:text-sky-100"
+                ? "border-l-green-500"
+                : "border-l-sky-500"
           }`}
         >
           {toast.message}

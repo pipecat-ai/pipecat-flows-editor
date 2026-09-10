@@ -111,7 +111,7 @@ export const FunctionItem = React.forwardRef<HTMLDivElement, FunctionItemProps>(
     return (
       <div
         ref={ref}
-        className={`rounded-lg border overflow-hidden ${
+        className={`border overflow-hidden ${
           hasInvalidTarget
             ? "border-orange-400 dark:border-orange-500 bg-orange-50/50 dark:bg-orange-950/20"
             : "bg-card"
@@ -121,7 +121,7 @@ export const FunctionItem = React.forwardRef<HTMLDivElement, FunctionItemProps>(
           <button
             type="button"
             onClick={() => setIsExpanded(!isExpanded)}
-            className="flex items-center gap-2 flex-1 min-w-0 hover:bg-accent transition-colors -ml-1 -mr-1 px-1 py-1 rounded"
+            className="flex items-center gap-2 flex-1 min-w-0 hover:bg-accent transition-colors -ml-1 -mr-1 px-1 py-1"
           >
             {isExpanded ? (
               <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -212,12 +212,12 @@ export const FunctionItem = React.forwardRef<HTMLDivElement, FunctionItemProps>(
                 )}
               </div>
               {hasInvalidTarget && (
-                <div className="mb-2 text-[13px] text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-orange-950/40 px-2 py-1 rounded">
+                <div className="mb-2 text-[13px] text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-orange-950/40 px-2 py-1">
                   Invalid: no node named {missingTargets.map((t) => `"${t}"`).join(", ")}
                 </div>
               )}
               <div
-                className="mb-2 inline-flex rounded-md border text-[13px] overflow-hidden"
+                className="mb-2 inline-flex border text-[13px] overflow-hidden"
                 role="radiogroup"
                 aria-label="Destination kind"
               >

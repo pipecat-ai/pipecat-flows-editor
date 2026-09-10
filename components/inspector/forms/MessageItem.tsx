@@ -30,7 +30,7 @@ export function MessageItem({ message, index, onUpdate, onRemove }: MessageItemP
   const messageContentId = useId();
 
   return (
-    <div className="space-y-2 rounded border p-3">
+    <div className="space-y-2 border p-3">
       <div className="flex items-center gap-2">
         <div className="space-y-2">
           <label htmlFor={messageRoleId} className="sr-only">

@@ -195,7 +195,7 @@ function CaseRow({
 
   return (
     <div
-      className={`rounded border p-2 space-y-1 ${
+      className={`border p-2 space-y-1 ${
         isSelected ? "ring-2 ring-sky-500 dark:ring-sky-400" : ""
       } ${targetMissing ? "border-orange-400 dark:border-orange-500" : ""}`}
     >

@@ -35,7 +35,7 @@ export function ActionItem({ action, index, onUpdate, onRemove }: ActionItemProp
   const takesHandler = action.type === "function" || isCustom;
 
   return (
-    <div className="flex items-center gap-2 rounded border p-3">
+    <div className="flex items-center gap-2 border p-3">
       <div className="flex-1 space-y-2">
         <label htmlFor={actionTypeId} className="sr-only">
           Action Type
