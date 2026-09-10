@@ -1,11 +1,11 @@
 "use client";
 
-import Editor, { type Monaco, type OnMount } from "@monaco-editor/react";
+import Editor, { type BeforeMount, type Monaco, type OnMount } from "@monaco-editor/react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import type { editor as MonacoEditor } from "monaco-editor";
 import { useTheme } from "next-themes";
 import { useEffect, useRef } from "react";
 
-import { Button } from "@/components/ui/button";
 import type { FlowProblem } from "@/lib/document/flowDocument";
 import { useEditorStore } from "@/lib/store/editorStore";
 
@@ -72,13 +72,13 @@ export default function YamlPanel({ text, problems, onChange }: Props) {
           <div className="flex items-center justify-between border-b px-3 py-2 text-xs shrink-0">
             <div className="type-mono-label text-muted-foreground">YAML</div>
             <div
-              className={
+              className={`font-mono ${
                 errors > 0
                   ? "text-red-600 dark:text-red-400"
                   : warnings > 0
                     ? "text-orange-600 dark:text-orange-400"
                     : "text-muted-foreground"
-              }
+              }`}
             >
               {status}
             </div>
@@ -88,22 +88,136 @@ export default function YamlPanel({ text, problems, onChange }: Props) {
           </div>
         </div>
       </div>
-      <Button
-        variant="secondary"
-        size="sm"
-        className={`fixed z-60 left-1/2 -translate-x-1/2 ${
+      {/* A tab on the pane's top edge, in the chrome's language. */}
+      <button
+        type="button"
+        className={`type-mono-label fixed left-1/2 z-60 flex h-8 -translate-x-1/2 items-center gap-2 border border-b-0 bg-card px-4 text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring ${
           isResizing ? "" : "transition-all duration-300"
         }`}
-        style={{ bottom: showYaml ? `${height + 16}px` : "16px" }}
+        style={{ bottom: showYaml ? `${height}px` : 0 }}
         onClick={() => setShowYaml(!showYaml)}
+        aria-expanded={showYaml}
       >
-        {showYaml ? "Hide YAML" : "Show YAML"}
-      </Button>
+        {showYaml ? <ChevronDown className="size-3.5" /> : <ChevronUp className="size-3.5" />}
+        YAML
+      </button>
     </>
   );
 }
 
 const MARKER_OWNER = "flow-config";
+
+/*
+ * Monaco in the app's palette: the card surface with zinc chrome and a sky
+ * cursor, and tokens in the GitHub Light and Dark colors pipecat.ai uses for
+ * its code blocks. Hex stands in for the oklch zinc scale, which Monaco
+ * cannot read.
+ */
+const zinc = {
+  50: "#fafafa",
+  100: "#f4f4f5",
+  200: "#e4e4e7",
+  300: "#d4d4d8",
+  400: "#a1a1aa",
+  500: "#71717a",
+  600: "#52525b",
+  700: "#3f3f46",
+  800: "#27272a",
+  900: "#18181b",
+  950: "#09090b",
+};
+const sky = { 400: "#38bdf8", 500: "#0ea5e9" };
+
+/* GitHub's syntax colors for YAML: keys, strings, constants, comments. */
+const github = {
+  light: {
+    key: "116329",
+    string: "0a3069",
+    constant: "0550ae",
+    comment: "6e7781",
+    punct: "57606a",
+  },
+  dark: { key: "7ee787", string: "a5d6ff", constant: "79c0ff", comment: "8b949e", punct: "8b949e" },
+};
+
+function tokenRules(c: typeof github.light) {
+  return [
+    { token: "type", foreground: c.key },
+    { token: "string", foreground: c.string },
+    { token: "number", foreground: c.constant },
+    { token: "keyword", foreground: c.constant },
+    { token: "namespace", foreground: c.constant },
+    { token: "tag", foreground: c.constant },
+    { token: "comment", foreground: c.comment, fontStyle: "italic" },
+    { token: "operators", foreground: c.punct },
+    { token: "delimiter", foreground: c.punct },
+  ];
+}
+
+function defineThemes(monaco: Monaco) {
+  monaco.editor.defineTheme("pipecat-light", {
+    base: "vs",
+    inherit: true,
+    rules: tokenRules(github.light),
+    colors: {
+      "editor.background": "#ffffff",
+      "editor.foreground": zinc[950],
+      "editorLineNumber.foreground": zinc[400],
+      "editorLineNumber.activeForeground": zinc[950],
+      "editor.lineHighlightBackground": zinc[50],
+      "editor.lineHighlightBorder": "#00000000",
+      "editor.selectionBackground": zinc[200],
+      "editor.inactiveSelectionBackground": zinc[100],
+      "editorCursor.foreground": sky[500],
+      "editorIndentGuide.background1": zinc[200],
+      "editorIndentGuide.activeBackground1": zinc[300],
+      "editorWidget.background": "#ffffff",
+      "editorWidget.border": zinc[200],
+      "editorHoverWidget.background": "#ffffff",
+      "editorHoverWidget.border": zinc[200],
+      "scrollbar.shadow": "#00000000",
+      "scrollbarSlider.background": zinc[300] + "80",
+      "scrollbarSlider.hoverBackground": zinc[400] + "80",
+      "scrollbarSlider.activeBackground": zinc[400],
+      focusBorder: "#00000000",
+    },
+  });
+  monaco.editor.defineTheme("pipecat-dark", {
+    base: "vs-dark",
+    inherit: true,
+    rules: tokenRules(github.dark),
+    colors: {
+      "editor.background": zinc[900],
+      "editor.foreground": zinc[50],
+      "editorLineNumber.foreground": zinc[600],
+      "editorLineNumber.activeForeground": zinc[50],
+      "editor.lineHighlightBackground": zinc[800],
+      "editor.lineHighlightBorder": "#00000000",
+      "editor.selectionBackground": zinc[700],
+      "editor.inactiveSelectionBackground": zinc[800],
+      "editorCursor.foreground": sky[400],
+      "editorIndentGuide.background1": zinc[800],
+      "editorIndentGuide.activeBackground1": zinc[700],
+      "editorWidget.background": zinc[900],
+      "editorWidget.border": zinc[800],
+      "editorHoverWidget.background": zinc[900],
+      "editorHoverWidget.border": zinc[800],
+      "scrollbar.shadow": "#00000000",
+      "scrollbarSlider.background": zinc[700] + "80",
+      "scrollbarSlider.hoverBackground": zinc[600] + "80",
+      "scrollbarSlider.activeBackground": zinc[600],
+      focusBorder: "#00000000",
+    },
+  });
+}
+
+/** The page's mono face, resolved from the font variable next/font sets. */
+function monoFontFamily() {
+  const face = getComputedStyle(document.documentElement).getPropertyValue("--font-geist-mono");
+  return [face.trim(), "ui-monospace", "SFMono-Regular", "Menlo", "monospace"]
+    .filter(Boolean)
+    .join(", ");
+}
 
 function YamlEditor({ text, problems, onChange }: Props) {
   const { resolvedTheme } = useTheme();
@@ -128,9 +242,12 @@ function YamlEditor({ text, problems, onChange }: Props) {
     );
   };
 
+  const beforeMount: BeforeMount = (monaco) => defineThemes(monaco);
+
   const onMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;
     monacoRef.current = monaco;
+    editor.updateOptions({ fontFamily: monoFontFamily() });
     applyMarkers(monaco, editor);
   };
 
@@ -144,16 +261,30 @@ function YamlEditor({ text, problems, onChange }: Props) {
       height="100%"
       language="yaml"
       value={text}
-      theme={resolvedTheme === "dark" ? "vs-dark" : "light"}
+      theme={resolvedTheme === "dark" ? "pipecat-dark" : "pipecat-light"}
+      beforeMount={beforeMount}
       onMount={onMount}
       onChange={(value) => onChange(value ?? "")}
       options={{
         minimap: { enabled: false },
         fontSize: 12,
+        lineHeight: 20,
         tabSize: 2,
         wordWrap: "on",
         scrollBeyondLastLine: false,
         renderValidationDecorations: "on",
+        renderLineHighlight: "line",
+        lineNumbersMinChars: 3,
+        glyphMargin: false,
+        folding: false,
+        overviewRulerBorder: false,
+        hideCursorInOverviewRuler: true,
+        padding: { top: 8, bottom: 8 },
+        scrollbar: { verticalScrollbarSize: 8, horizontalScrollbarSize: 8 },
+        guides: { indentation: true, bracketPairs: false },
+        matchBrackets: "never",
+        cursorBlinking: "smooth",
+        smoothScrolling: true,
       }}
     />
   );
