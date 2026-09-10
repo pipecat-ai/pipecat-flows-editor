@@ -15,6 +15,7 @@ export async function getGitHubStarCount(): Promise<string | null> {
   try {
     const response = await fetch("https://api.github.com/repos/pipecat-ai/pipecat", {
       next: { revalidate: 86400 },
+      signal: AbortSignal.timeout(5000),
     });
     if (!response.ok) return null;
     const repo: { stargazers_count?: number } = await response.json();

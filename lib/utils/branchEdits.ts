@@ -1,7 +1,9 @@
 /**
  * Edits to a branch table's cases. Cases are a map from result value to
- * node name, and its key order is the order the rows show in. Keys are kept
- * in the canonical form Pipecat matches on, so `True` becomes `true`.
+ * node name, and its key order is the order the rows show in, except that
+ * JavaScript enumerates integer-like keys first, so `3` sorts before `true`
+ * however it was written. Keys are kept in the canonical form Pipecat
+ * matches on, so `True` becomes `true`.
  */
 
 import { caseKey } from "@/lib/schema/flowConfig";

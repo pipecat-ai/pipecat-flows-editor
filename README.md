@@ -54,6 +54,7 @@ npm run typecheck  # TypeScript
 - The initial node is whichever node `initial_node` names; use "Make initial node" in a node's context menu to move it. An end node is one with an `end_conversation` post-action. Every node has the same shape.
 - A node's name is its key in the config. Renaming a node rewrites every destination that pointed at it.
 - Routing lives on functions as `transition_to`: a node name, or a branch table with `field`, `cases`, and an optional `default`. Dragging from a row's port sets that row's destination; dragging from the node's bottom handle adds a function, and from a branch's "add case" row adds a case.
+- A `role_message` or a message's `content` may be `!include path`, which Pipecat fills in from a file beside the config when it loads. The editor keeps the reference as written and shows it as `!include path`; it cannot read the file, so variables in it are not listed. Type the same form into a field to make one.
 - Tool descriptions and parameters are not in the config. They come from the direct functions in your Python tools module, referenced by name.
 - Edges are derived from the routing data. Deleting or renaming nodes surfaces broken references on the canvas and in the YAML pane.
 - Canvas positions are not part of the document. A freshly opened file is auto-laid out; positions are then kept in `localStorage`, keyed by flow name.

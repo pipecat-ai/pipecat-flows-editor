@@ -34,6 +34,7 @@ import { EXAMPLES, fetchExample, type FlowExample } from "@/lib/examples";
 import { useEditorStore } from "@/lib/store/editorStore";
 import { useFlowStore } from "@/lib/store/flowStore";
 import type { FlowNode } from "@/lib/types/flowTypes";
+import { readFlowFile } from "@/lib/utils/readFlowFile";
 import { summarizeIssues } from "@/lib/validation/flowIssues";
 
 type Props = {
@@ -81,13 +82,12 @@ export default function Toolbar({
   }
 
   function onOpenFile(file: File, input: HTMLInputElement) {
-    const reader = new FileReader();
-    reader.onload = () => {
-      onOpenFlow(String(reader.result), flowNameFromFileName(file.name));
-      input.value = "";
-    };
-    reader.onerror = () => showToast("Could not read the file", "error");
-    reader.readAsText(file);
+    readFlowFile(file)
+      .then((text) => onOpenFlow(text, flowNameFromFileName(file.name)))
+      .catch((error: Error) => showToast(error.message, "error"))
+      .finally(() => {
+        input.value = "";
+      });
   }
 
   function onLoadExample(example: FlowExample) {

@@ -172,7 +172,7 @@ async def on_client_connected(transport, client):
     await flow_manager.initialize(flow.initial_node)
 ```
 
-`FlowConfig.from_yaml(text)` loads from a string, for a config fetched from a database or CMS at session start, and `FlowConfig.from_file` also accepts `.json`. `Flow` takes a module, an object, or a mapping of names to callables, or a list of those searched in order with the first match winning, so a flow's own module can sit in front of shared ones; anything the YAML does not mention is left alone.
+`FlowConfig.from_yaml(text)` loads from a string, for a config fetched from a database or CMS at session start, and `FlowConfig.from_file` also accepts `.json`. A YAML config can keep long prompts in their own files with `!include path`, resolved relative to the config by `from_file`, or by `from_yaml(text, base_dir=...)`. The editor keeps such references as written and shows them as `!include path`; it cannot read the files in the browser, so an include standing in for a whole list, such as `task_messages: !include tasks.yaml`, reads as a schema error in the editor even though Pipecat loads it. `Flow` takes a module, an object, or a mapping of names to callables, or a list of those searched in order with the first match winning, so a flow's own module can sit in front of shared ones; anything the YAML does not mention is left alone.
 
 Validation happens in two passes, both before the bot takes a call:
 

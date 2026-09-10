@@ -5,6 +5,7 @@
  */
 
 import {
+  actionHandler,
   BUILT_IN_ACTIONS,
   type FlowConfigAction,
   type FlowConfigNode,
@@ -47,21 +48,22 @@ function describe(action: FlowConfigAction, when: "before" | "after"): Described
     const text = typeof action.text === "string" ? action.text.trim() : "";
     return {
       kind: "says",
-      text: text ? `“${text}”` : "says a line",
-      title: text ? `Says "${shorten(text)}" ${when} the node` : `Says a line ${when} the node`,
+      text: text ? `“${shorten(text)}”` : "says a line",
+      title: text ? `Says "${text}" ${when} the node` : `Says a line ${when} the node`,
     };
   }
+  const handler = actionHandler(action);
   if (action.type === "function") {
-    const name = action.handler || "an unnamed handler";
+    const name = handler || "an unnamed handler";
     return { kind: "handler", text: `runs ${name}`, title: `Runs ${name} ${when} the node` };
   }
   if (!BUILT_IN_ACTIONS.has(action.type)) {
     const type = action.type || "an unnamed type";
-    return action.handler
+    return handler !== null
       ? {
           kind: "custom",
-          text: `runs ${action.handler}`,
-          title: `Runs ${action.handler} for the ${type} action ${when} the node`,
+          text: `runs ${handler || "an unnamed handler"}`,
+          title: `Runs ${handler || "an unnamed handler"} for the ${type} action ${when} the node`,
         }
       : {
           kind: "custom",

@@ -59,7 +59,7 @@ export const EXAMPLES: FlowExample[] = [
 ];
 
 export async function fetchExample(example: FlowExample): Promise<string> {
-  const response = await fetch(example.path);
+  const response = await fetch(example.path, { signal: AbortSignal.timeout(10000) });
   if (!response.ok) throw new Error(`Could not load ${example.path}: ${response.status}`);
   return response.text();
 }

@@ -80,6 +80,7 @@ import {
   setBranchField,
   updateNodeData,
 } from "@/lib/utils/nodeUpdates";
+import { readFlowFile } from "@/lib/utils/readFlowFile";
 import { issueErrors, summarizeIssues } from "@/lib/validation/flowIssues";
 
 /** An undo snapshot is the whole document: the canvas and the flow-level global functions. */
@@ -640,14 +641,11 @@ export default function EditorShell() {
           const file = e.dataTransfer.files?.[0];
           if (!file) return;
           e.preventDefault();
-          const reader = new FileReader();
-          reader.onload = () => {
-            if (openFlow(String(reader.result), flowNameFromFileName(file.name))) {
-              setShowStart(false);
-            }
-          };
-          reader.onerror = () => showToast("Could not read the file", "error");
-          reader.readAsText(file);
+          readFlowFile(file)
+            .then((text) => {
+              if (openFlow(text, flowNameFromFileName(file.name))) setShowStart(false);
+            })
+            .catch((error: Error) => showToast(error.message, "error"));
         }}
       >
         <CanvasActionsContext.Provider value={canvasActions}>

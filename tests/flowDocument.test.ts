@@ -11,6 +11,7 @@ import {
   flowNameFromFileName,
   parseFlowYaml,
   stringifyFlowDocument,
+  includePath,
 } from "@/lib/document/flowDocument";
 import { serializeFlow } from "@/lib/document/serializeFlow";
 import type { FlowConfig } from "@/lib/schema/flowConfig";
@@ -209,6 +210,58 @@ describe("branch case keys in YAML", () => {
     const out = stringifyFlowDocument(parsed.document);
     expect(out).toContain("            true: a\n            false: a\n");
     expect(out.match(/true:/g)).toHaveLength(1);
+  });
+});
+
+describe("case keys written in a non-canonical form", () => {
+  it("keeps a quoted boolean key's style, position, and comment on open", () => {
+    const text =
+      'initial_node: a\nnodes:\n  a:\n    task_messages: []\n    functions:\n      - name: f\n        transition_to:\n          field: ok\n          cases:\n            "True": b # quoted on purpose\n            no: a\n  b:\n    task_messages: []\n    post_actions:\n      - type: end_conversation\n';
+    const parsed = parseFlowYaml(text);
+    expect(parsed.config?.nodes.a.functions?.[0].transition_to).toEqual({
+      field: "ok",
+      cases: { true: "b", no: "a" },
+    });
+    // Writing the opened config back, as the autosave does, changes nothing
+    applyConfigToDocument(parsed.document, parsed.config!);
+    expect(stringifyFlowDocument(parsed.document)).toBe(text);
+    // Retargeting the case updates the pair in place
+    const next = structuredClone(parsed.config!);
+    next.nodes.a.functions![0].transition_to = { field: "ok", cases: { true: "a", no: "a" } };
+    applyConfigToDocument(parsed.document, next);
+    expect(stringifyFlowDocument(parsed.document)).toContain('"True": a # quoted on purpose');
+  });
+});
+
+describe("!include references", () => {
+  const text =
+    "initial_node: a\nnodes:\n  a:\n    role_message: !include prompts/role.md # long prompt\n    task_messages:\n      - role: developer\n        content: !include prompts/task.md\n    post_actions:\n      - type: end_conversation\n";
+
+  it("reads an include as a reference the config carries, and writes it back as the tag", () => {
+    const parsed = parseFlowYaml(text);
+    expect(parsed.yamlErrors).toEqual([]);
+    expect(parsed.document.warnings).toEqual([]);
+    expect(parsed.config?.nodes.a.role_message).toBe("!include prompts/role.md");
+    expect(includePath(parsed.config?.nodes.a.role_message)).toBe("prompts/role.md");
+    expect(includePath("plain text")).toBeNull();
+    applyConfigToDocument(parsed.document, parsed.config!);
+    expect(stringifyFlowDocument(parsed.document)).toBe(text);
+  });
+
+  it("drops the tag when the field becomes inline text, and adds it for a typed reference", () => {
+    const parsed = parseFlowYaml(text);
+    const next = structuredClone(parsed.config!);
+    next.nodes.a.role_message = "You are a helpful assistant.";
+    next.nodes.a.task_messages[0].content = "!include prompts/other.md";
+    applyConfigToDocument(parsed.document, next);
+    const out = stringifyFlowDocument(parsed.document);
+    expect(out).toContain("role_message: You are a helpful assistant. # long prompt");
+    expect(out).toContain("content: !include prompts/other.md");
+    expect(out).not.toContain("!include prompts/task.md");
+    // A new document writes the tag too, unquoted
+    const fresh = stringifyFlowDocument(createFlowDocument(next));
+    expect(fresh).toContain("content: !include prompts/other.md");
+    expect(parseFlowYaml(fresh).config).toEqual(next);
   });
 });
 

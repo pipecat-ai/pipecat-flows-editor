@@ -17,16 +17,41 @@ import {
   Pair,
   parseDocument,
   Scalar,
+  type ScalarTag,
   YAMLMap,
   YAMLSeq,
 } from "yaml";
 
-import { caseKeyScalar, type FlowConfig } from "@/lib/schema/flowConfig";
+import { caseKey, caseKeyScalar, type FlowConfig } from "@/lib/schema/flowConfig";
 import { validateFlow } from "@/lib/validation/flowConfigValidator";
 import { issueErrors, type LocatedIssue } from "@/lib/validation/flowIssues";
 
 /** Strings longer than this are written as folded block scalars. */
 const FOLD_THRESHOLD = 80;
+
+/**
+ * Pipecat's include loader fills a `!include path` scalar in from a file
+ * beside the config at load time. The editor cannot read that file, so the
+ * config carries the reference as a string with this prefix, and the YAML
+ * keeps the tag. Type the same form into a field to make an include.
+ */
+export const INCLUDE_PREFIX = "!include ";
+
+/** The path an include reference names, or null for an ordinary value. */
+export function includePath(value: unknown): string | null {
+  return typeof value === "string" && value.startsWith(INCLUDE_PREFIX)
+    ? value.slice(INCLUDE_PREFIX.length)
+    : null;
+}
+
+const includeTag: ScalarTag = {
+  tag: "!include",
+  identify: (value) => includePath(value) !== null,
+  resolve: (text) => INCLUDE_PREFIX + text,
+  stringify: (item) => String(item.value).slice(INCLUDE_PREFIX.length),
+};
+
+const YAML_OPTIONS = { customTags: [includeTag] };
 
 export const FLOW_FILE_EXTENSION = ".yaml";
 export const DEFAULT_FLOW_NAME = "untitled";
@@ -58,7 +83,7 @@ export interface ParsedFlow {
 
 export function parseFlowYaml(text: string): ParsedFlow {
   const lineCounter = new LineCounter();
-  const document = parseDocument(text, { prettyErrors: true, lineCounter });
+  const document = parseDocument(text, { prettyErrors: true, lineCounter, ...YAML_OPTIONS });
 
   const yamlErrors = document.errors.map((error) => error.message);
   if (yamlErrors.length > 0) {
@@ -94,7 +119,7 @@ type TextRange = Pick<FlowProblem, "startLine" | "startColumn" | "endLine" | "en
 
 /** A new document for a config, with long strings in block style. */
 export function createFlowDocument(config: FlowConfig): Document {
-  const document = new Document();
+  const document = new Document(undefined, YAML_OPTIONS);
   document.contents = buildNode(config, []);
   return document;
 }
@@ -126,12 +151,20 @@ function keyOf(pair: Pair): string {
   return isScalar(pair.key) ? String(pair.key.value) : String(pair.key);
 }
 
-/** Whether `path` is a branch's `cases` map, whose keys may be booleans or numbers. */
+/**
+ * Whether `path` is a branch's `cases` map, whose keys may be booleans or
+ * numbers: `.../functions/<i>/transition_to/cases` on a node or under
+ * `global_functions`, and nowhere else, so an action's pass-through data
+ * with the same key names is left alone.
+ */
 function isCasesPath(path: string[]): boolean {
+  const n = path.length;
   return (
-    path.length >= 2 &&
-    path[path.length - 1] === "cases" &&
-    path[path.length - 2] === "transition_to"
+    n >= 4 &&
+    path[n - 1] === "cases" &&
+    path[n - 2] === "transition_to" &&
+    /^\d+$/.test(path[n - 3]) &&
+    (path[n - 4] === "functions" || path[n - 4] === "global_functions")
   );
 }
 
@@ -143,14 +176,18 @@ function keyScalar(key: string, path: string[]): Scalar {
 function mergeNode(target: unknown, value: unknown, path: string[]): YamlNode {
   if (isPlainObject(value)) {
     if (!isMap(target)) return buildNode(value, path);
+    // A pair is matched by its key's string form, so a boolean or numeric
+    // key in the document meets the string key the config carries. In a
+    // cases map the config's keys are canonical, so `"True":` in the file
+    // meets `true` and keeps its quoting, position, and comment.
+    const cases = isCasesPath(path);
+    const matchKey = (pair: Pair) => (cases ? caseKey(keyOf(pair)) : keyOf(pair));
     const keys = new Set(Object.keys(value));
     for (const pair of [...target.items]) {
-      if (!keys.has(keyOf(pair))) target.delete(pair.key);
+      if (!keys.has(matchKey(pair))) target.delete(pair.key);
     }
     for (const [key, item] of Object.entries(value)) {
-      // Match on the key's string form, so a boolean or numeric key in the
-      // document meets the string key the config carries.
-      const pair = target.items.find((p) => keyOf(p) === key);
+      const pair = target.items.find((p) => matchKey(p) === key);
       if (pair) {
         const merged = mergeNode(pair.value, item, [...path, key]);
         if (merged !== pair.value) pair.value = merged;
@@ -173,11 +210,18 @@ function mergeNode(target: unknown, value: unknown, path: string[]): YamlNode {
   if (isScalar(target)) {
     if (target.value !== value) {
       target.value = value;
+      tagScalar(target);
       restyleScalar(target);
     }
     return target;
   }
   return buildNode(value, path);
+}
+
+/** Tags a scalar as an include when its value is an include reference, and untags it otherwise. */
+function tagScalar(scalar: Scalar): void {
+  if (includePath(scalar.value) !== null) scalar.tag = "!include";
+  else if (scalar.tag === "!include") delete scalar.tag;
 }
 
 function buildNode(value: unknown, path: string[]): YamlNode {
@@ -195,13 +239,14 @@ function buildNode(value: unknown, path: string[]): YamlNode {
     return seq;
   }
   const scalar = new Scalar(value);
+  tagScalar(scalar);
   styleScalar(scalar);
   return scalar;
 }
 
 /** Block style for multi-line and long strings, as in Pipecat's example files. */
 function styleScalar(scalar: Scalar): void {
-  if (typeof scalar.value !== "string") return;
+  if (typeof scalar.value !== "string" || scalar.tag === "!include") return;
   if (scalar.value.includes("\n")) scalar.type = Scalar.BLOCK_LITERAL;
   else if (scalar.value.length > FOLD_THRESHOLD) scalar.type = Scalar.BLOCK_FOLDED;
 }

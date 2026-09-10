@@ -8,6 +8,7 @@ import { siteButton } from "@/components/site/siteButton";
 import { showToast } from "@/components/ui/Toast";
 import { DEFAULT_FLOW_NAME, flowNameFromFileName } from "@/lib/document/flowDocument";
 import { EXAMPLES, fetchExample, type FlowExample } from "@/lib/examples";
+import { readFlowFile } from "@/lib/utils/readFlowFile";
 
 interface Props {
   /** Opens YAML text as the current flow; returns whether it opened. */
@@ -40,10 +41,9 @@ export default function StartScreen({ onOpenFlow, onStartFromScratch, onDismiss 
   };
 
   const openFile = (file: File) => {
-    const reader = new FileReader();
-    reader.onload = () => openText(String(reader.result), flowNameFromFileName(file.name));
-    reader.onerror = () => showToast("Could not read the file", "error");
-    reader.readAsText(file);
+    readFlowFile(file)
+      .then((text) => openText(text, flowNameFromFileName(file.name)))
+      .catch((error: Error) => showToast(error.message, "error"));
   };
 
   const openExample = (example: FlowExample) => {

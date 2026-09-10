@@ -82,7 +82,7 @@ export default function PixelStreams({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
     let cols = 0;
     let rows = 0;
     let img: ImageData | null = null;
@@ -163,10 +163,24 @@ export default function PixelStreams({
       visible = entry.isIntersecting;
     });
     intersect.observe(canvas);
-    if (!reduced) raf = requestAnimationFrame(frame);
+    // Animate unless the viewer prefers reduced motion, and follow a change
+    // to that preference while mounted.
+    const follow = () => {
+      if (motion.matches) {
+        cancelAnimationFrame(raf);
+        raf = 0;
+        paint();
+      } else if (!raf) {
+        last = 0;
+        raf = requestAnimationFrame(frame);
+      }
+    };
+    follow();
+    motion.addEventListener("change", follow);
 
     return () => {
       cancelAnimationFrame(raf);
+      motion.removeEventListener("change", follow);
       resize.disconnect();
       intersect.disconnect();
     };

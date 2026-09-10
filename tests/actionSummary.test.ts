@@ -57,12 +57,12 @@ describe("cardActionLines", () => {
     expect(many.after).toEqual([]);
   });
 
-  it("returns empty blocks for a node without actions, and shortens long tooltips", () => {
+  it("returns empty blocks for a node without actions, and shortens the card text, not the tooltip", () => {
     const text = "x".repeat(80);
     const { before } = cardActionLines({ pre_actions: [{ type: "tts_say", text }] });
     expect(before).toHaveLength(1);
-    expect(before[0].text).toBe(`“${text}”`);
-    expect(before[0].title).toBe(`Says "${"x".repeat(59)}…" before the node`);
+    expect(before[0].text).toBe(`“${"x".repeat(59)}…”`);
+    expect(before[0].title).toBe(`Says "${text}" before the node`);
     expect(cardActionLines({})).toEqual({ before: [], after: [] });
   });
 });
