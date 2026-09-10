@@ -594,37 +594,39 @@ export default function EditorShell() {
   );
 
   const { theme } = useTheme();
-  const showInspector = !sidebarCollapsed;
+  const showInspector = !sidebarCollapsed && !showStart;
   const columnHeight = `calc(100vh - ${showYaml ? yamlPanelHeight : 0}px)`;
 
   return (
     <div className="h-screen w-screen flex overflow-hidden">
-      <Toolbar
-        nodes={nodes}
-        onOpenFlow={openFlow}
-        onAutoLayout={handleAutoLayout}
-        canUndo={undoManagerRef.current.canUndo()}
-        canRedo={undoManagerRef.current.canRedo()}
-        onUndo={() => {
-          const state = undoManagerRef.current.undo();
-          if (state) {
-            skipUndoPushRef.current = true;
-            setNodes(state.nodes);
-            setEdges(state.edges);
-            useFlowStore.getState().setGlobalFunctions(state.globalFunctions);
-          }
-        }}
-        onRedo={() => {
-          const state = undoManagerRef.current.redo();
-          if (state) {
-            skipUndoPushRef.current = true;
-            setNodes(state.nodes);
-            setEdges(state.edges);
-            useFlowStore.getState().setGlobalFunctions(state.globalFunctions);
-          }
-        }}
-        onNewFlow={startOver}
-      />
+      {!showStart && (
+        <Toolbar
+          nodes={nodes}
+          onOpenFlow={openFlow}
+          onAutoLayout={handleAutoLayout}
+          canUndo={undoManagerRef.current.canUndo()}
+          canRedo={undoManagerRef.current.canRedo()}
+          onUndo={() => {
+            const state = undoManagerRef.current.undo();
+            if (state) {
+              skipUndoPushRef.current = true;
+              setNodes(state.nodes);
+              setEdges(state.edges);
+              useFlowStore.getState().setGlobalFunctions(state.globalFunctions);
+            }
+          }}
+          onRedo={() => {
+            const state = undoManagerRef.current.redo();
+            if (state) {
+              skipUndoPushRef.current = true;
+              setNodes(state.nodes);
+              setEdges(state.edges);
+              useFlowStore.getState().setGlobalFunctions(state.globalFunctions);
+            }
+          }}
+          onNewFlow={startOver}
+        />
+      )}
       <div
         className="flex-1 min-w-0 relative overflow-hidden"
         style={{ height: columnHeight }}
@@ -774,7 +776,7 @@ export default function EditorShell() {
           </div>
         )}
       </div>
-      <YamlPanel text={yamlText} problems={yamlProblems} onChange={onYamlChange} />
+      {!showStart && <YamlPanel text={yamlText} problems={yamlProblems} onChange={onYamlChange} />}
       <ToastContainer />
     </div>
   );

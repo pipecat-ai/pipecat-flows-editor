@@ -8,23 +8,52 @@
 export interface FlowExample {
   id: string;
   name: string;
+  /** One line on what the flow does and what part of the format it shows. */
+  description: string;
   path: string;
 }
 
 export const EXAMPLES: FlowExample[] = [
-  { id: "hello_world", name: "Hello World", path: "/examples/hello_world.yaml" },
-  { id: "food_ordering", name: "Food Ordering", path: "/examples/food_ordering.yaml" },
+  {
+    id: "hello_world",
+    name: "Hello World",
+    description: "The smallest flow: greet and end.",
+    path: "/examples/hello_world.yaml",
+  },
+  {
+    id: "food_ordering",
+    name: "Food Ordering",
+    description: "Pizza or sushi, confirm, done. Plain routing and a global function.",
+    path: "/examples/food_ordering.yaml",
+  },
   {
     id: "restaurant_reservation",
     name: "Restaurant Reservation",
+    description: "Party size and time, then a branch on availability.",
     path: "/examples/restaurant_reservation.yaml",
   },
-  { id: "patient_intake", name: "Patient Intake", path: "/examples/patient_intake.yaml" },
-  { id: "podcast_interview", name: "Podcast Interview", path: "/examples/podcast_interview.yaml" },
-  { id: "order_status", name: "Order Status and Returns", path: "/examples/order_status.yaml" },
+  {
+    id: "patient_intake",
+    name: "Patient Intake",
+    description: "Verify identity, collect details section by section, read them back.",
+    path: "/examples/patient_intake.yaml",
+  },
+  {
+    id: "podcast_interview",
+    name: "Podcast Interview",
+    description: "An interview that loops on itself between questions.",
+    path: "/examples/podcast_interview.yaml",
+  },
+  {
+    id: "order_status",
+    name: "Order Status and Returns",
+    description: "Look up an order and branch on its status, with a default.",
+    path: "/examples/order_status.yaml",
+  },
   {
     id: "lead_qualification",
     name: "Lead Qualification",
+    description: "Learn the need, score the fit, book a demo or send resources.",
     path: "/examples/lead_qualification.yaml",
   },
 ];

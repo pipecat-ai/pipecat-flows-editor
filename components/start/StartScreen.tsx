@@ -1,6 +1,6 @@
 "use client";
 
-import { ClipboardPaste, FilePlus, FileText, FolderOpen } from "lucide-react";
+import { ArrowLeft, ClipboardPaste, FilePlus, FileText, FolderOpen } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -16,17 +16,20 @@ interface Props {
   onDismiss: () => void;
 }
 
+type View = "choose" | "paste" | "examples";
+
 const ACCEPTED_FILES = ".yaml,.yml,.json,application/x-yaml,application/yaml,application/json";
 
 /**
  * The first thing a visitor sees, and what New Flow returns to. Most flows
- * arrive already written, by an agent or by hand, so opening one comes
- * first: a file, a drop, or pasted YAML. Examples and a blank flow follow.
- * Sits over the canvas, so the blank flow is visible behind it and a file
- * dropped anywhere still lands.
+ * arrive already written, by an agent or by hand, so the choices lead with
+ * opening one. Four equal tiles, one click each; paste and examples open a
+ * second step in the same panel. Fills the window, since nothing behind it
+ * helps with the choice; a file dropped anywhere still lands.
  */
 export default function StartScreen({ onOpenFlow, onStartFromScratch, onDismiss }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [view, setView] = useState<View>("choose");
   const [pasted, setPasted] = useState("");
 
   const openText = (text: string, flowName: string) => {
@@ -49,14 +52,16 @@ export default function StartScreen({ onOpenFlow, onStartFromScratch, onDismiss 
       });
   };
 
-  // Escape dismisses; YAML pasted anywhere while the screen is up opens it
+  // Escape steps back, then dismisses. YAML pasted anywhere on the first
+  // step opens at once; on the paste step the editor takes it.
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onDismiss();
+      if (e.key !== "Escape") return;
+      if (view === "choose") onDismiss();
+      else setView("choose");
     };
     const onPaste = (e: ClipboardEvent) => {
-      const target = e.target as HTMLElement | null;
-      if (target && (target.tagName === "TEXTAREA" || target.tagName === "INPUT")) return;
+      if (view !== "choose") return;
       const text = e.clipboardData?.getData("text/plain")?.trim();
       if (!text) return;
       e.preventDefault();
@@ -69,103 +74,148 @@ export default function StartScreen({ onOpenFlow, onStartFromScratch, onDismiss 
       window.removeEventListener("paste", onPaste);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onOpenFlow, onDismiss]);
+  }, [view, onOpenFlow, onDismiss]);
 
   return (
     <div
-      className="absolute inset-0 z-30 flex items-center justify-center bg-white/70 p-6 backdrop-blur-sm dark:bg-black/60"
-      onClick={onDismiss}
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 bg-neutral-50 p-6 dark:bg-neutral-950"
       role="dialog"
       aria-modal="true"
       aria-label="Start a flow"
     >
-      <div
-        className="grid w-full max-w-4xl gap-4 md:grid-cols-3"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <section className="flex flex-col gap-3 rounded-xl border bg-white p-5 shadow-sm dark:bg-neutral-900 md:col-span-1">
-          <div className="flex items-center gap-2">
-            <FolderOpen className="h-5 w-5 text-neutral-500" />
-            <h2 className="text-base font-semibold">Open a flow</h2>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept={ACCEPTED_FILES}
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) openFile(file);
+          e.target.value = "";
+        }}
+      />
+
+      {view === "choose" && (
+        <>
+          <div className="text-center">
+            <h1 className="text-2xl font-semibold">Pipecat Flows Editor</h1>
+            <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
+              Open a flow written by an agent or by hand, see it as a graph, and correct it.
+            </p>
           </div>
-          <p className="text-sm text-neutral-600 dark:text-neutral-400">
-            A <code>FlowConfig</code> written by an agent or by hand. Pick a file, drop one anywhere
-            on the canvas, or paste its YAML.
+          <div className="grid w-full max-w-4xl gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <Tile
+              icon={<FolderOpen className="h-6 w-6" />}
+              title="Open a file"
+              description="A FlowConfig as YAML or JSON."
+              onClick={() => fileInputRef.current?.click()}
+            />
+            <Tile
+              icon={<ClipboardPaste className="h-6 w-6" />}
+              title="Paste YAML"
+              description="From a chat, a ticket, or an agent."
+              onClick={() => setView("paste")}
+            />
+            <Tile
+              icon={<FileText className="h-6 w-6" />}
+              title="Start from an example"
+              description="Pipecat's own flows and a few more."
+              onClick={() => setView("examples")}
+            />
+            <Tile
+              icon={<FilePlus className="h-6 w-6" />}
+              title="Blank flow"
+              description="One initial node; build on the canvas."
+              onClick={onStartFromScratch}
+            />
+          </div>
+          <p className="text-xs text-neutral-500">
+            or drop a YAML file anywhere · press Escape for a blank flow
           </p>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept={ACCEPTED_FILES}
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) openFile(file);
-              e.target.value = "";
-            }}
-          />
-          <Button onClick={() => fileInputRef.current?.click()} className="justify-start gap-2">
-            <FolderOpen className="h-4 w-4" />
-            Choose a file
-          </Button>
+        </>
+      )}
+
+      {view === "paste" && (
+        <div className="flex w-full max-w-3xl flex-col gap-3">
+          <BackRow title="Paste YAML" onBack={() => setView("choose")} />
           <label className="sr-only" htmlFor="start-paste">
-            Paste YAML
+            YAML
           </label>
           <textarea
             id="start-paste"
-            className="min-h-24 w-full resize-y rounded-md border bg-neutral-50 p-2 font-mono text-xs dark:bg-neutral-950"
-            placeholder={"initial_node: greet\nnodes:\n  greet:\n    task_messages: ..."}
+            autoFocus
+            className="h-[60vh] w-full resize-none rounded-lg border bg-white p-3 font-mono text-sm dark:bg-neutral-900"
+            placeholder={
+              "initial_node: greet\nnodes:\n  greet:\n    task_messages:\n      - role: developer\n        content: Say hello."
+            }
             value={pasted}
             onChange={(e) => setPasted(e.target.value)}
           />
-          <Button
-            variant="secondary"
-            disabled={!pasted.trim()}
-            onClick={() => openText(pasted, DEFAULT_FLOW_NAME)}
-            className="justify-start gap-2"
-          >
-            <ClipboardPaste className="h-4 w-4" />
-            Open pasted YAML
-          </Button>
-        </section>
-
-        <section className="flex flex-col gap-3 rounded-xl border bg-white p-5 shadow-sm dark:bg-neutral-900">
-          <div className="flex items-center gap-2">
-            <FileText className="h-5 w-5 text-neutral-500" />
-            <h2 className="text-base font-semibold">Start from an example</h2>
+          <div className="flex justify-end">
+            <Button disabled={!pasted.trim()} onClick={() => openText(pasted, DEFAULT_FLOW_NAME)}>
+              Open
+            </Button>
           </div>
-          <p className="text-sm text-neutral-600 dark:text-neutral-400">
-            Pipecat's own flows and a few more, each showing a part of the format.
-          </p>
-          <ul className="flex flex-col gap-1">
+        </div>
+      )}
+
+      {view === "examples" && (
+        <div className="flex w-full max-w-4xl flex-col gap-3">
+          <BackRow title="Start from an example" onBack={() => setView("choose")} />
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {EXAMPLES.map((example) => (
-              <li key={example.id}>
-                <button
-                  type="button"
-                  className="w-full rounded-md px-2 py-1.5 text-left text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800"
-                  onClick={() => openExample(example)}
-                >
-                  {example.name}
-                </button>
-              </li>
+              <Tile
+                key={example.id}
+                icon={<FileText className="h-5 w-5" />}
+                title={example.name}
+                description={example.description}
+                onClick={() => openExample(example)}
+                compact
+              />
             ))}
-          </ul>
-        </section>
-
-        <section className="flex flex-col gap-3 rounded-xl border bg-white p-5 shadow-sm dark:bg-neutral-900">
-          <div className="flex items-center gap-2">
-            <FilePlus className="h-5 w-5 text-neutral-500" />
-            <h2 className="text-base font-semibold">Start from scratch</h2>
           </div>
-          <p className="text-sm text-neutral-600 dark:text-neutral-400">
-            A single initial node. Add functions from its "+" and build the graph on the canvas.
-          </p>
-          <Button variant="secondary" onClick={onStartFromScratch} className="justify-start gap-2">
-            <FilePlus className="h-4 w-4" />
-            Blank flow
-          </Button>
-          <p className="mt-auto text-xs text-neutral-500">Press Escape to dismiss.</p>
-        </section>
-      </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Tile({
+  icon,
+  title,
+  description,
+  onClick,
+  compact,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  onClick: () => void;
+  compact?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex flex-col items-start gap-2 rounded-xl border bg-white text-left shadow-sm transition-colors hover:border-blue-500 hover:bg-blue-50/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:bg-neutral-900 dark:hover:bg-blue-950/30 ${
+        compact ? "p-4" : "p-5"
+      }`}
+    >
+      <span className="text-neutral-500">{icon}</span>
+      <span className="font-semibold">{title}</span>
+      <span className="text-sm text-neutral-600 dark:text-neutral-400">{description}</span>
+    </button>
+  );
+}
+
+function BackRow({ title, onBack }: { title: string; onBack: () => void }) {
+  return (
+    <div className="flex items-center gap-2">
+      <Button variant="ghost" size="sm" onClick={onBack} className="gap-1">
+        <ArrowLeft className="h-4 w-4" />
+        Back
+      </Button>
+      <h2 className="text-base font-semibold">{title}</h2>
     </div>
   );
 }
