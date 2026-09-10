@@ -711,7 +711,7 @@ export default function EditorShell() {
               onNodeContextMenu={handleNodeContextMenu}
               fitView
             >
-              <Controls />
+              <Controls showInteractive={false} />
               <Background />
             </ReactFlow>
           </CanvasNodeTypesContext.Provider>
