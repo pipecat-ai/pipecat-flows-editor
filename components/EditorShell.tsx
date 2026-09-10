@@ -31,6 +31,7 @@ import ToastContainer, { showToast } from "@/components/ui/Toast";
 import YamlPanel from "@/components/yaml/YamlPanel";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { deriveCanvasEdges, reconcileEdges } from "@/lib/convert/canvasGraph";
+import { canvasToConfig } from "@/lib/convert/canvasToConfig";
 import { configToCanvas, nodeFunctions } from "@/lib/convert/configToCanvas";
 import {
   createFlowDocument,
@@ -129,6 +130,12 @@ function readLegacyAutosave(): string | null {
   } catch {
     return null;
   }
+}
+
+/** Whether autosaved YAML is still the untouched blank flow, which is not worth returning to. */
+function isPristineNewFlow(yaml: string): boolean {
+  const parsed = parseFlowYaml(yaml);
+  return parsed.config !== null && sameConfig(parsed.config, canvasToConfig(newFlowNodes()));
 }
 
 /** The canvas for a new flow: one initial node from its template. */
@@ -288,8 +295,8 @@ export default function EditorShell() {
       paneConfigRef.current = parsed.config;
       setYamlText(text);
       setYamlProblems(parsed.problems);
-      if (parsed.issues.length > 0) {
-        const errors = issueErrors(parsed.issues);
+      const errors = issueErrors(parsed.issues);
+      if (parsed.issues.length > 0 && (errors.length > 0 || !options.silent)) {
         showToast(
           `Opened ${flowName} with ${summarizeIssues(parsed.issues)}: ${(errors[0] ?? parsed.issues[0]).message}`,
           errors.length > 0 ? "error" : "info"
@@ -322,18 +329,20 @@ export default function EditorShell() {
   }, [selectedNodeId]);
 
   // Restore the autosaved flow on mount, converting one left by the old
-  // editor if that is all there is, or start a new one
+  // editor if that is all there is, or show the start screen over a blank
+  // flow. An autosave that is still the untouched blank flow counts as none.
   useEffect(() => {
+    if (hydratedRef.current) return; // React's development double mount
+    hydratedRef.current = true;
     const saved = loadCurrentFlow();
     const legacy = saved ? null : readLegacyAutosave();
-    if (saved) {
+    if (saved && !isPristineNewFlow(saved.yaml)) {
       if (!openFlow(saved.yaml, saved.flowName, { silent: true, keepPositions: true })) {
         startOver();
       }
     } else if (!legacy || !openFlow(legacy, DEFAULT_FLOW_NAME)) {
       startOver();
     }
-    hydratedRef.current = true;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
