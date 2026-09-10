@@ -31,8 +31,19 @@ const ACCEPTED_FILES = ".yaml,.yml,.json,application/x-yaml,application/yaml,app
  * lands. Set in the site's language, like the landing page: streams behind,
  * a crosshair frame, square corners, mono-caps buttons.
  */
+/** The controls Tab can reach inside the dialog; the hidden file input is not one. */
+function focusableIn(root: HTMLElement | null): HTMLElement[] {
+  if (!root) return [];
+  const selector =
+    'button:not([disabled]), [href], input:not([type="hidden"]):not([type="file"]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+  return Array.from(root.querySelectorAll<HTMLElement>(selector)).filter(
+    (el) => !el.closest(".hidden, [hidden]")
+  );
+}
+
 export default function StartScreen({ onOpenFlow, onStartFromScratch, onDismiss }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
   const [view, setView] = useState<View>("choose");
   const [pasted, setPasted] = useState("");
 
@@ -55,10 +66,42 @@ export default function StartScreen({ onOpenFlow, onStartFromScratch, onDismiss 
       });
   };
 
-  // Escape steps back, then dismisses. YAML pasted anywhere on the first
-  // step opens at once; on the paste step the editor takes it.
+  // A modal owns focus: it moves into the panel on open and on each step,
+  // stays inside as Tab cycles, and returns to the control that opened the
+  // screen when it closes.
+  useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null;
+    return () => {
+      if (previous?.isConnected) previous.focus();
+    };
+  }, []);
+  useEffect(() => {
+    focusableIn(dialogRef.current)[0]?.focus();
+  }, [view]);
+
+  // Escape steps back, then dismisses; Tab stays inside the panel. YAML
+  // pasted anywhere on the first step opens at once; on the paste step the
+  // editor takes it.
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Tab") {
+        const items = focusableIn(dialogRef.current);
+        if (items.length === 0) return;
+        const first = items[0];
+        const last = items[items.length - 1];
+        const active = document.activeElement;
+        if (!dialogRef.current?.contains(active)) {
+          e.preventDefault();
+          (e.shiftKey ? last : first).focus();
+        } else if (!e.shiftKey && active === last) {
+          e.preventDefault();
+          first.focus();
+        } else if (e.shiftKey && active === first) {
+          e.preventDefault();
+          last.focus();
+        }
+        return;
+      }
       if (e.key !== "Escape") return;
       if (view === "choose") onDismiss();
       else setView("choose");
@@ -81,6 +124,7 @@ export default function StartScreen({ onOpenFlow, onStartFromScratch, onDismiss 
 
   return (
     <div
+      ref={dialogRef}
       className="fixed inset-0 isolate z-50 flex flex-col items-center justify-center overflow-y-auto bg-background p-4 text-foreground sm:p-8"
       role="dialog"
       aria-modal="true"
