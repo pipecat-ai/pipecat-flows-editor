@@ -22,7 +22,7 @@ const resources = [
 export default function HomePage() {
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
-      <header className="border-b bg-background/80 backdrop-blur-lg z-20">
+      <header className="border-b bg-background">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-6 p-6">
           <div className="flex items-center gap-3">
             <PipecatLogo className="h-4 sm:h-8 w-auto" />
@@ -32,13 +32,8 @@ export default function HomePage() {
         </div>
       </header>
 
-      <iframe
-        src="/editor"
-        className="w-dvw h-dvh z-0 absolute inset-0 pointer-events-none opacity-10"
-      />
-
       <main className="flex flex-1 items-center justify-center px-6 py-16">
-        <div className="mx-auto flex max-w-4xl flex-col items-center gap-8 text-center backdrop-blur-xs">
+        <div className="mx-auto flex max-w-4xl flex-col items-center gap-8 text-center">
           <div className="space-y-4">
             <p className="text-base font-medium uppercase tracking-[0.2em] text-purple-400">
               Conversational AI at your fingertips
@@ -71,7 +66,7 @@ export default function HomePage() {
         </div>
       </main>
 
-      <footer className="border-t bg-muted/30 backdrop-blur-lg z-20">
+      <footer className="border-t bg-muted/30">
         <div className="mx-auto flex max-w-5xl flex-col gap-6 px-6 py-8 md:flex-row md:items-center md:justify-between">
           <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
             {resources.map((link) => (
