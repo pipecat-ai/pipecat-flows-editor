@@ -2,6 +2,8 @@
 # to the tools in patient_intake_tools.py. Every function named here is a
 # direct function in that module; its description and parameters come from the
 # code. {{ practice_name }} and {{ patient_name }} are filled in per session.
+# The birthday check routes on its result: a verified caller moves on, and
+# anything else stays here to try again.
 
 initial_node: start
 
@@ -16,11 +18,14 @@ nodes:
         content: >
           Start by introducing yourself to {{ patient_name }}, then ask for
           their date of birth, including the year. Once they provide their
-          birthday, use verify_birthday to check it. If verified (1983-01-01),
-          proceed to prescriptions.
+          birthday, use verify_birthday to check it. If it does not verify,
+          ask them to try again.
     functions:
       - name: verify_birthday
-        transition_to: get_prescriptions
+        transition_to:
+          field: verified
+          cases:
+            true: get_prescriptions
 
   get_prescriptions:
     role_message: >

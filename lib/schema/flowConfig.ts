@@ -4,7 +4,8 @@
  * Source: pipecat/src/pipecat/flows/flow_config.schema.json
  *   repo:    github.com/pipecat-ai/pipecat, PR #5628 (unreleased)
  *   branch:  mb/flows-yaml-config
- *   commit:  75d9c59e5 (2026-09-09), the PR's final head
+ *   commit:  75d9c59e5 (2026-09-09); unchanged through 36b48fb35 (2026-09-10),
+ *            which the vendored examples come from
  *   version: v1.8.1-471-g75d9c59e5 (git describe)
  *
  * The schema is generated on the Pipecat side from the `FlowConfig` Pydantic
@@ -47,9 +48,18 @@ export const BUILT_IN_ACTIONS: ReadonlySet<string> = new Set([
   "function",
 ]);
 
+/**
+ * The handler an action names, or null when it names none. An empty string
+ * counts as named, since Pipecat looks it up and reports it missing rather
+ * than treating the action as registered in code.
+ */
+export function actionHandler(action: FlowConfigAction): string | null {
+  return action.handler ?? null;
+}
+
 /** Whether an action is a custom type whose handler the config does not name; it is registered in code. */
 export function isRegisteredInCode(action: FlowConfigAction): boolean {
-  return !BUILT_IN_ACTIONS.has(action.type) && action.handler == null;
+  return !BUILT_IN_ACTIONS.has(action.type) && actionHandler(action) === null;
 }
 
 /**
