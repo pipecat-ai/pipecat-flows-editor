@@ -706,7 +706,7 @@ export default function EditorShell() {
           <Button
             variant="secondary"
             size="sm"
-            className="absolute top-2 right-2 z-10 h-8 w-8 p-0 shadow md:top-4"
+            className="absolute top-2 right-2 z-10 h-8 w-8 border p-0 md:top-4"
             onClick={() => setSidebarCollapsed(false)}
             title="Show the sidebar"
             aria-label="Show the sidebar"

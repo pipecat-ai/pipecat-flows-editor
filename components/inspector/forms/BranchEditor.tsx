@@ -48,7 +48,7 @@ export default function BranchEditor({
   return (
     <div className="space-y-3">
       <div className="space-y-1">
-        <label htmlFor={fieldId} className="text-xs opacity-60">
+        <label htmlFor={fieldId} className="text-xs text-muted-foreground">
           Field of the tool's result
         </label>
         <Input
@@ -63,7 +63,7 @@ export default function BranchEditor({
 
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <div className="text-xs opacity-60">Cases</div>
+          <div className="text-xs text-muted-foreground">Cases</div>
           <Button
             variant="ghost"
             size="sm"
@@ -109,7 +109,7 @@ export default function BranchEditor({
       <div className="space-y-1">
         <label
           htmlFor={defaultId}
-          className={`text-xs opacity-60 ${selectedConditionIndex === -1 ? "font-semibold" : ""}`}
+          className={`text-xs text-muted-foreground ${selectedConditionIndex === -1 ? "font-semibold" : ""}`}
         >
           Default
         </label>
@@ -212,7 +212,7 @@ function CaseRow({
           placeholder="value"
           aria-label="Case value"
         />
-        <span className="text-xs opacity-60">→</span>
+        <span className="text-xs text-muted-foreground">→</span>
         <Select
           value={target || undefined}
           onValueChange={onTarget}

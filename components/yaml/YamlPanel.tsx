@@ -59,7 +59,7 @@ export default function YamlPanel({ text, problems, onChange }: Props) {
   return (
     <>
       <div
-        className={`fixed bottom-0 left-0 right-0 z-50 border-t bg-white dark:bg-zinc-900 overflow-hidden ${
+        className={`fixed bottom-0 left-0 right-0 z-50 border-t bg-card overflow-hidden ${
           isResizing ? "" : "transition-transform duration-300 ease-in-out"
         } ${showYaml ? "translate-y-0" : "translate-y-full pointer-events-none"}`}
         style={{ height: `${height}px` }}
@@ -70,14 +70,14 @@ export default function YamlPanel({ text, problems, onChange }: Props) {
             onMouseDown={handleResizeStart}
           />
           <div className="flex items-center justify-between border-b px-3 py-2 text-xs shrink-0">
-            <div className="font-medium">YAML</div>
+            <div className="type-mono-label text-muted-foreground">YAML</div>
             <div
               className={
                 errors > 0
                   ? "text-red-600 dark:text-red-400"
                   : warnings > 0
                     ? "text-orange-600 dark:text-orange-400"
-                    : "text-zinc-500"
+                    : "text-muted-foreground"
               }
             >
               {status}

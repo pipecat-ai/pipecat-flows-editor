@@ -117,7 +117,7 @@ export default function InspectorPanel({
   if (!selected) {
     return (
       <aside
-        className="relative shrink-0 border-l bg-white/70 backdrop-blur dark:bg-black/40 flex flex-col overflow-hidden h-full max-w-full"
+        className="relative shrink-0 border-l bg-card flex flex-col overflow-hidden h-full max-w-full"
         style={{ width: `${inspectorPanelWidth}px`, maxWidth: "min(100vw, 800px)" }}
       >
         <div
@@ -136,7 +136,7 @@ export default function InspectorPanel({
 
   return (
     <aside
-      className="relative z-20 shrink-0 border-l bg-white/70 backdrop-blur dark:bg-black/40 flex flex-col overflow-hidden h-full max-w-full"
+      className="relative z-20 shrink-0 border-l bg-card flex flex-col overflow-hidden h-full max-w-full"
       style={{ width: `${inspectorPanelWidth}px`, maxWidth: "min(100vw, 800px)" }}
     >
       {/* Resize handle */}
@@ -149,7 +149,7 @@ export default function InspectorPanel({
       />
 
       {/* Header */}
-      <div className="mb-2 flex items-center justify-between px-3 pt-3 text-xs font-semibold uppercase opacity-70 shrink-0">
+      <div className="mb-2 flex items-center justify-between px-3 pt-3 type-mono-label text-muted-foreground shrink-0">
         <span className="truncate flex-1 min-w-0">
           Inspector: <code className="text-xs font-mono lowercase">{id}</code>
         </span>
@@ -224,27 +224,30 @@ export default function InspectorPanel({
         className="flex flex-col flex-1 min-h-0 px-3"
       >
         <TabsList className="grid w-full grid-cols-4 mb-2 shrink-0">
-          <TabsTrigger value="general" className="text-[10px] px-2">
+          <TabsTrigger value="general" className="px-2">
             General
           </TabsTrigger>
-          <TabsTrigger value="messages" className="text-[10px] px-2">
+          <TabsTrigger value="messages" className="px-2">
             Messages
           </TabsTrigger>
-          <TabsTrigger value="functions" className="text-[10px] px-2">
+          <TabsTrigger value="functions" className="px-2">
             Functions
           </TabsTrigger>
-          <TabsTrigger value="actions" className="text-[10px] px-2">
+          <TabsTrigger value="actions" className="px-2">
             Actions
           </TabsTrigger>
         </TabsList>
 
         <TabsContent
           value="general"
-          className="flex-1 overflow-y-auto min-h-0 space-y-4 pr-1 mt-0 pb-4"
+          className="flex-1 overflow-y-auto min-h-0 space-y-3 pr-1 mt-0 pb-4"
         >
-          <div className="rounded-lg border bg-zinc-50/50 dark:bg-zinc-900/30 p-3 space-y-3">
+          <div className="border-t pt-3 space-y-3">
             <div>
-              <label htmlFor="node-label" className="block mb-1 text-xs font-medium opacity-80">
+              <label
+                htmlFor="node-label"
+                className="block mb-1 text-xs font-medium text-foreground"
+              >
                 Name
               </label>
               <Input
@@ -262,13 +265,13 @@ export default function InspectorPanel({
             </div>
             {displayedType && (
               <div>
-                <div className="mb-1 text-xs font-medium opacity-80">Type</div>
+                <div className="mb-1 text-xs font-medium text-foreground">Type</div>
                 <div className="text-xs" aria-label={`Node type: ${displayedType}`}>
                   {displayedType}
                 </div>
               </div>
             )}
-            <div className="flex items-center space-x-2 pt-2 border-t border-zinc-200 dark:border-zinc-700">
+            <div className="flex items-center space-x-2 pt-2 border-t">
               <Checkbox
                 id="respond_immediately"
                 checked={data?.respond_immediately !== false}
@@ -277,13 +280,13 @@ export default function InspectorPanel({
               />
               <label
                 htmlFor="respond_immediately"
-                className="text-xs opacity-80 cursor-pointer leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                className="text-xs text-foreground cursor-pointer leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
               >
                 Respond Immediately
               </label>
             </div>
           </div>
-          <div className="rounded-lg border bg-zinc-50/50 dark:bg-zinc-900/30 p-3">
+          <div className="border-t pt-3">
             <ContextStrategyForm
               value={data?.context_strategy}
               onChange={(strategy) => update({ context_strategy: strategy })}
@@ -293,10 +296,10 @@ export default function InspectorPanel({
 
         <TabsContent
           value="messages"
-          className="flex-1 overflow-y-auto min-h-0 space-y-4 pr-1 mt-0 pb-4"
+          className="flex-1 overflow-y-auto min-h-0 space-y-3 pr-1 mt-0 pb-4"
         >
-          <div className="rounded-lg border bg-zinc-50/50 dark:bg-zinc-900/30 p-3 space-y-2">
-            <label htmlFor="node-role-message" className="block text-xs opacity-60">
+          <div className="border-t pt-3 space-y-2">
+            <label htmlFor="node-role-message" className="block text-xs text-muted-foreground">
               Role Message
             </label>
             <Textarea
@@ -306,12 +309,12 @@ export default function InspectorPanel({
               onChange={(e) => update({ role_message: e.target.value || undefined })}
               placeholder="The bot's role or personality, sent as the system instruction on entering this node"
             />
-            <div className="text-[11px] opacity-50">
+            <div className="text-[11px] text-muted-foreground">
               Persists across transitions until another node sets its own. Setting it on the initial
               node covers the whole flow.
             </div>
           </div>
-          <div className="rounded-lg border bg-zinc-50/50 dark:bg-zinc-900/30 p-3">
+          <div className="border-t pt-3">
             <MessagesForm
               label="Task Messages"
               messages={data?.task_messages}
@@ -321,7 +324,7 @@ export default function InspectorPanel({
         </TabsContent>
 
         <TabsContent value="functions" className="flex-1 overflow-y-auto min-h-0 pr-1 mt-0 pb-4">
-          <div className="rounded-lg border bg-zinc-50/50 dark:bg-zinc-900/30 p-3">
+          <div className="border-t pt-3">
             <FunctionsForm
               functions={data?.functions}
               onChange={(funcs) => update({ functions: funcs })}
@@ -333,16 +336,16 @@ export default function InspectorPanel({
 
         <TabsContent
           value="actions"
-          className="flex-1 overflow-y-auto min-h-0 space-y-4 pr-1 mt-0 pb-4"
+          className="flex-1 overflow-y-auto min-h-0 space-y-3 pr-1 mt-0 pb-4"
         >
-          <div className="rounded-lg border bg-zinc-50/50 dark:bg-zinc-900/30 p-3">
+          <div className="border-t pt-3">
             <ActionsForm
               label="Pre Actions"
               actions={data?.pre_actions}
               onChange={(actions) => update({ pre_actions: actions })}
             />
           </div>
-          <div className="rounded-lg border bg-zinc-50/50 dark:bg-zinc-900/30 p-3">
+          <div className="border-t pt-3">
             <ActionsForm
               label="Post Actions"
               actions={data?.post_actions}
@@ -352,7 +355,7 @@ export default function InspectorPanel({
         </TabsContent>
       </Tabs>
 
-      <div className="border-t border-zinc-200 dark:border-zinc-700 px-3 py-2 shrink-0">
+      <div className="border-t px-3 py-2 shrink-0">
         <Button
           variant="ghost"
           size="sm"
@@ -371,9 +374,9 @@ export default function InspectorPanel({
             showYaml ? "max-h-[500px] opacity-100 mt-2" : "max-h-0 opacity-0"
           }`}
         >
-          <div className="rounded-lg border bg-zinc-50/50 dark:bg-zinc-900/30 p-3">
+          <div className="border-t pt-3">
             <div className="mb-2 flex items-center justify-between">
-              <div className="text-xs font-medium opacity-80">
+              <div className="text-xs font-medium text-foreground">
                 <code>{id}</code> as YAML
               </div>
               <Button

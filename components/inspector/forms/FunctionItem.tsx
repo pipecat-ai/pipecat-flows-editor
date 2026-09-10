@@ -114,19 +114,19 @@ export const FunctionItem = React.forwardRef<HTMLDivElement, FunctionItemProps>(
         className={`rounded-lg border overflow-hidden ${
           hasInvalidTarget
             ? "border-orange-400 dark:border-orange-500 bg-orange-50/50 dark:bg-orange-950/20"
-            : "bg-white dark:bg-zinc-900"
+            : "bg-card"
         } ${isSelected ? "ring-2 ring-sky-500 dark:ring-sky-400" : ""}`}
       >
         <div className="flex items-center gap-2 p-3">
           <button
             type="button"
             onClick={() => setIsExpanded(!isExpanded)}
-            className="flex items-center gap-2 flex-1 min-w-0 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors -ml-1 -mr-1 px-1 py-1 rounded"
+            className="flex items-center gap-2 flex-1 min-w-0 hover:bg-accent transition-colors -ml-1 -mr-1 px-1 py-1 rounded"
           >
             {isExpanded ? (
-              <ChevronDown className="h-4 w-4 opacity-60 shrink-0" />
+              <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
             ) : (
-              <ChevronRight className="h-4 w-4 opacity-60 shrink-0" />
+              <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
             )}
             <span className="text-xs font-medium truncate">
               {functionName || func.name || `Function ${functionIndex + 1}`}
@@ -159,7 +159,7 @@ export const FunctionItem = React.forwardRef<HTMLDivElement, FunctionItemProps>(
         >
           <div className="p-4 space-y-4">
             <div className="space-y-2">
-              <label htmlFor={functionNameId} className="text-xs opacity-60">
+              <label htmlFor={functionNameId} className="text-xs text-muted-foreground">
                 Tool name
               </label>
               <Input
@@ -178,17 +178,17 @@ export const FunctionItem = React.forwardRef<HTMLDivElement, FunctionItemProps>(
                 placeholder="e.g., choose_pizza"
               />
               {nameError && <div className="mt-1 text-xs text-red-600">{nameError}</div>}
-              <div className="text-[11px] opacity-50">
+              <div className="text-[11px] text-muted-foreground">
                 A direct function in the tools module. Its description and parameters come from the
                 code.
               </div>
             </div>
 
-            <div className="pt-3 border-t border-zinc-200 dark:border-zinc-700">
+            <div className="pt-3 border-t">
               <div className="mb-2 flex items-center justify-between">
                 <label
                   htmlFor={destinationId}
-                  className="text-xs font-medium opacity-80 flex items-center gap-1"
+                  className="text-xs font-medium text-foreground flex items-center gap-1"
                 >
                   Transition to
                   {hasInvalidTarget && (
@@ -225,7 +225,7 @@ export const FunctionItem = React.forwardRef<HTMLDivElement, FunctionItemProps>(
                   type="button"
                   role="radio"
                   aria-checked={!branch}
-                  className={`px-2 py-1 ${!branch ? "bg-zinc-200 dark:bg-zinc-700" : "opacity-70"}`}
+                  className={`px-2 py-1 ${!branch ? "bg-secondary" : "text-muted-foreground"}`}
                   onClick={() => branch && switchToNode()}
                 >
                   A node
@@ -234,7 +234,7 @@ export const FunctionItem = React.forwardRef<HTMLDivElement, FunctionItemProps>(
                   type="button"
                   role="radio"
                   aria-checked={Boolean(branch)}
-                  className={`px-2 py-1 border-l ${branch ? "bg-zinc-200 dark:bg-zinc-700" : "opacity-70"}`}
+                  className={`px-2 py-1 border-l ${branch ? "bg-secondary" : "text-muted-foreground"}`}
                   onClick={() => !branch && switchToBranch()}
                 >
                   Branch on the result
@@ -273,7 +273,7 @@ export const FunctionItem = React.forwardRef<HTMLDivElement, FunctionItemProps>(
                   </SelectContent>
                 </Select>
               ) : (
-                <div className="text-xs opacity-40 italic py-1">No nodes available</div>
+                <div className="text-xs text-muted-foreground italic py-1">No nodes available</div>
               )}
             </div>
           </div>

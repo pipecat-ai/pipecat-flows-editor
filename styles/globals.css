@@ -140,8 +140,8 @@
         0 / 1px var(--crosshair-size) no-repeat,
       linear-gradient(currentColor, currentColor) right 0 top
         calc(var(--crosshair-size) / 2 - 0.5px) / var(--crosshair-size) 1px no-repeat,
-      linear-gradient(currentColor, currentColor) right calc(var(--crosshair-size) / 2 - 0.5px)
-        top 0 / 1px var(--crosshair-size) no-repeat,
+      linear-gradient(currentColor, currentColor) right calc(var(--crosshair-size) / 2 - 0.5px) top
+        0 / 1px var(--crosshair-size) no-repeat,
       linear-gradient(currentColor, currentColor) left 0 bottom
         calc(var(--crosshair-size) / 2 - 0.5px) / var(--crosshair-size) 1px no-repeat,
       linear-gradient(currentColor, currentColor) left calc(var(--crosshair-size) / 2 - 0.5px)
@@ -151,4 +151,22 @@
       linear-gradient(currentColor, currentColor) right calc(var(--crosshair-size) / 2 - 0.5px)
         bottom 0 / 1px var(--crosshair-size) no-repeat;
   }
+}
+
+/* The canvas in the same two colors as everything else: resting edges, dots,
+   and ports on the accent line, a selected edge in sky. Controls sit on the
+   card surface with a hairline border. */
+.react-flow {
+  --xy-edge-stroke: var(--accent-line);
+  --xy-edge-stroke-selected: var(--color-sky-500);
+  --xy-background-pattern-color: var(--accent-line-soft);
+  --xy-controls-button-background-color: var(--card);
+  --xy-controls-button-background-color-hover: var(--accent);
+  --xy-controls-button-color: var(--foreground);
+  --xy-controls-button-color-hover: var(--foreground);
+  --xy-controls-button-border-color: var(--border);
+}
+.react-flow__controls {
+  box-shadow: none;
+  border: 1px solid var(--border);
 }

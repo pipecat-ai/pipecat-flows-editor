@@ -62,7 +62,7 @@ export default function FlowPanel({ nodes, onCollapse }: Props) {
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      <div className="mb-2 flex items-center justify-between px-3 pt-3 text-xs font-semibold uppercase opacity-70 shrink-0">
+      <div className="mb-2 flex items-center justify-between px-3 pt-3 type-mono-label text-muted-foreground shrink-0">
         <span>Flow</span>
         <TooltipProvider>
           <Tooltip>
@@ -82,9 +82,9 @@ export default function FlowPanel({ nodes, onCollapse }: Props) {
         </TooltipProvider>
       </div>
 
-      <div className="flex-1 overflow-y-auto min-h-0 space-y-4 px-3 pb-4">
-        <section className="rounded-lg border bg-zinc-50/50 dark:bg-zinc-900/30 p-3 space-y-2">
-          <label htmlFor={nameId} className="block text-xs font-medium opacity-80">
+      <div className="flex-1 overflow-y-auto min-h-0 space-y-3 px-3 pb-4">
+        <section className="border-t pt-3 space-y-2">
+          <label htmlFor={nameId} className="block text-xs font-medium text-foreground">
             Name
           </label>
           <div className="flex items-center gap-1">
@@ -99,14 +99,13 @@ export default function FlowPanel({ nodes, onCollapse }: Props) {
               }}
               aria-label="Flow name"
             />
-            <span className="text-xs opacity-60">{FLOW_FILE_EXTENSION}</span>
+            <span className="text-xs text-muted-foreground">{FLOW_FILE_EXTENSION}</span>
           </div>
-          <div className="text-[11px] opacity-50">The file the flow saves as.</div>
         </section>
 
-        <section className="rounded-lg border bg-zinc-50/50 dark:bg-zinc-900/30 p-3 space-y-3">
+        <section className="border-t pt-3 space-y-3">
           <div className="flex items-center justify-between">
-            <div className="text-xs font-medium opacity-80">Global functions</div>
+            <div className="text-xs font-medium text-foreground">Global functions</div>
             <Button
               variant="ghost"
               size="sm"
@@ -119,7 +118,7 @@ export default function FlowPanel({ nodes, onCollapse }: Props) {
               <Plus className="h-4 w-4" /> Add
             </Button>
           </div>
-          <div className="text-[11px] opacity-50">Tools offered at every node.</div>
+          <div className="text-[11px] text-muted-foreground">Tools offered at every node.</div>
           {globalFunctions.map((fn, i) => (
             <div key={i} onFocusCapture={() => setSelectedGlobal(i)}>
               <FunctionItem
@@ -137,20 +136,22 @@ export default function FlowPanel({ nodes, onCollapse }: Props) {
             </div>
           ))}
           {globalFunctions.length === 0 && (
-            <div className="text-xs opacity-40 italic py-2">No global functions.</div>
+            <div className="text-xs text-muted-foreground italic py-2">No global functions.</div>
           )}
         </section>
 
-        <section className="rounded-lg border bg-zinc-50/50 dark:bg-zinc-900/30 p-3 space-y-2">
-          <div className="text-xs font-medium opacity-80">
+        <section className="border-t pt-3 space-y-2">
+          <div className="text-xs font-medium text-foreground">
             Issues
-            {issues.length > 0 && <span className="ml-1 opacity-60">· {issues.length}</span>}
+            {issues.length > 0 && (
+              <span className="ml-1 text-muted-foreground">· {issues.length}</span>
+            )}
           </div>
-          <div className="text-[11px] opacity-50">
+          <div className="text-[11px] text-muted-foreground">
             What Pipecat would report for this config. Errors keep it from loading; warnings do not.
           </div>
           {issues.length === 0 ? (
-            <div className="text-xs opacity-40 italic py-1">No issues.</div>
+            <div className="text-xs text-muted-foreground italic py-1">No issues.</div>
           ) : (
             <ul className="space-y-1">
               {issues.map((issue, i) => (
@@ -222,11 +223,11 @@ function ReferenceList({
   };
 
   return (
-    <section className="rounded-lg border bg-zinc-50/50 dark:bg-zinc-900/30 p-3 space-y-2">
+    <section className="border-t pt-3 space-y-2">
       <div className="flex items-center justify-between">
-        <div className="text-xs font-medium opacity-80">
+        <div className="text-xs font-medium text-foreground">
           {title}
-          {items.length > 0 && <span className="ml-1 opacity-60">· {items.length}</span>}
+          {items.length > 0 && <span className="ml-1 text-muted-foreground">· {items.length}</span>}
         </div>
         {items.length > 0 && (
           <Button variant="ghost" size="sm" className="h-6 gap-1 text-[10px]" onClick={copy}>
@@ -234,15 +235,15 @@ function ReferenceList({
           </Button>
         )}
       </div>
-      <div className="text-[11px] opacity-50">{description}</div>
+      <div className="text-[11px] text-muted-foreground">{description}</div>
       {items.length === 0 ? (
-        <div className="text-xs opacity-40 italic py-1">{empty}</div>
+        <div className="text-xs text-muted-foreground italic py-1">{empty}</div>
       ) : (
         <ul className="space-y-1">
           {items.map((item) => (
             <li key={item.name} className="flex items-baseline justify-between gap-2 text-xs">
               <code className="font-mono">{item.name}</code>
-              <span className="opacity-50 truncate text-[11px]">
+              <span className="text-muted-foreground truncate text-[11px]">
                 {item.usedBy.map((scope) => (scope === GLOBAL_SCOPE ? "global" : scope)).join(", ")}
               </span>
             </li>

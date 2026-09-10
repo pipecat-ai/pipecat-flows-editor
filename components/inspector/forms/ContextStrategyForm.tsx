@@ -30,7 +30,7 @@ export default function ContextStrategyForm({ value, onChange }: Props) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <label htmlFor={selectId} className="text-xs opacity-60">
+        <label htmlFor={selectId} className="text-xs text-muted-foreground">
           Context Strategy
         </label>
         {value && (
@@ -65,7 +65,7 @@ export default function ContextStrategyForm({ value, onChange }: Props) {
           <SelectItem value="reset">reset</SelectItem>
         </SelectContent>
       </Select>
-      <div className="text-xs opacity-40 italic py-1">
+      <div className="text-xs text-muted-foreground italic py-1">
         How the LLM context is updated on entering this node.
       </div>
     </div>
