@@ -1,8 +1,9 @@
 "use client";
 
 import { Trash2 } from "lucide-react";
-import { useId } from "react";
+import { useId, useState } from "react";
 
+import { Segment } from "@/components/inspector/Segment";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -12,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { BUILT_IN_ACTIONS, type FlowConfigAction } from "@/lib/schema/flowConfig";
 
@@ -24,27 +26,79 @@ interface ActionItemProps {
   onRemove: () => void;
 }
 
+/** The segment's title: what the action does, in a few words. */
+function describe(action: FlowConfigAction): string {
+  if (action.type === "tts_say") {
+    const text = typeof action.text === "string" ? action.text.trim() : "";
+    return text ? `Say “${text.length > 40 ? `${text.slice(0, 39)}…` : text}”` : "Say a line";
+  }
+  if (action.type === "end_conversation") return "End the conversation";
+  if (action.type === "function") return action.handler ? `Run ${action.handler}` : "Run a handler";
+  return action.type || "Custom action";
+}
+
+/** Whether the action still needs something typed in; such a segment opens expanded. */
+function needsInput(action: FlowConfigAction): boolean {
+  if (action.type === "function") return !action.handler;
+  if (action.type === "tts_say") return typeof action.text !== "string" || !action.text.trim();
+  if (!BUILT_IN_ACTIONS.has(action.type)) return !action.type;
+  return false;
+}
+
+/**
+ * An action as a sidebar segment. The fields stack full width, one per row,
+ * so a custom type with its handler fits the sidebar at any width.
+ */
 export function ActionItem({ action, index, onUpdate, onRemove }: ActionItemProps) {
   const actionTypeId = useId();
   const actionCustomTypeId = useId();
   const actionHandlerId = useId();
   const actionTextId = useId();
+  const [expanded, setExpanded] = useState(() => needsInput(action));
   const isCustom = !BUILT_IN_ACTIONS.has(action.type);
   // A handler is required on function actions, allowed on custom types, and
   // not allowed on the two built-ins whose behavior is fixed
   const takesHandler = action.type === "function" || isCustom;
+  const labelClass = "text-[13px] text-muted-foreground";
+  const fieldClass = "h-8 w-full text-[13px]";
 
   return (
-    <div className="flex items-center gap-2 border p-3">
-      <div className="flex-1 space-y-2">
-        <label htmlFor={actionTypeId} className="sr-only">
-          Action Type
+    <Segment
+      title={describe(action)}
+      expanded={expanded}
+      onToggle={() => setExpanded(!expanded)}
+      invalid={action.type === "function" && !action.handler}
+      actions={
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 w-7 shrink-0 p-0 text-muted-foreground hover:text-foreground"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRemove();
+                }}
+                aria-label={`Remove action ${index + 1}`}
+              >
+                <Trash2 className="size-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Remove action</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      }
+    >
+      <div className="space-y-2">
+        <label htmlFor={actionTypeId} className={labelClass}>
+          Type
         </label>
         <Select
           value={isCustom ? CUSTOM : action.type}
           onValueChange={(v) => onUpdate({ type: v === CUSTOM ? "" : v })}
         >
-          <SelectTrigger id={actionTypeId} className="h-8 text-[13px] flex-1">
+          <SelectTrigger id={actionTypeId} className={fieldClass}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -56,13 +110,13 @@ export function ActionItem({ action, index, onUpdate, onRemove }: ActionItemProp
         </Select>
       </div>
       {isCustom && (
-        <div className="w-32 space-y-2">
-          <label htmlFor={actionCustomTypeId} className="sr-only">
-            Custom action type
+        <div className="space-y-2">
+          <label htmlFor={actionCustomTypeId} className={labelClass}>
+            Custom type
           </label>
           <Input
             id={actionCustomTypeId}
-            className="h-8 text-[13px] w-32 font-mono"
+            className={`${fieldClass} font-mono`}
             value={action.type}
             onChange={(e) => onUpdate({ type: e.target.value })}
             placeholder="type"
@@ -71,16 +125,18 @@ export function ActionItem({ action, index, onUpdate, onRemove }: ActionItemProp
         </div>
       )}
       {takesHandler && (
-        <div className="w-32 space-y-2">
-          <label htmlFor={actionHandlerId} className="sr-only">
-            Handler
+        <div className="space-y-2">
+          <label htmlFor={actionHandlerId} className={labelClass}>
+            {isCustom ? "Handler (optional)" : "Handler"}
           </label>
           <Input
             id={actionHandlerId}
-            className="h-8 text-[13px] w-32"
+            className={`${fieldClass} font-mono`}
             value={action.handler ?? ""}
             onChange={(e) => onUpdate({ handler: e.target.value || undefined })}
-            placeholder={isCustom ? "Handler (optional)" : "Handler"}
+            placeholder={
+              isCustom ? "Registered in code when empty" : "A handler in the tools module"
+            }
             title={
               isCustom
                 ? "Leave empty for a handler registered in code with FlowManager.register_action"
@@ -90,29 +146,19 @@ export function ActionItem({ action, index, onUpdate, onRemove }: ActionItemProp
         </div>
       )}
       {action.type === "tts_say" && (
-        <div className="flex-1 space-y-2">
-          <label htmlFor={actionTextId} className="sr-only">
+        <div className="space-y-2">
+          <label htmlFor={actionTextId} className={labelClass}>
             Text to say
           </label>
-          <Input
+          <Textarea
             id={actionTextId}
-            className="h-8 text-[13px] flex-1"
+            className="min-h-20 text-[13px]"
             value={typeof action.text === "string" ? action.text : ""}
             onChange={(e) => onUpdate({ text: e.target.value })}
             placeholder="Text to say"
           />
         </div>
       )}
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-8 w-8" onClick={onRemove}>
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Remove action</TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-    </div>
+    </Segment>
   );
 }

@@ -46,15 +46,20 @@ export default function ActionsForm({ label, actions, onChange }: Props) {
           Add
         </Button>
       </div>
-      {items.map((action, i) => (
-        <ActionItem
-          key={i}
-          action={action}
-          index={i}
-          onUpdate={(updates) => updateItem(i, updates)}
-          onRemove={() => removeItem(i)}
-        />
-      ))}
+      {/* Segments run edge to edge, past the tab's padding and its scrollbar gutter. */}
+      {items.length > 0 && (
+        <div className="-ml-3 -mr-1 divide-y border-t">
+          {items.map((action, i) => (
+            <ActionItem
+              key={i}
+              action={action}
+              index={i}
+              onUpdate={(updates) => updateItem(i, updates)}
+              onRemove={() => removeItem(i)}
+            />
+          ))}
+        </div>
+      )}
       {items.length === 0 && (
         <div className="text-[13px] text-muted-foreground italic py-2">
           No actions. Click "Add" to create one.
