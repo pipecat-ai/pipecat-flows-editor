@@ -110,6 +110,41 @@ describe("canvasToConfig", () => {
   });
 });
 
+describe("transition-only functions", () => {
+  it("round-trips the flag and description in Pipecat's key order, and drops them when off", () => {
+    const config: FlowConfig = {
+      initial_node: "a",
+      nodes: {
+        a: {
+          task_messages: [],
+          functions: [
+            { name: "go", transition_only: true, description: "Move on.", transition_to: "b" },
+            { name: "tool", transition_to: "b" },
+          ],
+        },
+        b: { task_messages: [], post_actions: [{ type: "end_conversation" }] },
+      },
+    };
+    const { nodes } = configToCanvas(config);
+    const out = canvasToConfig(nodes as CanvasNode[]);
+    expect(out).toEqual(config);
+    expect(Object.keys(out.nodes.a.functions![0])).toEqual([
+      "name",
+      "transition_only",
+      "description",
+      "transition_to",
+    ]);
+    // A description without the flag is not written; the schema would reject it
+    const off = configNodeFromData({
+      ...(nodes[0] as ConfigCanvasNode).data,
+      functions: [
+        { name: "go", transition_only: undefined, description: "stale", transition_to: "b" },
+      ],
+    });
+    expect(off.functions).toEqual([{ name: "go", transition_to: "b" }]);
+  });
+});
+
 describe("deriveCanvasEdges", () => {
   const branchFn = { name: "check", transition_to: { field: "s", cases: { ok: "b" } } };
 

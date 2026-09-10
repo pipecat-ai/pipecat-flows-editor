@@ -39,6 +39,26 @@ describe("referencedTools", () => {
     });
   });
 
+  it("leaves out transition-only entries, which need no Python", () => {
+    const config: FlowConfig = {
+      initial_node: "a",
+      nodes: {
+        a: {
+          task_messages: [],
+          functions: [
+            { name: "go", transition_only: true, description: "Move on.", transition_to: "b" },
+            { name: "tool", transition_to: "b" },
+          ],
+        },
+        b: { task_messages: [] },
+      },
+      global_functions: [
+        { name: "bail", transition_only: true, description: "Leave.", transition_to: "b" },
+      ],
+    };
+    expect(referencedTools(config)).toEqual([{ name: "tool", usedBy: ["a"] }]);
+  });
+
   it("skips unnamed entries", () => {
     const config: FlowConfig = {
       initial_node: "a",

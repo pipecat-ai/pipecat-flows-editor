@@ -5,6 +5,7 @@ import React, { useCallback, useEffect, useId, useState } from "react";
 
 import { Segment } from "@/components/inspector/Segment";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -13,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   type FlowConfigBranch,
@@ -37,8 +39,9 @@ interface FunctionItemProps {
 }
 
 /**
- * A function entry: a tool name and where it leads. The tool's description
- * and parameters live in the Python tools module, not here.
+ * A function entry: a tool name and where it leads. Ordinarily the tool's
+ * description and parameters live in the Python handlers; a transition-only
+ * entry is defined here alone, with a description and the node it leads to.
  */
 export const FunctionItem = React.forwardRef<HTMLDivElement, FunctionItemProps>(
   (
@@ -60,7 +63,9 @@ export const FunctionItem = React.forwardRef<HTMLDivElement, FunctionItemProps>(
     const [nameError, setNameError] = useState<string | null>(null);
     const [isExpanded, setIsExpanded] = useState(isSelected);
     const functionNameId = useId();
+    const descriptionId = useId();
     const destinationId = useId();
+    const transitionOnly = Boolean(func.transition_only);
 
     useEffect(() => {
       // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -95,6 +100,25 @@ export const FunctionItem = React.forwardRef<HTMLDivElement, FunctionItemProps>(
     const branch = isBranch(transition) ? transition : null;
     const destination = typeof transition === "string" ? transition : undefined;
 
+    // A transition-only function is defined in the config alone: it needs a
+    // description and a node to lead to, and cannot branch. Turning it on
+    // keeps the destination, folding a branch to its default or first case.
+    const setTransitionOnly = (on: boolean) => {
+      if (!on) {
+        onChange({ transition_only: undefined, description: undefined });
+        return;
+      }
+      const target = branch
+        ? (branch.default ?? Object.values(branch.cases)[0])
+        : (destination ?? availableNodeIds[0] ?? "");
+      onChange({
+        transition_only: true,
+        description: func.description ?? "",
+        transition_to: target,
+      });
+    };
+    const needsMore = transitionOnly && (!func.description || typeof transition !== "string");
+
     // Switching modes keeps the destination: a branch starts with one case
     // leading where the node destination did, and back again the default or
     // first case becomes the node destination.
@@ -116,7 +140,7 @@ export const FunctionItem = React.forwardRef<HTMLDivElement, FunctionItemProps>(
         expanded={isExpanded}
         onToggle={() => setIsExpanded(!isExpanded)}
         selected={isSelected}
-        invalid={hasInvalidTarget}
+        invalid={hasInvalidTarget || needsMore}
         actions={
           <TooltipProvider>
             <Tooltip>
@@ -160,9 +184,40 @@ export const FunctionItem = React.forwardRef<HTMLDivElement, FunctionItemProps>(
           />
           {nameError && <div className="mt-1 text-[13px] text-red-600">{nameError}</div>}
           <div className="text-xs text-muted-foreground">
-            A direct function in the tools module. Its description and parameters come from the
-            code.
+            {transitionOnly
+              ? "The tool's name as the LLM sees it. Defined here; no Python."
+              : "A direct function in the handlers. Its description and parameters come from the code."}
           </div>
+        </div>
+
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 text-[13px]">
+            <Checkbox
+              checked={transitionOnly}
+              onCheckedChange={(value) => setTransitionOnly(value === true)}
+              onFocus={handleFocus}
+            />
+            Transition only
+          </label>
+          <div className="text-xs text-muted-foreground">
+            Defined in the config alone: no parameters and no code, just a description for the LLM
+            and the node it leads to.
+          </div>
+          {transitionOnly && (
+            <>
+              <label htmlFor={descriptionId} className="block text-[13px] text-muted-foreground">
+                Description
+              </label>
+              <Textarea
+                id={descriptionId}
+                className="min-h-20 text-[13px]"
+                value={func.description ?? ""}
+                onChange={(e) => onChange({ description: e.target.value })}
+                onFocus={handleFocus}
+                placeholder="What the tool is for, for the LLM"
+              />
+            </>
+          )}
         </div>
 
         <div className="pt-3 border-t">
@@ -197,31 +252,33 @@ export const FunctionItem = React.forwardRef<HTMLDivElement, FunctionItemProps>(
               Invalid: no node named {missingTargets.map((t) => `"${t}"`).join(", ")}
             </div>
           )}
-          <div
-            className="mb-2 inline-flex border text-[13px] overflow-hidden"
-            role="radiogroup"
-            aria-label="Destination kind"
-          >
-            <button
-              type="button"
-              role="radio"
-              aria-checked={!branch}
-              className={`px-2 py-1 ${!branch ? "bg-secondary" : "text-muted-foreground"}`}
-              onClick={() => branch && switchToNode()}
+          {!transitionOnly && (
+            <div
+              className="mb-2 inline-flex border text-[13px] overflow-hidden"
+              role="radiogroup"
+              aria-label="Destination kind"
             >
-              A node
-            </button>
-            <button
-              type="button"
-              role="radio"
-              aria-checked={Boolean(branch)}
-              className={`px-2 py-1 border-l ${branch ? "bg-secondary" : "text-muted-foreground"}`}
-              onClick={() => !branch && switchToBranch()}
-            >
-              Branch on the result
-            </button>
-          </div>
-          {branch ? (
+              <button
+                type="button"
+                role="radio"
+                aria-checked={!branch}
+                className={`px-2 py-1 ${!branch ? "bg-secondary" : "text-muted-foreground"}`}
+                onClick={() => branch && switchToNode()}
+              >
+                A node
+              </button>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={Boolean(branch)}
+                className={`px-2 py-1 border-l ${branch ? "bg-secondary" : "text-muted-foreground"}`}
+                onClick={() => !branch && switchToBranch()}
+              >
+                Branch on the result
+              </button>
+            </div>
+          )}
+          {branch && !transitionOnly ? (
             <BranchEditor
               branch={branch}
               onChange={(next) => onChange({ transition_to: next })}
@@ -243,7 +300,7 @@ export const FunctionItem = React.forwardRef<HTMLDivElement, FunctionItemProps>(
                 className={`h-8 text-[13px] ${hasInvalidTarget ? "border-orange-400 dark:border-orange-500" : ""}`}
                 onFocus={handleFocus}
               >
-                <SelectValue placeholder="Stay on this node" />
+                <SelectValue placeholder={transitionOnly ? "Choose a node" : "Stay on this node"} />
               </SelectTrigger>
               <SelectContent>
                 {availableNodeIds.map((nodeId) => (

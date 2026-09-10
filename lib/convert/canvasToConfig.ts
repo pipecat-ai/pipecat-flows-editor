@@ -16,16 +16,31 @@ import {
 
 import type { CanvasNode, ConfigNodeData } from "./configToCanvas";
 
-/** A function entry as the config carries it; an unset `transition_to` or `default` is left out. */
+/**
+ * A function entry as the config carries it, keys in Pipecat's order. An
+ * unset `transition_to` or `default` is left out; `transition_only` and its
+ * `description` are written only when the flag is on.
+ */
 export function cleanFunction(fn: FlowConfigFunction): FlowConfigFunction {
+  const clean: FlowConfigFunction = { name: fn.name };
+  if (fn.transition_only) {
+    clean.transition_only = true;
+    if (fn.description !== undefined) clean.description = fn.description;
+  }
   const transition = fn.transition_to;
-  if (transition === undefined) return { name: fn.name };
+  if (transition === undefined) return clean;
+  if (transition === null) {
+    clean.transition_to = null; // written in the file; kept as written
+    return clean;
+  }
   if (isBranch(transition)) {
     const branch: FlowConfigBranch = { field: transition.field, cases: { ...transition.cases } };
     if (transition.default !== undefined) branch.default = transition.default;
-    return { name: fn.name, transition_to: branch };
+    clean.transition_to = branch;
+  } else {
+    clean.transition_to = transition;
   }
-  return { name: fn.name, transition_to: transition };
+  return clean;
 }
 
 function cleanAction(action: FlowConfigAction): FlowConfigAction {

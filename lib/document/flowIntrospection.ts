@@ -1,12 +1,13 @@
 /**
  * What a config asks of the code around it: the tools and action handlers
- * the tools module must define, and the variables the `Flow` must be given.
+ * the handlers must define, and the variables the `Flow` must be given.
  * This list is the handoff to code; the editor generates no Python.
  */
 
 import {
   actionHandler,
   type FlowConfig,
+  type FlowConfigFunction,
   type FlowConfigNode,
   isRegisteredInCode,
 } from "@/lib/schema/flowConfig";
@@ -38,13 +39,17 @@ class References {
   }
 }
 
-/** Every direct function the config references, by node. */
+/**
+ * Every direct function the config references, by node. A `transition_only`
+ * entry is defined in the config alone and needs no Python, so it is left out.
+ */
 export function referencedTools(config: FlowConfig): NameReference[] {
   const refs = new References();
+  const isTool = (fn: FlowConfigFunction) => Boolean(fn.name) && !fn.transition_only;
   for (const [nodeName, node] of Object.entries(config.nodes)) {
-    for (const fn of node.functions ?? []) if (fn.name) refs.add(fn.name, nodeName);
+    for (const fn of node.functions ?? []) if (isTool(fn)) refs.add(fn.name, nodeName);
   }
-  for (const fn of config.global_functions ?? []) if (fn.name) refs.add(fn.name, GLOBAL_SCOPE);
+  for (const fn of config.global_functions ?? []) if (isTool(fn)) refs.add(fn.name, GLOBAL_SCOPE);
   return refs.sorted();
 }
 

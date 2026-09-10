@@ -135,12 +135,12 @@ export function ActionItem({ action, index, onUpdate, onRemove }: ActionItemProp
             value={action.handler ?? ""}
             onChange={(e) => onUpdate({ handler: e.target.value || undefined })}
             placeholder={
-              isCustom ? "Registered in code when empty" : "A handler in the tools module"
+              isCustom ? "Registered in code when empty" : "A handler in the handlers module"
             }
             title={
               isCustom
                 ? "Leave empty for a handler registered in code with FlowManager.register_action"
-                : "A handler in the tools module"
+                : "A handler in the handlers module"
             }
           />
         </div>

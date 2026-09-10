@@ -31,7 +31,7 @@ type Props = {
 
 /**
  * The flow beyond its nodes: the file name, the global functions, and what
- * the config asks of the code: the tools and handlers the tools module must
+ * the config asks of the code: the tools and handlers the Python must
  * define and the variables the Flow must be given.
  */
 export default function FlowPanel({ nodes, onCollapse }: Props) {
@@ -180,13 +180,13 @@ export default function FlowPanel({ nodes, onCollapse }: Props) {
 
         <ReferenceList
           title="Referenced tools"
-          description="Direct functions the tools module must define."
+          description="Direct functions the handlers must define. Transition-only functions need none."
           empty="No tools referenced yet."
           items={tools}
         />
         <ReferenceList
           title="Action handlers"
-          description="Handlers named on function and custom actions, from the same tools module."
+          description="Handlers named on function and custom actions, from the same handlers."
           empty="No handlers named."
           items={handlers}
         />
