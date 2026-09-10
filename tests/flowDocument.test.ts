@@ -9,9 +9,9 @@ import {
   applyConfigToDocument,
   createFlowDocument,
   flowNameFromFileName,
+  includePath,
   parseFlowYaml,
   stringifyFlowDocument,
-  includePath,
 } from "@/lib/document/flowDocument";
 import { serializeFlow } from "@/lib/document/serializeFlow";
 import type { FlowConfig } from "@/lib/schema/flowConfig";

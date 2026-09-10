@@ -90,7 +90,7 @@ The examples under **Load Example** are served from `public/examples/`. Hello wo
 
 ## Contributing
 
-When Pipecat's `FlowConfig` changes:
+`npm run check:schema` compares the vendored schema with Pipecat's at the pinned commit, and `npm run check:schema -- main` with what has shipped. When Pipecat's `FlowConfig` changes:
 
 1. Copy the new `flow_config.schema.json` over `lib/schema/flow_config.schema.json` and update the source record in `lib/schema/flowConfig.ts`.
 2. Run `npm run gen:types` to regenerate `lib/schema/flowConfig.generated.ts`.

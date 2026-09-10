@@ -5,10 +5,11 @@
 // `Action`, and `Branch`; the nested ones are prefixed here so the exported
 // type names do not shadow the global `Node` and `Function` types.
 
-import { compile } from "json-schema-to-typescript";
 import { readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+
+import { compile } from "json-schema-to-typescript";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const schemaPath = resolve(root, "lib/schema/flow_config.schema.json");
