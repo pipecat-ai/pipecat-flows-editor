@@ -41,17 +41,3 @@ export function validateFunctionName(name: string): string | null {
 
   return null;
 }
-
-/**
- * Format a property name to be Python-safe (same as function name formatting)
- */
-export function formatPropertyName(input: string): string {
-  return formatFunctionName(input);
-}
-
-/**
- * Validate that a property name is a valid Python identifier
- */
-export function validatePropertyName(name: string): string | null {
-  return validateFunctionName(name);
-}

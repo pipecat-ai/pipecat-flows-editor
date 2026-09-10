@@ -44,53 +44,69 @@ describe("canvasToConfig", () => {
     expect(canvasToConfig(nodes).initial_node).toBe("b");
   });
 
-  it("leaves initial_node empty when no node is initial", () => {
+  it("writes the opened initial_node when no node is initial, else nothing", () => {
     expect(canvasToConfig([configNode("a", "node", {})]).initial_node).toBe("");
+    expect(canvasToConfig([configNode("a", "node", {})], [], "greeting_typo").initial_node).toBe(
+      "greeting_typo"
+    );
+    expect(canvasToConfig([configNode("a", "initial", {})], [], "greeting_typo").initial_node).toBe(
+      "a"
+    );
   });
 
-  it("strips canvas-only fields and defaults", () => {
+  it("strips canvas-only fields and keys the data does not have", () => {
     const node = configNodeFromData({
       label: "a",
       name: "a",
       type: "node",
       task_messages: [],
-      role_message: "",
-      functions: [],
-      pre_actions: [],
-      post_actions: [],
-      context_strategy: null,
-      respond_immediately: true,
       stray: 1,
     });
     expect(node).toEqual({ task_messages: [] });
   });
 
-  it("keeps non-default fields and drops unset destinations", () => {
+  it("keeps every key the data has, at its default or not, so a written key survives", () => {
     const node = configNodeFromData({
       label: "a",
       name: "a",
       type: "node",
       task_messages: [{ role: "developer", content: "x" }],
+      role_message: "",
       functions: [
         { name: "stay", transition_to: null },
         { name: "go", transition_to: "b" },
         { name: "branch", transition_to: { field: "k", cases: { x: "b" }, default: null } },
+        { name: "plain" },
       ],
+      pre_actions: [],
       post_actions: [{ type: "tts_say", text: "Bye", handler: null }],
-      context_strategy: "reset",
-      respond_immediately: false,
+      context_strategy: null,
+      respond_immediately: true,
     });
     expect(node).toEqual({
+      role_message: "",
       task_messages: [{ role: "developer", content: "x" }],
+      pre_actions: [],
       functions: [
-        { name: "stay" },
+        { name: "stay", transition_to: null },
         { name: "go", transition_to: "b" },
-        { name: "branch", transition_to: { field: "k", cases: { x: "b" } } },
+        { name: "branch", transition_to: { field: "k", cases: { x: "b" }, default: null } },
+        { name: "plain" },
       ],
-      post_actions: [{ type: "tts_say", text: "Bye" }],
-      context_strategy: "reset",
-      respond_immediately: false,
+      post_actions: [{ type: "tts_say", text: "Bye", handler: null }],
+      context_strategy: null,
+      respond_immediately: true,
     });
+  });
+
+  it("round-trips a file's explicit defaults through the canvas", () => {
+    const config: FlowConfig = {
+      initial_node: "a",
+      nodes: {
+        a: { task_messages: [], functions: [], respond_immediately: true, context_strategy: null },
+      },
+    };
+    expect(canvasToConfig(configToCanvas(config).nodes)).toEqual(config);
   });
 });
 

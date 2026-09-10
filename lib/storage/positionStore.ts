@@ -1,7 +1,7 @@
 /**
  * Canvas positions live outside the document. A `FlowConfig` rejects unknown
  * keys, so the editor keeps positions in local storage, keyed by flow name and
- * then by canvas node id (a node name, or a branch node id).
+ * then by node name.
  */
 
 export type Position = { x: number; y: number };

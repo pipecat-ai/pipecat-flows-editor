@@ -65,8 +65,8 @@ export default function Toolbar({
   const flowName = useFlowStore((state) => state.flowName);
 
   function onSave() {
-    const { document, globalFunctions } = useFlowStore.getState();
-    const { text, issues } = serializeFlow(nodes, { document, globalFunctions });
+    const { document, globalFunctions, initialNode } = useFlowStore.getState();
+    const { text, issues } = serializeFlow(nodes, { document, globalFunctions, initialNode });
     const blob = new Blob([text], { type: "application/yaml" });
     const a = window.document.createElement("a");
     a.href = URL.createObjectURL(blob);

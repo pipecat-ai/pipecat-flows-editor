@@ -80,7 +80,7 @@ export function parseFlowYaml(text: string): ParsedFlow {
   const problems = report.issues.map((issue) => ({
     message: issue.message,
     severity: issue.level,
-    ...rangeForPath(document, lineCounter, issue.instancePath ?? "", {}),
+    ...rangeForPath(document, lineCounter, issue.instancePath ?? ""),
   }));
   return { document, config: report.config, yamlErrors, issues: report.issues, problems };
 }
@@ -200,8 +200,7 @@ function restyleScalar(scalar: Scalar): void {
 function rangeForPath(
   document: Document,
   lineCounter: LineCounter,
-  instancePath: string,
-  _params: Record<string, unknown>
+  instancePath: string
 ): TextRange {
   const segments = instancePath
     .split("/")

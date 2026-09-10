@@ -2,7 +2,6 @@ import {
   type CanvasEdge,
   type CanvasNode,
   type ConfigNodeData,
-  isConfigNode,
 } from "@/lib/convert/configToCanvas";
 import { type FlowConfigFunction, isBranch } from "@/lib/schema/flowConfig";
 
@@ -16,7 +15,7 @@ export function updateNodeData(
   updates: Partial<ConfigNodeData>
 ): CanvasNode[] {
   return nodes.map((node) => {
-    if (node.id !== nodeId || !isConfigNode(node)) return node;
+    if (node.id !== nodeId) return node;
     const type = deriveNodeType({ ...node.data, ...updates }, node.type);
     return { ...node, type, data: { ...node.data, ...updates, type } };
   });
@@ -28,24 +27,9 @@ function updateFunctions(
   update: (functions: FlowConfigFunction[]) => FlowConfigFunction[]
 ): CanvasNode[] {
   return nodes.map((node) => {
-    if (node.id !== nodeId || !isConfigNode(node)) return node;
+    if (node.id !== nodeId) return node;
     return { ...node, data: { ...node.data, functions: update(node.data.functions ?? []) } };
   });
-}
-
-/** Removes a function's destination so the tool stays on its node. */
-export function clearFunctionConnection(
-  nodes: CanvasNode[],
-  nodeId: string,
-  functionIndex: number
-): CanvasNode[] {
-  return updateFunctions(nodes, nodeId, (functions) =>
-    functions.map((fn, i) => {
-      if (i !== functionIndex) return fn;
-      const { transition_to: _transition, ...rest } = fn;
-      return rest;
-    })
-  );
 }
 
 /**
@@ -216,7 +200,6 @@ export function renameFunctionTargets(
 /** Renames a node and rewrites every destination that pointed at it. */
 export function renameNode(nodes: CanvasNode[], oldId: string, newId: string): CanvasNode[] {
   return nodes.map((node) => {
-    if (!isConfigNode(node)) return node;
     const functions = renameFunctionTargets(node.data.functions ?? [], oldId, newId);
     if (node.id === oldId) {
       return { ...node, id: newId, data: { ...node.data, name: newId, label: newId, functions } };

@@ -114,45 +114,6 @@ export function addDestination(
   };
 }
 
-/**
- * Gives an existing function without a destination a new node to lead to,
- * as a node, an end node, or a branch whose first case leads there.
- */
-export function addFunctionDestination(
-  nodes: CanvasNode[],
-  sourceId: string,
-  functionIndex: number,
-  kind: DestinationKind
-): Added | null {
-  const source = nodes.find((n) => n.id === sourceId);
-  const functions = nodeFunctions(source);
-  const fn = functions[functionIndex];
-  if (!source || !fn || functionTargets(fn).length > 0 || kind === "stay") return null;
-  const node = newNode(
-    kind === "end" ? "end" : "node",
-    placeBeside(source, destinationCount(functions)),
-    nodes.map((n) => n.id)
-  );
-  const updated: FlowConfigFunction =
-    kind === "branch"
-      ? { ...fn, transition_to: { field: "", cases: { value_1: node.id } } }
-      : { ...fn, transition_to: node.id };
-  return {
-    nodes: [
-      ...withFunctions(
-        nodes,
-        sourceId,
-        functions.map((f, i) => (i === functionIndex ? updated : f))
-      ),
-      node,
-    ],
-    newNodeId: node.id,
-    sourceNodeId: sourceId,
-    functionIndex,
-    caseIndex: kind === "branch" ? 0 : undefined,
-  };
-}
-
 /** Adds a new node and a case on the function's branch table leading to it. */
 export function addBranchCaseDestination(
   nodes: CanvasNode[],

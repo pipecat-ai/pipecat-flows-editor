@@ -3,12 +3,7 @@ import { describe, expect, it } from "vitest";
 import { deriveCanvasEdges } from "@/lib/convert/canvasGraph";
 import { type ConfigCanvasNode, configToCanvas } from "@/lib/convert/configToCanvas";
 import type { FlowConfig } from "@/lib/schema/flowConfig";
-import {
-  addBranchCaseDestination,
-  addDestination,
-  addFunctionDestination,
-  setInitialNode,
-} from "@/lib/utils/nodeCreation";
+import { addBranchCaseDestination, addDestination, setInitialNode } from "@/lib/utils/nodeCreation";
 import { canDeleteNode, deleteNode } from "@/lib/utils/nodeDeletion";
 
 const config: FlowConfig = {
@@ -95,31 +90,6 @@ describe("addDestination", () => {
 
   it("returns null for an unknown source", () => {
     expect(addDestination(canvas().nodes, "missing", "node")).toBeNull();
-  });
-});
-
-describe("addFunctionDestination", () => {
-  it("gives a function without a destination a new node, or a branch leading to one", () => {
-    const nodes = canvas().nodes.map((n) =>
-      n.id === "start" ? { ...n, data: { ...n.data, functions: [{ name: "stay" }] } } : n
-    );
-    const asNode = addFunctionDestination(nodes, "start", 0, "end")!;
-    expect(configNode(asNode.nodes, "start").data.functions).toEqual([
-      { name: "stay", transition_to: asNode.newNodeId },
-    ]);
-    expect(configNode(asNode.nodes, asNode.newNodeId!).type).toBe("end");
-    expect(asNode).toMatchObject({ functionIndex: 0, caseIndex: undefined });
-
-    const asBranch = addFunctionDestination(nodes, "start", 0, "branch")!;
-    expect(configNode(asBranch.nodes, "start").data.functions![0].transition_to).toEqual({
-      field: "",
-      cases: { value_1: asBranch.newNodeId },
-    });
-    expect(asBranch.caseIndex).toBe(0);
-  });
-
-  it("leaves a function that already has a destination alone", () => {
-    expect(addFunctionDestination(canvas().nodes, "start", 0, "node")).toBeNull();
   });
 });
 

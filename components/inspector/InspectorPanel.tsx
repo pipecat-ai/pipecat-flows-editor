@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { showToast } from "@/components/ui/Toast";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { configNodeFromData } from "@/lib/convert/canvasToConfig";
-import { type CanvasNode, type ConfigNodeData, isConfigNode } from "@/lib/convert/configToCanvas";
+import type { CanvasNode, ConfigNodeData } from "@/lib/convert/configToCanvas";
 import { useEditorStore } from "@/lib/store/editorStore";
 import { generateNodeIdFromLabel } from "@/lib/utils/nodeId";
 
@@ -46,8 +46,7 @@ export default function InspectorPanel({
   const rfInstance = useEditorStore((state) => state.rfInstance);
   const setSidebarCollapsed = useEditorStore((state) => state.setSidebarCollapsed);
 
-  const found = selectedNodeId ? nodes.find((n) => n.id === selectedNodeId) : undefined;
-  const selected = found && isConfigNode(found) ? found : null;
+  const selected = (selectedNodeId && nodes.find((n) => n.id === selectedNodeId)) || null;
   const id = selected?.id;
   const data = selected?.data;
   const displayedType = selected?.type;

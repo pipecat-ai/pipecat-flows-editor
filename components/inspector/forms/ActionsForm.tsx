@@ -18,7 +18,14 @@ export default function ActionsForm({ label, actions, onChange }: Props) {
 
   const updateItem = (index: number, updates: Partial<FlowConfigAction>) => {
     const next = [...items];
-    next[index] = { ...next[index], ...updates };
+    const merged = { ...next[index], ...updates };
+    // Only a function action takes a handler; moving to another type drops it
+    if (updates.type !== undefined && updates.type !== "function") {
+      const { handler: _handler, ...rest } = merged;
+      next[index] = rest;
+    } else {
+      next[index] = merged;
+    }
     onChange(next);
   };
 

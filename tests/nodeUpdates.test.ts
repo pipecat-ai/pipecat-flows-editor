@@ -11,7 +11,6 @@ import { duplicateNode } from "@/lib/utils/nodeDuplication";
 import { deriveNodeType } from "@/lib/utils/nodeType";
 import {
   addFunction,
-  clearFunctionConnection,
   dropFunctionTargets,
   removeEdgeRoute,
   removeFunction,
@@ -139,12 +138,7 @@ describe("setBranchField", () => {
   });
 });
 
-describe("clearFunctionConnection and removeEdgeRoute", () => {
-  it("drops a function's destination", () => {
-    const nodes = clearFunctionConnection(canvas().nodes, "a", 0);
-    expect(functionsOf(nodes, "a")[0]).toEqual({ name: "go" });
-  });
-
+describe("removeEdgeRoute", () => {
   it("removes one case or the default for a branch edge", () => {
     const { nodes, edges } = canvas();
     const caseEdge = edges.find((e) => e.data?.kind === "case" && e.data.caseValue === "bad")!;

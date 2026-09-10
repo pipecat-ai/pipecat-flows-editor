@@ -4,7 +4,9 @@
  * Python snippets, and tool schemas on every function. The graph, messages,
  * actions, and plain routing convert. Two things have no home in a
  * FlowConfig and are reported by name: tool schemas, which now live in the
- * Python tools module, and decisions, which need a branch table.
+ * Python tools module, and a decision's conditions, which compared a Python
+ * result with operators and need a branch table instead. A decision's
+ * default is a plain node name and is kept as the destination.
  *
  * The same shape, without `meta`, is what the old editor autosaved.
  */
@@ -136,7 +138,8 @@ function convertFunction(
 
   if (fn.decision) {
     if (name) dropped.push({ kind: "decision", name, node });
-    return { name };
+    const fallback = fn.decision.default_next_node_id ?? fn.next_node_id;
+    return fallback ? { name, transition_to: fallback } : { name };
   }
   return fn.next_node_id ? { name, transition_to: fn.next_node_id } : { name };
 }
@@ -172,7 +175,7 @@ export function describeLegacyDrops(dropped: LegacyDrop[]): string {
   }
   if (decisions.length > 0) {
     parts.push(
-      `Decisions need a branch table; left without a destination: ${list(
+      `Decisions need a branch table; conditions dropped and the default kept as the destination for ${list(
         decisions.map((d) => `${d.name} on ${d.node}`)
       )}.`
     );

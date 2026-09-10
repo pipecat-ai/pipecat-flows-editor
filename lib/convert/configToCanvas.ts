@@ -59,10 +59,6 @@ export interface CanvasEdgeData {
 
 export type CanvasEdge = Edge<CanvasEdgeData>;
 
-export function isConfigNode(node: CanvasNode): node is ConfigCanvasNode {
-  return true;
-}
-
 /** The functions on a canvas node. */
 export function nodeFunctions(node: CanvasNode | undefined): FlowConfigFunction[] {
   return node?.data.functions ?? [];

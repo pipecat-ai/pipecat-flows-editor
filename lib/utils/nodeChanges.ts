@@ -7,7 +7,7 @@ import { canDeleteNode } from "@/lib/utils/nodeDeletion";
  * React Flow's own Delete and Backspace handling removes selected nodes
  * through the change stream, bypassing the editor's rules. This drops the
  * removals the editor would refuse: the initial node, which a flow always
- * needs, and branch nodes, which are derived from their function.
+ * needs.
  */
 export function filterNodeChanges(
   changes: NodeChange<CanvasNode>[],

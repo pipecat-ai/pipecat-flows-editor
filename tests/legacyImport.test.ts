@@ -89,7 +89,11 @@ describe("convertLegacyFlow", () => {
       role_message: "You are helpful.\n\nBe brief.",
       task_messages: [{ role: "system", content: "Ask." }],
       pre_actions: [{ type: "tts_say", text: "Hi" }],
-      functions: [{ name: "route" }, { name: "plain", transition_to: "end" }, { name: "tool" }],
+      functions: [
+        { name: "route", transition_to: "end" },
+        { name: "plain", transition_to: "end" },
+        { name: "tool" },
+      ],
       context_strategy: "reset",
       respond_immediately: false,
     });
@@ -102,7 +106,7 @@ describe("convertLegacyFlow", () => {
     ]);
     expect(describeLegacyDrops(dropped)).toBe(
       "Tool schemas now belong in the tools module; dropped for 'tool', 'help'. " +
-        "Decisions need a branch table; left without a destination: 'route on start'. " +
+        "Decisions need a branch table; conditions dropped and the default kept as the destination for 'route on start'. " +
         "RESET_WITH_SUMMARY became reset; summary prompt dropped on 'start'."
     );
     expect(validateFlow(config).ok).toBe(true);

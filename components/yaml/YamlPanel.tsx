@@ -53,7 +53,7 @@ export default function YamlPanel({ text, problems, onChange }: Props) {
     errors > 0
       ? `${errors} error${errors === 1 ? "" : "s"}; the canvas shows the last valid document`
       : warnings > 0
-        ? `${warnings} unresolved reference${warnings === 1 ? "" : "s"}`
+        ? `${warnings} warning${warnings === 1 ? "" : "s"}`
         : "Valid FlowConfig";
 
   return (

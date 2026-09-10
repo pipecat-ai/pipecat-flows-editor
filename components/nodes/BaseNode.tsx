@@ -1,6 +1,6 @@
 "use client";
 
-import { Handle, type NodeProps, Position, useNodes, useUpdateNodeInternals } from "@xyflow/react";
+import { Handle, type NodeProps, Position, useUpdateNodeInternals } from "@xyflow/react";
 import { AlertTriangle, ArrowRight, LogOut, Play, Plus, Split, Wrench, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -10,7 +10,7 @@ import { NODE_CARD } from "@/lib/layout/autoLayout";
 import { type FlowConfigFunction, isBranch } from "@/lib/schema/flowConfig";
 import { useEditorStore } from "@/lib/store/editorStore";
 
-import { useCanvasActions } from "./canvasActions";
+import { useCanvasActions, useCanvasNodeTypes } from "./canvasActions";
 import InlineText from "./InlineText";
 import NodeAddToolbar from "./NodeAddToolbar";
 
@@ -37,7 +37,6 @@ type Editing =
  * hover, and a "+ function" row adds a function that stays on the node.
  */
 export default function BaseNode({ id, data, selected, type }: NodeProps<ConfigCanvasNode>) {
-  const allNodes = useNodes();
   const actions = useCanvasActions();
   const [hovering, setHovering] = useHoverWithGrace();
   const [editing, setEditing] = useState<Editing>(null);
@@ -45,7 +44,7 @@ export default function BaseNode({ id, data, selected, type }: NodeProps<ConfigC
   const selectedFunctionIndex = useEditorStore((state) => state.selectedFunctionIndex);
   const selectedConditionIndex = useEditorStore((state) => state.selectedConditionIndex);
 
-  const nodeTypes = new Map(allNodes.map((n) => [n.id, n.type]));
+  const nodeTypes = useCanvasNodeTypes();
   const functions = data.functions ?? [];
 
   // React Flow measures handles when the card mounts or resizes. Renaming a
@@ -183,7 +182,7 @@ function FunctionRows({
   fn: FlowConfigFunction;
   functionIndex: number;
   /** Every node on the canvas and its type, to draw a destination kind and spot a missing one. */
-  nodeTypes: Map<string, string | undefined>;
+  nodeTypes: ReadonlyMap<string, string | undefined>;
   active: boolean;
   editing: Editing;
   setEditing: (editing: Editing) => void;

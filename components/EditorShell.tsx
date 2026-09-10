@@ -19,7 +19,11 @@ import SelfLoopEdge from "@/components/edges/SelfLoopEdge";
 import Toolbar from "@/components/header/Toolbar";
 import InspectorPanel from "@/components/inspector/InspectorPanel";
 import BaseNode from "@/components/nodes/BaseNode";
-import { type CanvasActions, CanvasActionsContext } from "@/components/nodes/canvasActions";
+import {
+  type CanvasActions,
+  CanvasActionsContext,
+  CanvasNodeTypesContext,
+} from "@/components/nodes/canvasActions";
 import NodeContextMenu from "@/components/nodes/NodeContextMenu";
 import { Button } from "@/components/ui/button";
 import ToastContainer, { showToast } from "@/components/ui/Toast";
@@ -42,7 +46,7 @@ import {
 import { serializeFlow } from "@/lib/document/serializeFlow";
 import { layoutNodes } from "@/lib/layout/autoLayout";
 import { getTemplateByType } from "@/lib/nodes/templates";
-import type { FlowConfig } from "@/lib/schema/flowConfig";
+import type { FlowConfig, FlowConfigFunction } from "@/lib/schema/flowConfig";
 import { LEGACY_STORAGE_KEY, loadCurrentFlow, saveCurrentFlow } from "@/lib/storage/localStore";
 import { loadPositions, positionsFromNodes, savePositions } from "@/lib/storage/positionStore";
 import { useEditorStore } from "@/lib/store/editorStore";
@@ -75,7 +79,8 @@ import {
 } from "@/lib/utils/nodeUpdates";
 import { issueErrors, summarizeIssues } from "@/lib/validation/flowIssues";
 
-type History = { nodes: FlowNode[]; edges: FlowEdge[] };
+/** An undo snapshot is the whole document: the canvas and the flow-level global functions. */
+type History = { nodes: FlowNode[]; edges: FlowEdge[]; globalFunctions: FlowConfigFunction[] };
 
 /** Structural equality with key order ignored, for comparing configs from different sources. */
 function sameConfig(a: FlowConfig | null, b: FlowConfig | null): boolean {
@@ -188,7 +193,9 @@ export default function EditorShell() {
     [onNodesChangeBase]
   );
 
-  const undoManagerRef = useRef(new UndoManager<History>({ nodes: [], edges: [] }));
+  const undoManagerRef = useRef(
+    new UndoManager<History>({ nodes: [], edges: [], globalFunctions: [] })
+  );
   const skipUndoPushRef = useRef(false);
   // Autosave waits until the saved flow (or a new one) is on the canvas.
   const hydratedRef = useRef(false);
@@ -222,6 +229,7 @@ export default function EditorShell() {
       skipUndoPushRef.current = true;
       setNodes(next.nodes);
       setEdges(next.edges);
+      useFlowStore.getState().setGlobalFunctions(next.globalFunctions);
       undoManagerRef.current = new UndoManager<History>(next);
       clearSelection();
     },
@@ -242,6 +250,7 @@ export default function EditorShell() {
       const legacy = convertLegacyText(text, flowName);
       if (legacy) {
         text = legacy.yaml;
+        options = { ...options, keepPositions: true };
         showToast(
           `Converted ${flowName} from the old JSON format. ${legacy.dropped}`.trim(),
           "info"
@@ -263,12 +272,14 @@ export default function EditorShell() {
       const canvas = configToCanvas(parsed.config, {
         positions: options.keepPositions ? loadPositions(flowName) : undefined,
       });
-      replaceCanvas(canvas);
+      const globalFunctions = parsed.config.global_functions ?? [];
       loadFlow({
         flowName,
         document: parsed.document,
-        globalFunctions: parsed.config.global_functions ?? [],
+        globalFunctions,
+        initialNode: parsed.config.initial_node,
       });
+      replaceCanvas({ ...canvas, globalFunctions });
       // The pane shows the file as written
       paneConfigRef.current = parsed.config;
       setYamlText(text);
@@ -277,7 +288,7 @@ export default function EditorShell() {
         const errors = issueErrors(parsed.issues);
         showToast(
           `Opened ${flowName} with ${summarizeIssues(parsed.issues)}: ${(errors[0] ?? parsed.issues[0]).message}`,
-          errors.length > 0 ? "info" : "info"
+          errors.length > 0 ? "error" : "info"
         );
         console.warn("Flow issues:", parsed.issues);
       } else if (!options.silent) {
@@ -290,8 +301,8 @@ export default function EditorShell() {
   );
 
   const startNewFlow = useCallback(() => {
-    replaceCanvas({ nodes: newFlowNodes(), edges: [] });
     resetFlow();
+    replaceCanvas({ nodes: newFlowNodes(), edges: [], globalFunctions: [] });
     fitViewSoon();
   }, [replaceCanvas, resetFlow, fitViewSoon]);
 
@@ -346,8 +357,8 @@ export default function EditorShell() {
   useEffect(() => {
     if (!hydratedRef.current) return;
     const id = setTimeout(() => {
-      const { document } = useFlowStore.getState();
-      const { text, config } = serializeFlow(nodes, { document, globalFunctions });
+      const { document, initialNode } = useFlowStore.getState();
+      const { text, config } = serializeFlow(nodes, { document, globalFunctions, initialNode });
       saveCurrentFlow({ flowName, yaml: text });
       savePositions(flowName, positionsFromNodes(nodes));
       if (!sameConfig(config, paneConfigRef.current)) {
@@ -367,7 +378,13 @@ export default function EditorShell() {
       setYamlProblems(parsed.problems);
       if (!parsed.config) return;
       paneConfigRef.current = parsed.config;
-      const { flowName: name, setDocument, setGlobalFunctions } = useFlowStore.getState();
+      const {
+        flowName: name,
+        setDocument,
+        setGlobalFunctions,
+        setInitialNode,
+      } = useFlowStore.getState();
+      setInitialNode(parsed.config.initial_node);
       const positions = { ...loadPositions(name), ...positionsFromNodes(nodesRef.current) };
       const canvas = configToCanvas(parsed.config, { positions });
       setNodes(canvas.nodes);
@@ -400,10 +417,10 @@ export default function EditorShell() {
       return;
     }
     const id = setTimeout(() => {
-      undoManagerRef.current.push({ nodes, edges });
+      undoManagerRef.current.push({ nodes, edges, globalFunctions });
     }, 200);
     return () => clearTimeout(id);
-  }, [nodes, edges]);
+  }, [nodes, edges, globalFunctions]);
 
   // Deletes a node and drops every destination that pointed at it, including
   // global functions, so the document never refers to a node that is gone.
@@ -548,6 +565,15 @@ export default function EditorShell() {
     fitViewSoon();
   }, [setNodes, edges, fitViewSoon]);
 
+  // Recomputed only when a node is added, removed, renamed, or changes type,
+  // not on every drag, so cards do not re-render for position changes.
+  const canvasNodeTypesKey = nodes.map((n) => `${n.id}\u0000${n.type}`).join("\u0001");
+  const canvasNodeTypes = useMemo(
+    () => new Map(nodes.map((n) => [n.id, n.type as string | undefined])),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [canvasNodeTypesKey]
+  );
+
   const { theme } = useTheme();
   const showInspector = !sidebarCollapsed;
   const columnHeight = `calc(100vh - ${showYaml ? yamlPanelHeight : 0}px)`;
@@ -566,6 +592,7 @@ export default function EditorShell() {
             skipUndoPushRef.current = true;
             setNodes(state.nodes);
             setEdges(state.edges);
+            useFlowStore.getState().setGlobalFunctions(state.globalFunctions);
           }
         }}
         onRedo={() => {
@@ -574,53 +601,56 @@ export default function EditorShell() {
             skipUndoPushRef.current = true;
             setNodes(state.nodes);
             setEdges(state.edges);
+            useFlowStore.getState().setGlobalFunctions(state.globalFunctions);
           }
         }}
         onNewFlow={startNewFlow}
       />
       <div className="flex-1 min-w-0 relative overflow-hidden" style={{ height: columnHeight }}>
         <CanvasActionsContext.Provider value={canvasActions}>
-          <ReactFlow
-            colorMode={theme as ColorMode}
-            nodes={nodes}
-            edges={edges}
-            nodeTypes={nodeTypes}
-            edgeTypes={edgeTypes}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onConnect={(params) => {
-              const connected = handleConnection(params, nodes, setNodes);
-              if (!connected) return;
-              selectNode(connected.sourceNodeId, connected.functionIndex, connected.caseIndex);
-              focusNode(connected.sourceNodeId);
-            }}
-            onSelectionChange={(sel) => {
-              const n = (sel.nodes?.[0] || null) as FlowNode | null;
-              const e = (sel.edges?.[0] || null) as FlowEdge | null;
-              // Store handles all selection logic and validation
-              selectNodeFromCanvas(n, e, nodes);
-            }}
-            snapToGrid={true}
-            snapGrid={[20, 20]}
-            // Left-drag selects; middle or right drag pans, as does Space+drag.
-            // Trackpads have no middle button, so scrolling pans and pinch zooms.
-            panOnDrag={[1, 2]}
-            selectionOnDrag
-            selectionMode={SelectionMode.Partial}
-            panOnScroll
-            zoomOnScroll={false}
-            deleteKeyCode={null}
-            zoomOnDoubleClick={false}
-            // Flows grow to the right; let a long one be seen whole
-            minZoom={0.2}
-            proOptions={{ hideAttribution: true }}
-            onInit={(instance) => setRfInstance(instance as unknown as ReactFlowInstance)}
-            onNodeContextMenu={handleNodeContextMenu}
-            fitView
-          >
-            <Controls />
-            <Background />
-          </ReactFlow>
+          <CanvasNodeTypesContext.Provider value={canvasNodeTypes}>
+            <ReactFlow
+              colorMode={theme as ColorMode}
+              nodes={nodes}
+              edges={edges}
+              nodeTypes={nodeTypes}
+              edgeTypes={edgeTypes}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              onConnect={(params) => {
+                const connected = handleConnection(params, nodes, setNodes);
+                if (!connected) return;
+                selectNode(connected.sourceNodeId, connected.functionIndex, connected.caseIndex);
+                focusNode(connected.sourceNodeId);
+              }}
+              onSelectionChange={(sel) => {
+                const n = (sel.nodes?.[0] || null) as FlowNode | null;
+                const e = (sel.edges?.[0] || null) as FlowEdge | null;
+                // Store handles all selection logic and validation
+                selectNodeFromCanvas(n, e, nodes);
+              }}
+              snapToGrid={true}
+              snapGrid={[20, 20]}
+              // Left-drag selects; middle or right drag pans, as does Space+drag.
+              // Trackpads have no middle button, so scrolling pans and pinch zooms.
+              panOnDrag={[1, 2]}
+              selectionOnDrag
+              selectionMode={SelectionMode.Partial}
+              panOnScroll
+              zoomOnScroll={false}
+              deleteKeyCode={null}
+              zoomOnDoubleClick={false}
+              // Flows grow to the right; let a long one be seen whole
+              minZoom={0.2}
+              proOptions={{ hideAttribution: true }}
+              onInit={(instance) => setRfInstance(instance as unknown as ReactFlowInstance)}
+              onNodeContextMenu={handleNodeContextMenu}
+              fitView
+            >
+              <Controls />
+              <Background />
+            </ReactFlow>
+          </CanvasNodeTypesContext.Provider>
         </CanvasActionsContext.Provider>
         {sidebarCollapsed && (
           <Button

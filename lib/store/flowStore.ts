@@ -14,6 +14,12 @@ export interface LoadedFlow {
   /** The parsed document, kept so saves preserve its comments; null for a new flow. */
   document: Document | null;
   globalFunctions: FlowConfigFunction[];
+  /**
+   * The config's `initial_node` as opened. Written back when no canvas node
+   * carries the designation, so a name that resolves to nothing is kept and
+   * reported rather than replaced.
+   */
+  initialNode: string;
 }
 
 interface FlowState extends LoadedFlow {
@@ -21,6 +27,7 @@ interface FlowState extends LoadedFlow {
   setFlowName: (flowName: string) => void;
   setDocument: (document: Document | null) => void;
   setGlobalFunctions: (globalFunctions: FlowConfigFunction[]) => void;
+  setInitialNode: (initialNode: string) => void;
   reset: () => void;
 }
 
@@ -28,6 +35,7 @@ const initialState: LoadedFlow = {
   flowName: DEFAULT_FLOW_NAME,
   document: null,
   globalFunctions: [],
+  initialNode: "",
 };
 
 export const useFlowStore = create<FlowState>((set) => ({
@@ -36,5 +44,6 @@ export const useFlowStore = create<FlowState>((set) => ({
   setFlowName: (flowName) => set({ flowName }),
   setDocument: (document) => set({ document }),
   setGlobalFunctions: (globalFunctions) => set({ globalFunctions }),
+  setInitialNode: (initialNode) => set({ initialNode }),
   reset: () => set(initialState),
 }));

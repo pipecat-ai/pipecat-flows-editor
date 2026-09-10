@@ -2,8 +2,8 @@
 
 import { BaseEdge, type EdgeProps, useNodes } from "@xyflow/react";
 
-import { type CanvasNode, nodeFunctions } from "@/lib/convert/configToCanvas";
-import { functionTargets } from "@/lib/schema/flowConfig";
+import { type CanvasNode, handleId, nodeFunctions } from "@/lib/convert/configToCanvas";
+import { isBranch } from "@/lib/schema/flowConfig";
 
 /**
  * An edge from a row's port on the right of a card back into the card's own
@@ -26,16 +26,20 @@ export default function SelfLoopEdge({
   const nodeRight = (sourceNode?.position.x ?? 0) + (sourceNode?.measured?.width ?? 0);
   const nodeTop = sourceNode?.position.y ?? targetY;
 
-  // Which of this node's self-loops this is, in row order
-  const loopHandles = nodeFunctions(sourceNode)
-    .map((fn, i) => (functionTargets(fn).includes(source) ? `fn:${i}` : null))
-    .filter((h): h is string => h !== null);
-  const loopIndex = Math.max(
-    0,
-    loopHandles.findIndex(
-      (prefix) => sourceHandleId === prefix || sourceHandleId?.startsWith(`${prefix}:`)
-    )
-  );
+  // Which of this node's self-loops this is, in row order: one per handle
+  // that leads back to the node, so several cases of one branch stay apart
+  const loopHandles = nodeFunctions(sourceNode).flatMap((fn, functionIndex) => {
+    const transition = fn.transition_to;
+    if (!isBranch(transition)) {
+      return transition === source ? [handleId({ kind: "function", functionIndex })] : [];
+    }
+    const handles = Object.entries(transition.cases)
+      .filter(([, target]) => target === source)
+      .map(([caseValue]) => handleId({ kind: "case", functionIndex, caseValue }));
+    if (transition.default === source) handles.push(handleId({ kind: "default", functionIndex }));
+    return handles;
+  });
+  const loopIndex = Math.max(0, loopHandles.indexOf(sourceHandleId ?? ""));
 
   const step = 14;
   const rightX = Math.max(sourceX, nodeRight) + 24 + loopIndex * step;

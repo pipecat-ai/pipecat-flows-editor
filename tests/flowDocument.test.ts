@@ -171,6 +171,23 @@ describe("serializeFlow", () => {
   });
 });
 
+describe("round trip of an unresolved initial_node", () => {
+  it("keeps the opened name so the problem stays visible", () => {
+    const text = "initial_node: greeting_typo\nnodes:\n  greeting:\n    task_messages: []\n";
+    const parsed = parseFlowYaml(text);
+    expect(parsed.config).not.toBeNull();
+    const canvas = configToCanvas(parsed.config!);
+    expect(canvas.nodes.map((n) => n.type)).toEqual(["node"]);
+    const { text: out, issues } = serializeFlow(canvas.nodes, {
+      document: parsed.document,
+      globalFunctions: [],
+      initialNode: parsed.config!.initial_node,
+    });
+    expect(parse(out).initial_node).toBe("greeting_typo");
+    expect(issues[0].message).toBe("initial_node 'greeting_typo' is not a defined node");
+  });
+});
+
 describe("flowNameFromFileName", () => {
   it("strips the extension and falls back to a default", () => {
     expect(flowNameFromFileName("food_ordering.yaml")).toBe("food_ordering");

@@ -11,7 +11,7 @@ A visual editor for Pipecat Flows. The document it edits is Pipecat's `FlowConfi
 
 ## Highlights
 
-- **The YAML is the document** – Open a `FlowConfig` file, edit it on the canvas or in the YAML pane, and save it. Comments, key order, and block scalars in a hand-written file survive the round trip.
+- **The YAML is the document** – Open a `FlowConfig` file, edit it on the canvas or in the YAML pane, and save it. Comments, key order, block scalar styles, and every key in a hand-written file survive the round trip; the one change on save is that long lines, folded or plain, are re-wrapped at 80 columns.
 - **Two views, one document** – The canvas and the YAML pane stay in step: a change on either side updates the other, with problems shown inline in the pane.
 - **Routing as data** – A function is a tool name and a destination: a node, or a branch table keyed on a field of the tool's result. A node card lists its functions as rows, a branch's cases as sub-rows, and each row has its own port.
 - **Pipecat's schema and checks** – Validation uses the JSON Schema Pipecat ships for `FlowConfig`, vendored and pinned, plus the same cross-reference checks its loader makes and the same graph warnings its `validate_flow` reports: unreachable nodes, dead ends, and branches that always go one place. Every finding uses Pipecat's `FlowIssue` shape and codes.
@@ -38,7 +38,8 @@ Open http://localhost:3000 to launch the editor.
 
 ```bash
 npm test      # Vitest (unit + component tests)
-npm run lint  # ESLint + TypeScript rules
+npm run lint       # ESLint
+npm run typecheck  # TypeScript
 ```
 
 ## Working With Flows

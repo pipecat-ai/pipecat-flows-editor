@@ -29,9 +29,14 @@ function issuesFor(config: FlowConfig): LocatedIssue[] {
 
 export function serializeFlow(
   nodes: CanvasNode[],
-  options: { document: Document | null; globalFunctions: FlowConfigFunction[] }
+  options: {
+    document: Document | null;
+    globalFunctions: FlowConfigFunction[];
+    /** The opened config's `initial_node`, written when no canvas node is initial. */
+    initialNode?: string;
+  }
 ): SerializedFlow {
-  const config = canvasToConfig(nodes, options.globalFunctions);
+  const config = canvasToConfig(nodes, options.globalFunctions, options.initialNode ?? "");
   let document = options.document;
   if (document) {
     applyConfigToDocument(document, config);

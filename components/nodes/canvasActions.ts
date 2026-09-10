@@ -32,6 +32,19 @@ export interface CanvasActions {
 
 export const CanvasActionsContext = createContext<CanvasActions | null>(null);
 
+/**
+ * Every node on the canvas and its type, computed once per change to the set
+ * of nodes, so a card can tell whether a destination exists and whether it
+ * is an end node without subscribing to every node update itself.
+ */
+export const CanvasNodeTypesContext = createContext<ReadonlyMap<string, string | undefined>>(
+  new Map()
+);
+
+export function useCanvasNodeTypes(): ReadonlyMap<string, string | undefined> {
+  return useContext(CanvasNodeTypesContext);
+}
+
 export function useCanvasActions(): CanvasActions | null {
   return useContext(CanvasActionsContext);
 }

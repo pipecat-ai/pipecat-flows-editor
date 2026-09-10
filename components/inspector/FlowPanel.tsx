@@ -1,7 +1,7 @@
 "use client";
 
 import { Copy, PanelRightClose, Plus } from "lucide-react";
-import { useId, useState } from "react";
+import { useId, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,16 +38,21 @@ export default function FlowPanel({ nodes, onCollapse }: Props) {
   const setFlowName = useFlowStore((state) => state.setFlowName);
   const globalFunctions = useFlowStore((state) => state.globalFunctions);
   const setGlobalFunctions = useFlowStore((state) => state.setGlobalFunctions);
+  const initialNode = useFlowStore((state) => state.initialNode);
   const nameId = useId();
   const [selectedGlobal, setSelectedGlobal] = useState<number | null>(null);
 
   const availableNodeIds = nodes.map((n) => n.id);
-  const config = canvasToConfig(nodes, globalFunctions);
-  const tools = referencedTools(config);
-  const handlers = actionHandlers(config);
-  const variables = templateVariables(config);
-  const references = checkFlowConfigReferences(config);
-  const issues = references.length > 0 ? references : checkFlowGraph(config);
+  const { tools, handlers, variables, issues } = useMemo(() => {
+    const config = canvasToConfig(nodes, globalFunctions, initialNode);
+    const references = checkFlowConfigReferences(config);
+    return {
+      tools: referencedTools(config),
+      handlers: actionHandlers(config),
+      variables: templateVariables(config),
+      issues: references.length > 0 ? references : checkFlowGraph(config),
+    };
+  }, [nodes, globalFunctions, initialNode]);
 
   const updateGlobal = (index: number, updates: Partial<FlowConfigFunction>) => {
     setGlobalFunctions(globalFunctions.map((fn, i) => (i === index ? { ...fn, ...updates } : fn)));
