@@ -3,7 +3,6 @@
 import { Trash2 } from "lucide-react";
 import { useId } from "react";
 
-import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -30,51 +29,58 @@ export function MessageItem({ message, index, onUpdate, onRemove }: MessageItemP
   const messageContentId = useId();
 
   return (
-    <div className="space-y-2 border p-3">
-      <div className="flex items-center gap-2">
-        <div className="space-y-2">
-          <label htmlFor={messageRoleId} className="sr-only">
-            Role
-          </label>
-          <Select value={message.role} onValueChange={(v) => onUpdate({ role: v })}>
-            <SelectTrigger id={messageRoleId} className="h-8 text-[13px] w-32">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {MESSAGE_ROLES.map((role) => (
-                <SelectItem key={role} value={role}>
-                  {role}
-                </SelectItem>
-              ))}
-              {!MESSAGE_ROLES.includes(message.role as (typeof MESSAGE_ROLES)[number]) && (
-                <SelectItem value={message.role}>{message.role}</SelectItem>
-              )}
-            </SelectContent>
-          </Select>
-        </div>
+    // One hairline frame, as the site's live-example panel: the role and the
+    // remove button share the top row in divided cells, and the text fills
+    // the rest. The controls go borderless inside the frame.
+    <div className="border">
+      <div className="flex h-9 divide-x border-b">
+        <label htmlFor={messageRoleId} className="sr-only">
+          Role
+        </label>
+        <Select value={message.role} onValueChange={(v) => onUpdate({ role: v })}>
+          <SelectTrigger
+            id={messageRoleId}
+            className="h-full min-w-0 flex-1 rounded-none border-0 bg-transparent px-3 text-[13px] shadow-none focus:ring-1 focus:ring-inset"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {MESSAGE_ROLES.map((role) => (
+              <SelectItem key={role} value={role}>
+                {role}
+              </SelectItem>
+            ))}
+            {!MESSAGE_ROLES.includes(message.role as (typeof MESSAGE_ROLES)[number]) && (
+              <SelectItem value={message.role}>{message.role}</SelectItem>
+            )}
+          </SelectContent>
+        </Select>
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-8 w-8" onClick={onRemove}>
-                <Trash2 className="h-4 w-4" />
-              </Button>
+              <button
+                type="button"
+                onClick={onRemove}
+                aria-label="Remove message"
+                className="flex w-10 shrink-0 items-center justify-center text-muted-foreground transition-colors outline-none hover:bg-accent hover:text-foreground focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring"
+              >
+                <Trash2 className="size-4" />
+              </button>
             </TooltipTrigger>
             <TooltipContent>Remove message</TooltipContent>
           </Tooltip>
         </TooltipProvider>
       </div>
-      <div className="space-y-2">
-        <label htmlFor={messageContentId} className="sr-only">
-          Message content
-        </label>
-        <Textarea
-          id={messageContentId}
-          className="min-h-40 text-[13px]"
-          value={message.content}
-          onChange={(e) => onUpdate({ content: e.target.value })}
-          placeholder="Message content"
-        />
-      </div>
+      <label htmlFor={messageContentId} className="sr-only">
+        Message content
+      </label>
+      <Textarea
+        id={messageContentId}
+        className="block min-h-40 w-full rounded-none border-0 p-3 text-[13px] shadow-none focus-visible:ring-1 focus-visible:ring-inset"
+        value={message.content}
+        onChange={(e) => onUpdate({ content: e.target.value })}
+        placeholder="Message content"
+      />
     </div>
   );
 }
