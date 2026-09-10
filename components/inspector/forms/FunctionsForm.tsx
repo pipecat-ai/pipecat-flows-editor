@@ -107,24 +107,29 @@ export default function FunctionsForm({
           <Plus className="h-4 w-4" /> Add
         </Button>
       </div>
-      {items.map((func, i) => (
-        <FunctionItem
-          key={i}
-          ref={(el) => setFunctionRef(i, el)}
-          func={func}
-          onChange={(updates) => updateItem(i, updates)}
-          onRemove={() => removeItem(i)}
-          availableNodeIds={availableNodeIds}
-          currentNodeId={currentNodeId}
-          functionIndex={i}
-          isSelected={selectedNodeId === currentNodeId && selectedFunctionIndex === i}
-          selectedConditionIndex={
-            selectedNodeId === currentNodeId && selectedFunctionIndex === i
-              ? selectedConditionIndex
-              : null
-          }
-        />
-      ))}
+      {/* Segments run edge to edge, past the tab's padding and its scrollbar gutter. */}
+      {items.length > 0 && (
+        <div className="-ml-3 -mr-1 divide-y border-t">
+          {items.map((func, i) => (
+            <FunctionItem
+              key={i}
+              ref={(el) => setFunctionRef(i, el)}
+              func={func}
+              onChange={(updates) => updateItem(i, updates)}
+              onRemove={() => removeItem(i)}
+              availableNodeIds={availableNodeIds}
+              currentNodeId={currentNodeId}
+              functionIndex={i}
+              isSelected={selectedNodeId === currentNodeId && selectedFunctionIndex === i}
+              selectedConditionIndex={
+                selectedNodeId === currentNodeId && selectedFunctionIndex === i
+                  ? selectedConditionIndex
+                  : null
+              }
+            />
+          ))}
+        </div>
+      )}
       {items.length === 0 && (
         <div className="text-[13px] text-muted-foreground italic py-2">
           No functions. Click "Add" to create one.

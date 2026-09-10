@@ -1,8 +1,9 @@
 "use client";
 
-import { ChevronDown, ChevronRight, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import React, { useCallback, useEffect, useId, useState } from "react";
 
+import { Segment } from "@/components/inspector/Segment";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -109,178 +110,154 @@ export const FunctionItem = React.forwardRef<HTMLDivElement, FunctionItemProps>(
     };
 
     return (
-      <div
+      <Segment
         ref={ref}
-        className={`border overflow-hidden ${
-          hasInvalidTarget
-            ? "border-orange-400 dark:border-orange-500 bg-orange-50/50 dark:bg-orange-950/20"
-            : "bg-card"
-        } ${isSelected ? "ring-2 ring-sky-500 dark:ring-sky-400" : ""}`}
-      >
-        <div className="flex items-center gap-2 p-3">
-          <button
-            type="button"
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="flex items-center gap-2 flex-1 min-w-0 hover:bg-accent transition-colors -ml-1 -mr-1 px-1 py-1"
-          >
-            {isExpanded ? (
-              <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
-            ) : (
-              <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-            )}
-            <span className="text-[13px] font-medium truncate">
-              {functionName || func.name || `Function ${functionIndex + 1}`}
-            </span>
-          </button>
+        title={functionName || func.name || `Function ${functionIndex + 1}`}
+        expanded={isExpanded}
+        onToggle={() => setIsExpanded(!isExpanded)}
+        selected={isSelected}
+        invalid={hasInvalidTarget}
+        actions={
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-6 w-6 shrink-0"
+                  className="h-7 w-7 shrink-0 p-0 text-muted-foreground hover:text-foreground"
                   onClick={(e) => {
                     e.stopPropagation();
                     onRemove();
                   }}
+                  aria-label="Remove function"
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Trash2 className="size-4" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>Remove function</TooltipContent>
             </Tooltip>
           </TooltipProvider>
-        </div>
-
-        <div
-          className={`overflow-hidden transition-all duration-200 ease-in-out ${
-            isExpanded ? "max-h-[2000px] opacity-100" : "max-h-0 opacity-0"
-          }`}
-        >
-          <div className="p-4 space-y-4">
-            <div className="space-y-2">
-              <label htmlFor={functionNameId} className="text-[13px] text-muted-foreground">
-                Tool name
-              </label>
-              <Input
-                id={functionNameId}
-                className={`h-8 text-[13px] ${nameError ? "border-red-500" : ""}`}
-                value={functionName}
-                onChange={(e) => {
-                  setFunctionName(e.target.value);
-                  setNameError(null);
-                }}
-                onFocus={handleFocus}
-                onBlur={handleNameBlur}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") e.currentTarget.blur();
-                }}
-                placeholder="e.g., choose_pizza"
-              />
-              {nameError && <div className="mt-1 text-[13px] text-red-600">{nameError}</div>}
-              <div className="text-xs text-muted-foreground">
-                A direct function in the tools module. Its description and parameters come from the
-                code.
-              </div>
-            </div>
-
-            <div className="pt-3 border-t">
-              <div className="mb-2 flex items-center justify-between">
-                <label
-                  htmlFor={destinationId}
-                  className="text-[13px] font-medium text-foreground flex items-center gap-1"
-                >
-                  Transition to
-                  {hasInvalidTarget && (
-                    <span
-                      className="text-orange-600 dark:text-orange-400 text-[13px]"
-                      title="Invalid: target node was deleted"
-                    >
-                      ⚠
-                    </span>
-                  )}
-                </label>
-                {transition !== undefined && transition !== null && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 text-[13px] px-2"
-                    onClick={() => onChange({ transition_to: undefined })}
-                  >
-                    Clear
-                  </Button>
-                )}
-              </div>
-              {hasInvalidTarget && (
-                <div className="mb-2 text-[13px] text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-orange-950/40 px-2 py-1">
-                  Invalid: no node named {missingTargets.map((t) => `"${t}"`).join(", ")}
-                </div>
-              )}
-              <div
-                className="mb-2 inline-flex border text-[13px] overflow-hidden"
-                role="radiogroup"
-                aria-label="Destination kind"
-              >
-                <button
-                  type="button"
-                  role="radio"
-                  aria-checked={!branch}
-                  className={`px-2 py-1 ${!branch ? "bg-secondary" : "text-muted-foreground"}`}
-                  onClick={() => branch && switchToNode()}
-                >
-                  A node
-                </button>
-                <button
-                  type="button"
-                  role="radio"
-                  aria-checked={Boolean(branch)}
-                  className={`px-2 py-1 border-l ${branch ? "bg-secondary" : "text-muted-foreground"}`}
-                  onClick={() => !branch && switchToBranch()}
-                >
-                  Branch on the result
-                </button>
-              </div>
-              {branch ? (
-                <BranchEditor
-                  branch={branch}
-                  onChange={(next) => onChange({ transition_to: next })}
-                  availableNodeIds={availableNodeIds}
-                  currentNodeId={currentNodeId}
-                  selectedConditionIndex={selectedConditionIndex}
-                  onFocus={handleFocus}
-                />
-              ) : availableNodeIds.length > 0 ? (
-                <Select
-                  value={destination}
-                  onValueChange={(v) => onChange({ transition_to: v })}
-                  onOpenChange={(open) => {
-                    if (open) handleFocus();
-                  }}
-                >
-                  <SelectTrigger
-                    id={destinationId}
-                    className={`h-8 text-[13px] ${hasInvalidTarget ? "border-orange-400 dark:border-orange-500" : ""}`}
-                    onFocus={handleFocus}
-                  >
-                    <SelectValue placeholder="Stay on this node" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableNodeIds.map((nodeId) => (
-                      <SelectItem key={nodeId} value={nodeId}>
-                        {nodeId}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <div className="text-[13px] text-muted-foreground italic py-1">
-                  No nodes available
-                </div>
-              )}
-            </div>
+        }
+      >
+        <div className="space-y-2">
+          <label htmlFor={functionNameId} className="text-[13px] text-muted-foreground">
+            Tool name
+          </label>
+          <Input
+            id={functionNameId}
+            className={`h-8 text-[13px] ${nameError ? "border-red-500" : ""}`}
+            value={functionName}
+            onChange={(e) => {
+              setFunctionName(e.target.value);
+              setNameError(null);
+            }}
+            onFocus={handleFocus}
+            onBlur={handleNameBlur}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") e.currentTarget.blur();
+            }}
+            placeholder="e.g., choose_pizza"
+          />
+          {nameError && <div className="mt-1 text-[13px] text-red-600">{nameError}</div>}
+          <div className="text-xs text-muted-foreground">
+            A direct function in the tools module. Its description and parameters come from the
+            code.
           </div>
         </div>
-      </div>
+
+        <div className="pt-3 border-t">
+          <div className="mb-2 flex items-center justify-between">
+            <label
+              htmlFor={destinationId}
+              className="text-[13px] font-medium text-foreground flex items-center gap-1"
+            >
+              Transition to
+              {hasInvalidTarget && (
+                <span
+                  className="text-orange-600 dark:text-orange-400 text-[13px]"
+                  title="Invalid: target node was deleted"
+                >
+                  ⚠
+                </span>
+              )}
+            </label>
+            {transition !== undefined && transition !== null && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 text-[13px] px-2"
+                onClick={() => onChange({ transition_to: undefined })}
+              >
+                Clear
+              </Button>
+            )}
+          </div>
+          {hasInvalidTarget && (
+            <div className="mb-2 text-[13px] text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-orange-950/40 px-2 py-1">
+              Invalid: no node named {missingTargets.map((t) => `"${t}"`).join(", ")}
+            </div>
+          )}
+          <div
+            className="mb-2 inline-flex border text-[13px] overflow-hidden"
+            role="radiogroup"
+            aria-label="Destination kind"
+          >
+            <button
+              type="button"
+              role="radio"
+              aria-checked={!branch}
+              className={`px-2 py-1 ${!branch ? "bg-secondary" : "text-muted-foreground"}`}
+              onClick={() => branch && switchToNode()}
+            >
+              A node
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={Boolean(branch)}
+              className={`px-2 py-1 border-l ${branch ? "bg-secondary" : "text-muted-foreground"}`}
+              onClick={() => !branch && switchToBranch()}
+            >
+              Branch on the result
+            </button>
+          </div>
+          {branch ? (
+            <BranchEditor
+              branch={branch}
+              onChange={(next) => onChange({ transition_to: next })}
+              availableNodeIds={availableNodeIds}
+              currentNodeId={currentNodeId}
+              selectedConditionIndex={selectedConditionIndex}
+              onFocus={handleFocus}
+            />
+          ) : availableNodeIds.length > 0 ? (
+            <Select
+              value={destination}
+              onValueChange={(v) => onChange({ transition_to: v })}
+              onOpenChange={(open) => {
+                if (open) handleFocus();
+              }}
+            >
+              <SelectTrigger
+                id={destinationId}
+                className={`h-8 text-[13px] ${hasInvalidTarget ? "border-orange-400 dark:border-orange-500" : ""}`}
+                onFocus={handleFocus}
+              >
+                <SelectValue placeholder="Stay on this node" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableNodeIds.map((nodeId) => (
+                  <SelectItem key={nodeId} value={nodeId}>
+                    {nodeId}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <div className="text-[13px] text-muted-foreground italic py-1">No nodes available</div>
+          )}
+        </div>
+      </Segment>
     );
   }
 );

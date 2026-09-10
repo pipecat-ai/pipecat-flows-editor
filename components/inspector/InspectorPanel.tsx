@@ -253,7 +253,7 @@ export default function InspectorPanel({
           value="general"
           className="flex-1 overflow-y-auto min-h-0 space-y-3 pr-1 mt-0 pb-4"
         >
-          <div className="border-t pt-3 space-y-3">
+          <div className="pt-3 space-y-3">
             <div>
               <label
                 htmlFor="node-label"
@@ -309,7 +309,7 @@ export default function InspectorPanel({
           value="messages"
           className="flex-1 overflow-y-auto min-h-0 space-y-3 pr-1 mt-0 pb-4"
         >
-          <div className="border-t pt-3">
+          <div className="pt-3">
             <MessagesForm
               label="Task Messages"
               tag="required"
@@ -343,7 +343,7 @@ export default function InspectorPanel({
         </TabsContent>
 
         <TabsContent value="functions" className="flex-1 overflow-y-auto min-h-0 pr-1 mt-0 pb-4">
-          <div className="border-t pt-3">
+          <div className="pt-3">
             <FunctionsForm
               functions={data?.functions}
               onChange={(funcs) => update({ functions: funcs })}
@@ -357,7 +357,7 @@ export default function InspectorPanel({
           value="actions"
           className="flex-1 overflow-y-auto min-h-0 space-y-3 pr-1 mt-0 pb-4"
         >
-          <div className="border-t pt-3">
+          <div className="pt-3">
             <ActionsForm
               label="Pre Actions"
               actions={data?.pre_actions}

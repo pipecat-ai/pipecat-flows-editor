@@ -119,22 +119,26 @@ export default function FlowPanel({ nodes, onCollapse }: Props) {
             </Button>
           </div>
           <div className="text-xs text-muted-foreground">Tools offered at every node.</div>
-          {globalFunctions.map((fn, i) => (
-            <div key={i} onFocusCapture={() => setSelectedGlobal(i)}>
-              <FunctionItem
-                func={fn}
-                onChange={(updates) => updateGlobal(i, updates)}
-                onRemove={() => {
-                  setGlobalFunctions(globalFunctions.filter((_, j) => j !== i));
-                  setSelectedGlobal(null);
-                }}
-                availableNodeIds={availableNodeIds}
-                functionIndex={i}
-                isSelected={selectedGlobal === i}
-                selectedConditionIndex={null}
-              />
+          {globalFunctions.length > 0 && (
+            <div className="-mx-3 divide-y border-t">
+              {globalFunctions.map((fn, i) => (
+                <div key={i} onFocusCapture={() => setSelectedGlobal(i)}>
+                  <FunctionItem
+                    func={fn}
+                    onChange={(updates) => updateGlobal(i, updates)}
+                    onRemove={() => {
+                      setGlobalFunctions(globalFunctions.filter((_, j) => j !== i));
+                      setSelectedGlobal(null);
+                    }}
+                    availableNodeIds={availableNodeIds}
+                    functionIndex={i}
+                    isSelected={selectedGlobal === i}
+                    selectedConditionIndex={null}
+                  />
+                </div>
+              ))}
             </div>
-          ))}
+          )}
           {globalFunctions.length === 0 && (
             <div className="text-[13px] text-muted-foreground italic py-2">
               No global functions.
