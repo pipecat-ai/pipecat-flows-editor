@@ -95,7 +95,7 @@ export default function YamlPanel({ text, problems, onChange }: Props) {
         }`}
       >
         <div
-          className="absolute top-0 left-0 right-0 h-1 cursor-ns-resize hover:bg-sky-500 bg-transparent z-20"
+          className="absolute top-0 left-0 right-0 h-1 cursor-ns-resize hover:bg-brand bg-transparent z-20"
           onMouseDown={handleResizeStart}
         />
         <div className="flex items-center justify-between border-b px-3 py-2 text-xs shrink-0">
@@ -123,7 +123,7 @@ export default function YamlPanel({ text, problems, onChange }: Props) {
 const MARKER_OWNER = "flow-config";
 
 /*
- * Monaco in the app's palette: the card surface with zinc chrome and a sky
+ * Monaco in the app's palette: the card surface with zinc chrome and a brand
  * cursor, and tokens in the GitHub Light and Dark colors pipecat.ai uses for
  * its code blocks. Hex stands in for the oklch zinc scale, which Monaco
  * cannot read.
@@ -141,7 +141,7 @@ const zinc = {
   900: "#18181b",
   950: "#09090b",
 };
-const sky = { 400: "#38bdf8", 500: "#0ea5e9" };
+const brand = { primary: "#4f46e5", light: "#a5b4fc" };
 
 /* GitHub's syntax colors for YAML: keys, strings, constants, comments. */
 const github = {
@@ -183,7 +183,7 @@ function defineThemes(monaco: Monaco) {
       "editor.lineHighlightBorder": "#00000000",
       "editor.selectionBackground": zinc[200],
       "editor.inactiveSelectionBackground": zinc[100],
-      "editorCursor.foreground": sky[500],
+      "editorCursor.foreground": brand.primary,
       "editorIndentGuide.background1": zinc[200],
       "editorIndentGuide.activeBackground1": zinc[300],
       "editorWidget.background": "#ffffff",
@@ -210,7 +210,7 @@ function defineThemes(monaco: Monaco) {
       "editor.lineHighlightBorder": "#00000000",
       "editor.selectionBackground": zinc[700],
       "editor.inactiveSelectionBackground": zinc[800],
-      "editorCursor.foreground": sky[400],
+      "editorCursor.foreground": brand.light,
       "editorIndentGuide.background1": zinc[800],
       "editorIndentGuide.activeBackground1": zinc[700],
       "editorWidget.background": zinc[900],

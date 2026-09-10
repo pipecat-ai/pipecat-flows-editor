@@ -85,7 +85,7 @@ export default function BaseNode({ id, data, selected, type }: NodeProps<ConfigC
   return (
     <div
       className={`relative rounded-lg border bg-card text-xs ${
-        selected ? "border-sky-500 ring-1 ring-sky-500" : "border-accent-line"
+        selected ? "border-brand ring-1 ring-brand" : "border-accent-line"
       }`}
       style={{ width: NODE_CARD.width }}
       onMouseOver={() => setHovering(true)}
@@ -237,7 +237,7 @@ function ActionLines({
 }
 
 const ROW_CLASS = "group relative flex items-center gap-1.5 pr-4";
-const SELECTED_ROW_CLASS = "bg-sky-500/10";
+const SELECTED_ROW_CLASS = "bg-brand/10";
 const MISSING_CLASS = "text-orange-600 dark:text-orange-400";
 
 function FunctionRows({
@@ -289,10 +289,10 @@ function FunctionRows({
     return (
       // The branch as a group: a tinted band behind the function and its
       // cases, and a guide line down from the fork icon past the case rows.
-      <div className="relative bg-sky-500/5 dark:bg-sky-400/5">
+      <div className="relative bg-brand/5">
         <span
           aria-hidden
-          className="absolute w-px bg-sky-500/40"
+          className="absolute w-px bg-brand/40"
           style={{
             left: 15,
             top: NODE_CARD.rowHeight,
@@ -301,7 +301,7 @@ function FunctionRows({
         />
         <Row
           label={nameText}
-          icon={<Split className="h-[13px] w-[13px] shrink-0 text-sky-600 dark:text-sky-400" />}
+          icon={<Split className="h-[13px] w-[13px] shrink-0 text-brand" />}
           selected={selectedCase === "function"}
           onClick={() => select(null)}
           onRemove={removeFunction}
@@ -482,7 +482,7 @@ function Row({
           type="source"
           id={handle}
           position={Position.Right}
-          className="bg-accent-line! h-2.5! w-2.5! hover:bg-sky-500! hover:scale-125 transition-transform"
+          className="bg-accent-line! h-2.5! w-2.5! hover:bg-brand! hover:scale-125 transition-transform"
           style={{ top: "50%" }}
         />
       )}

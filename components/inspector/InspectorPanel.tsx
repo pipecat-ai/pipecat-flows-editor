@@ -132,7 +132,7 @@ export default function InspectorPanel({
         style={{ width: `${inspectorPanelWidth}px`, maxWidth: "min(100vw, 800px)" }}
       >
         <div
-          className="absolute left-0 top-0 bottom-0 w-1 cursor-ew-resize hover:bg-sky-500 bg-transparent z-20"
+          className="absolute left-0 top-0 bottom-0 w-1 cursor-ew-resize hover:bg-brand bg-transparent z-20"
           onMouseDown={handleResizeStart}
           aria-label="Resize inspector panel"
           role="separator"
@@ -152,7 +152,7 @@ export default function InspectorPanel({
     >
       {/* Resize handle */}
       <div
-        className="absolute left-0 top-0 bottom-0 w-1 cursor-ew-resize hover:bg-sky-500 bg-transparent z-20"
+        className="absolute left-0 top-0 bottom-0 w-1 cursor-ew-resize hover:bg-brand bg-transparent z-20"
         onMouseDown={handleResizeStart}
         aria-label="Resize inspector panel"
         role="separator"

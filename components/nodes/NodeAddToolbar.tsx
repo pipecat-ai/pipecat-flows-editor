@@ -99,7 +99,7 @@ export default function NodeAddToolbar({ visible, onAdd, title }: Props) {
         trigger={
           <button
             type="button"
-            className="nodrag nopan flex h-8 w-8 items-center justify-center rounded-lg border border-accent-line bg-card text-muted-foreground hover:border-sky-500 hover:text-sky-600 dark:hover:text-sky-400"
+            className="nodrag nopan flex h-8 w-8 items-center justify-center rounded-lg border border-accent-line bg-card text-muted-foreground hover:border-brand hover:text-brand"
             title={title}
             aria-label={title}
           >

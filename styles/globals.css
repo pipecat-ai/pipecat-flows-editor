@@ -27,6 +27,12 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-accent-line: var(--accent-line);
   --color-accent-line-soft: var(--accent-line-soft);
+  /* The brand indigo: primary, and its light and dark tints. `brand` follows
+     the theme, primary on light and the light tint on dark. */
+  --color-brand: var(--brand);
+  --color-brand-primary: #4f46e5;
+  --color-brand-light: #a5b4fc;
+  --color-brand-dark: #312e81;
   --color-destructive: var(--destructive);
   --color-border: var(--border);
   --color-input: var(--input);
@@ -39,9 +45,8 @@
 /*
  * Semantic color tokens, on the Tailwind zinc scale, matching pipecat.ai so
  * the editor and the site read as one product. Components use the semantic
- * utilities (bg-background, border-border, ...) or zinc-* directly; sky is
- * the one non-gray accent, for selection and links, as it is the site's
- * voice-assistant accent.
+ * utilities (bg-background, border-border, ...) or zinc-* directly; the
+ * brand indigo is the one non-gray accent, for selection and links.
  */
 :root {
   --radius: 0.5rem;
@@ -61,6 +66,7 @@
   --accent-foreground: var(--color-zinc-950);
   --accent-line: var(--color-zinc-400);
   --accent-line-soft: var(--color-zinc-300);
+  --brand: var(--color-brand-primary);
   --destructive: oklch(0.577 0.245 27.325);
   --border: var(--color-zinc-200);
   --input: var(--color-zinc-200);
@@ -87,6 +93,7 @@
   --accent-foreground: var(--color-zinc-50);
   --accent-line: var(--color-zinc-600);
   --accent-line-soft: var(--color-zinc-700);
+  --brand: var(--color-brand-light);
   --destructive: oklch(0.704 0.191 22.216);
   --border: var(--color-zinc-800);
   --input: var(--color-zinc-800);
@@ -161,7 +168,7 @@
      never exposes a different shade. */
   --xy-background-color: var(--background);
   --xy-edge-stroke: var(--accent-line);
-  --xy-edge-stroke-selected: var(--color-sky-500);
+  --xy-edge-stroke-selected: var(--brand);
   /* Dots one step darker in light mode, where the soft line is too faint on zinc-50. */
   --xy-background-pattern-color: var(--accent-line);
   --xy-controls-button-background-color: var(--card);

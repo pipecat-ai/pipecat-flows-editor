@@ -26,7 +26,7 @@ export const Segment = React.forwardRef<HTMLDivElement, SegmentProps>(function S
   ref
 ) {
   const edge = selected
-    ? "border-l-sky-500"
+    ? "border-l-brand"
     : invalid
       ? "border-l-orange-500"
       : "border-l-transparent";

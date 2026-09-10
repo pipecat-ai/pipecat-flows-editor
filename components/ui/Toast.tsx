@@ -60,7 +60,7 @@ export default function ToastContainer() {
               ? "border-l-red-500"
               : toast.type === "success"
                 ? "border-l-green-500"
-                : "border-l-sky-500"
+                : "border-l-brand"
           }`}
         >
           {toast.message}
