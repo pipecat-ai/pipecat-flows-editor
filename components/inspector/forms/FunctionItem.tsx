@@ -114,14 +114,14 @@ export const FunctionItem = React.forwardRef<HTMLDivElement, FunctionItemProps>(
         className={`rounded-lg border overflow-hidden ${
           hasInvalidTarget
             ? "border-orange-400 dark:border-orange-500 bg-orange-50/50 dark:bg-orange-950/20"
-            : "bg-white dark:bg-neutral-900"
-        } ${isSelected ? "ring-2 ring-blue-500 dark:ring-blue-400" : ""}`}
+            : "bg-white dark:bg-zinc-900"
+        } ${isSelected ? "ring-2 ring-sky-500 dark:ring-sky-400" : ""}`}
       >
         <div className="flex items-center gap-2 p-3">
           <button
             type="button"
             onClick={() => setIsExpanded(!isExpanded)}
-            className="flex items-center gap-2 flex-1 min-w-0 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors -ml-1 -mr-1 px-1 py-1 rounded"
+            className="flex items-center gap-2 flex-1 min-w-0 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors -ml-1 -mr-1 px-1 py-1 rounded"
           >
             {isExpanded ? (
               <ChevronDown className="h-4 w-4 opacity-60 shrink-0" />
@@ -184,7 +184,7 @@ export const FunctionItem = React.forwardRef<HTMLDivElement, FunctionItemProps>(
               </div>
             </div>
 
-            <div className="pt-3 border-t border-neutral-200 dark:border-neutral-700">
+            <div className="pt-3 border-t border-zinc-200 dark:border-zinc-700">
               <div className="mb-2 flex items-center justify-between">
                 <label
                   htmlFor={destinationId}
@@ -225,7 +225,7 @@ export const FunctionItem = React.forwardRef<HTMLDivElement, FunctionItemProps>(
                   type="button"
                   role="radio"
                   aria-checked={!branch}
-                  className={`px-2 py-1 ${!branch ? "bg-neutral-200 dark:bg-neutral-700" : "opacity-70"}`}
+                  className={`px-2 py-1 ${!branch ? "bg-zinc-200 dark:bg-zinc-700" : "opacity-70"}`}
                   onClick={() => branch && switchToNode()}
                 >
                   A node
@@ -234,7 +234,7 @@ export const FunctionItem = React.forwardRef<HTMLDivElement, FunctionItemProps>(
                   type="button"
                   role="radio"
                   aria-checked={Boolean(branch)}
-                  className={`px-2 py-1 border-l ${branch ? "bg-neutral-200 dark:bg-neutral-700" : "opacity-70"}`}
+                  className={`px-2 py-1 border-l ${branch ? "bg-zinc-200 dark:bg-zinc-700" : "opacity-70"}`}
                   onClick={() => !branch && switchToBranch()}
                 >
                   Branch on the result

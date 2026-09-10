@@ -143,7 +143,7 @@ export default function Toolbar({
           <FilePlusCorner className="h-4 w-4" />
           <span className="sr-only lg:not-sr-only">New Flow</span>
         </Button>
-        <div className="w-px bg-neutral-300 dark:bg-neutral-700" />
+        <div className="w-px bg-zinc-300 dark:bg-zinc-700" />
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
@@ -178,7 +178,7 @@ export default function Toolbar({
             <p>Redo (Cmd/Ctrl+Shift+Z)</p>
           </TooltipContent>
         </Tooltip>
-        <div className="w-px bg-neutral-300 dark:bg-neutral-700" />
+        <div className="w-px bg-zinc-300 dark:bg-zinc-700" />
         <Input
           ref={inputRef}
           type="file"
@@ -247,7 +247,7 @@ export default function Toolbar({
               <LayoutGrid className="mr-2 h-4 w-4" />
               Layout
             </DropdownMenuItem>
-            <div className="my-1 h-px bg-neutral-200 dark:bg-neutral-700" />
+            <div className="my-1 h-px bg-zinc-200 dark:bg-zinc-700" />
             {EXAMPLES.map((example) => (
               <DropdownMenuItem key={example.id} onClick={() => onLoadExample(example)}>
                 <FileText className="mr-2 h-4 w-4" />
@@ -274,9 +274,9 @@ export default function Toolbar({
             ))}
           </DropdownMenuContent>
         </DropdownMenu>
-        <div className="w-px bg-neutral-300 dark:bg-neutral-700" />
+        <div className="w-px bg-zinc-300 dark:bg-zinc-700" />
         <ThemeSwitch />
-        <div className="hidden md:block w-px bg-neutral-300 dark:bg-neutral-700" />
+        <div className="hidden md:block w-px bg-zinc-300 dark:bg-zinc-700" />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="secondary" size="sm" className="hidden md:flex gap-1.5">

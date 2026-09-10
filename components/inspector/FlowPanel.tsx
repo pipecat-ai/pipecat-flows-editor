@@ -83,7 +83,7 @@ export default function FlowPanel({ nodes, onCollapse }: Props) {
       </div>
 
       <div className="flex-1 overflow-y-auto min-h-0 space-y-4 px-3 pb-4">
-        <section className="rounded-lg border bg-neutral-50/50 dark:bg-neutral-900/30 p-3 space-y-2">
+        <section className="rounded-lg border bg-zinc-50/50 dark:bg-zinc-900/30 p-3 space-y-2">
           <label htmlFor={nameId} className="block text-xs font-medium opacity-80">
             Name
           </label>
@@ -104,7 +104,7 @@ export default function FlowPanel({ nodes, onCollapse }: Props) {
           <div className="text-[11px] opacity-50">The file the flow saves as.</div>
         </section>
 
-        <section className="rounded-lg border bg-neutral-50/50 dark:bg-neutral-900/30 p-3 space-y-3">
+        <section className="rounded-lg border bg-zinc-50/50 dark:bg-zinc-900/30 p-3 space-y-3">
           <div className="flex items-center justify-between">
             <div className="text-xs font-medium opacity-80">Global functions</div>
             <Button
@@ -141,7 +141,7 @@ export default function FlowPanel({ nodes, onCollapse }: Props) {
           )}
         </section>
 
-        <section className="rounded-lg border bg-neutral-50/50 dark:bg-neutral-900/30 p-3 space-y-2">
+        <section className="rounded-lg border bg-zinc-50/50 dark:bg-zinc-900/30 p-3 space-y-2">
           <div className="text-xs font-medium opacity-80">
             Issues
             {issues.length > 0 && <span className="ml-1 opacity-60">· {issues.length}</span>}
@@ -222,7 +222,7 @@ function ReferenceList({
   };
 
   return (
-    <section className="rounded-lg border bg-neutral-50/50 dark:bg-neutral-900/30 p-3 space-y-2">
+    <section className="rounded-lg border bg-zinc-50/50 dark:bg-zinc-900/30 p-3 space-y-2">
       <div className="flex items-center justify-between">
         <div className="text-xs font-medium opacity-80">
           {title}

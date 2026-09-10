@@ -59,14 +59,14 @@ export default function YamlPanel({ text, problems, onChange }: Props) {
   return (
     <>
       <div
-        className={`fixed bottom-0 left-0 right-0 z-50 border-t bg-white dark:bg-neutral-900 overflow-hidden ${
+        className={`fixed bottom-0 left-0 right-0 z-50 border-t bg-white dark:bg-zinc-900 overflow-hidden ${
           isResizing ? "" : "transition-transform duration-300 ease-in-out"
         } ${showYaml ? "translate-y-0" : "translate-y-full pointer-events-none"}`}
         style={{ height: `${height}px` }}
       >
         <div className="relative h-full flex flex-col pointer-events-auto">
           <div
-            className="absolute top-0 left-0 right-0 h-1 cursor-ns-resize hover:bg-blue-500 bg-transparent z-60 pointer-events-auto"
+            className="absolute top-0 left-0 right-0 h-1 cursor-ns-resize hover:bg-sky-500 bg-transparent z-60 pointer-events-auto"
             onMouseDown={handleResizeStart}
           />
           <div className="flex items-center justify-between border-b px-3 py-2 text-xs shrink-0">
@@ -77,7 +77,7 @@ export default function YamlPanel({ text, problems, onChange }: Props) {
                   ? "text-red-600 dark:text-red-400"
                   : warnings > 0
                     ? "text-orange-600 dark:text-orange-400"
-                    : "text-neutral-500"
+                    : "text-zinc-500"
               }
             >
               {status}

@@ -121,7 +121,7 @@ export default function InspectorPanel({
         style={{ width: `${inspectorPanelWidth}px`, maxWidth: "min(100vw, 800px)" }}
       >
         <div
-          className="absolute left-0 top-0 bottom-0 w-1 cursor-ew-resize hover:bg-blue-500 bg-transparent z-20"
+          className="absolute left-0 top-0 bottom-0 w-1 cursor-ew-resize hover:bg-sky-500 bg-transparent z-20"
           onMouseDown={handleResizeStart}
           aria-label="Resize inspector panel"
           role="separator"
@@ -141,7 +141,7 @@ export default function InspectorPanel({
     >
       {/* Resize handle */}
       <div
-        className="absolute left-0 top-0 bottom-0 w-1 cursor-ew-resize hover:bg-blue-500 bg-transparent z-20"
+        className="absolute left-0 top-0 bottom-0 w-1 cursor-ew-resize hover:bg-sky-500 bg-transparent z-20"
         onMouseDown={handleResizeStart}
         aria-label="Resize inspector panel"
         role="separator"
@@ -242,7 +242,7 @@ export default function InspectorPanel({
           value="general"
           className="flex-1 overflow-y-auto min-h-0 space-y-4 pr-1 mt-0 pb-4"
         >
-          <div className="rounded-lg border bg-neutral-50/50 dark:bg-neutral-900/30 p-3 space-y-3">
+          <div className="rounded-lg border bg-zinc-50/50 dark:bg-zinc-900/30 p-3 space-y-3">
             <div>
               <label htmlFor="node-label" className="block mb-1 text-xs font-medium opacity-80">
                 Name
@@ -268,7 +268,7 @@ export default function InspectorPanel({
                 </div>
               </div>
             )}
-            <div className="flex items-center space-x-2 pt-2 border-t border-neutral-200 dark:border-neutral-700">
+            <div className="flex items-center space-x-2 pt-2 border-t border-zinc-200 dark:border-zinc-700">
               <Checkbox
                 id="respond_immediately"
                 checked={data?.respond_immediately !== false}
@@ -283,7 +283,7 @@ export default function InspectorPanel({
               </label>
             </div>
           </div>
-          <div className="rounded-lg border bg-neutral-50/50 dark:bg-neutral-900/30 p-3">
+          <div className="rounded-lg border bg-zinc-50/50 dark:bg-zinc-900/30 p-3">
             <ContextStrategyForm
               value={data?.context_strategy}
               onChange={(strategy) => update({ context_strategy: strategy })}
@@ -295,7 +295,7 @@ export default function InspectorPanel({
           value="messages"
           className="flex-1 overflow-y-auto min-h-0 space-y-4 pr-1 mt-0 pb-4"
         >
-          <div className="rounded-lg border bg-neutral-50/50 dark:bg-neutral-900/30 p-3 space-y-2">
+          <div className="rounded-lg border bg-zinc-50/50 dark:bg-zinc-900/30 p-3 space-y-2">
             <label htmlFor="node-role-message" className="block text-xs opacity-60">
               Role Message
             </label>
@@ -311,7 +311,7 @@ export default function InspectorPanel({
               node covers the whole flow.
             </div>
           </div>
-          <div className="rounded-lg border bg-neutral-50/50 dark:bg-neutral-900/30 p-3">
+          <div className="rounded-lg border bg-zinc-50/50 dark:bg-zinc-900/30 p-3">
             <MessagesForm
               label="Task Messages"
               messages={data?.task_messages}
@@ -321,7 +321,7 @@ export default function InspectorPanel({
         </TabsContent>
 
         <TabsContent value="functions" className="flex-1 overflow-y-auto min-h-0 pr-1 mt-0 pb-4">
-          <div className="rounded-lg border bg-neutral-50/50 dark:bg-neutral-900/30 p-3">
+          <div className="rounded-lg border bg-zinc-50/50 dark:bg-zinc-900/30 p-3">
             <FunctionsForm
               functions={data?.functions}
               onChange={(funcs) => update({ functions: funcs })}
@@ -335,14 +335,14 @@ export default function InspectorPanel({
           value="actions"
           className="flex-1 overflow-y-auto min-h-0 space-y-4 pr-1 mt-0 pb-4"
         >
-          <div className="rounded-lg border bg-neutral-50/50 dark:bg-neutral-900/30 p-3">
+          <div className="rounded-lg border bg-zinc-50/50 dark:bg-zinc-900/30 p-3">
             <ActionsForm
               label="Pre Actions"
               actions={data?.pre_actions}
               onChange={(actions) => update({ pre_actions: actions })}
             />
           </div>
-          <div className="rounded-lg border bg-neutral-50/50 dark:bg-neutral-900/30 p-3">
+          <div className="rounded-lg border bg-zinc-50/50 dark:bg-zinc-900/30 p-3">
             <ActionsForm
               label="Post Actions"
               actions={data?.post_actions}
@@ -352,7 +352,7 @@ export default function InspectorPanel({
         </TabsContent>
       </Tabs>
 
-      <div className="border-t border-neutral-200 dark:border-neutral-700 px-3 py-2 shrink-0">
+      <div className="border-t border-zinc-200 dark:border-zinc-700 px-3 py-2 shrink-0">
         <Button
           variant="ghost"
           size="sm"
@@ -371,7 +371,7 @@ export default function InspectorPanel({
             showYaml ? "max-h-[500px] opacity-100 mt-2" : "max-h-0 opacity-0"
           }`}
         >
-          <div className="rounded-lg border bg-neutral-50/50 dark:bg-neutral-900/30 p-3">
+          <div className="rounded-lg border bg-zinc-50/50 dark:bg-zinc-900/30 p-3">
             <div className="mb-2 flex items-center justify-between">
               <div className="text-xs font-medium opacity-80">
                 <code>{id}</code> as YAML

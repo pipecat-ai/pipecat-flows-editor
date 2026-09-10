@@ -63,7 +63,7 @@ export function DestinationMenu({
             <Icon className="mt-0.5 h-4 w-4 shrink-0" />
             <span className="flex flex-col">
               <span>{label}</span>
-              <span className="text-[11px] text-neutral-500">{description}</span>
+              <span className="text-[11px] text-zinc-500">{description}</span>
             </span>
           </DropdownMenuItem>
         ))}
@@ -99,7 +99,7 @@ export default function NodeAddToolbar({ visible, onAdd, title }: Props) {
         trigger={
           <button
             type="button"
-            className="nodrag nopan flex h-8 w-8 items-center justify-center rounded-md border border-neutral-300 bg-white text-neutral-600 shadow-sm hover:border-blue-500 hover:text-blue-600 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-300"
+            className="nodrag nopan flex h-8 w-8 items-center justify-center rounded-md border border-zinc-300 bg-white text-zinc-600 shadow-sm hover:border-sky-500 hover:text-sky-600 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
             title={title}
             aria-label={title}
           >

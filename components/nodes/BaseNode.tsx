@@ -68,8 +68,8 @@ export default function BaseNode({ id, data, selected, type }: NodeProps<ConfigC
 
   return (
     <div
-      className={`relative rounded-lg border-2 bg-white text-xs shadow-sm dark:bg-neutral-800 ${
-        selected ? "border-blue-500" : "border-neutral-300 dark:border-neutral-600"
+      className={`relative rounded-lg border-2 bg-white text-xs shadow-sm dark:bg-zinc-800 ${
+        selected ? "border-sky-500" : "border-zinc-300 dark:border-zinc-600"
       }`}
       style={{ width: NODE_CARD.width }}
       onMouseOver={() => setHovering(true)}
@@ -78,20 +78,20 @@ export default function BaseNode({ id, data, selected, type }: NodeProps<ConfigC
       <Handle
         type="target"
         position={Position.Left}
-        className="bg-neutral-400! h-2.5! w-2.5!"
+        className="bg-zinc-400! h-2.5! w-2.5!"
         style={{ top: NODE_CARD.headerHeight / 2 }}
       />
       <div
         className={`flex items-center gap-1.5 px-2.5 text-[13px] font-semibold ${
-          functions.length > 0 ? "border-b border-neutral-200 dark:border-neutral-700" : ""
+          functions.length > 0 ? "border-b border-zinc-200 dark:border-zinc-700" : ""
         }`}
         style={{ height: NODE_CARD.headerHeight }}
       >
         {isInitialNode && (
-          <Play className="h-[13px] w-[13px] text-neutral-400 dark:text-neutral-500 shrink-0" />
+          <Play className="h-[13px] w-[13px] text-zinc-400 dark:text-zinc-500 shrink-0" />
         )}
         {isEndNode && (
-          <LogOut className="h-[13px] w-[13px] text-neutral-400 dark:text-neutral-500 shrink-0" />
+          <LogOut className="h-[13px] w-[13px] text-zinc-400 dark:text-zinc-500 shrink-0" />
         )}
         <InlineText
           value={data.label || id}
@@ -135,7 +135,7 @@ export default function BaseNode({ id, data, selected, type }: NodeProps<ConfigC
           type="source"
           id={NEW_FUNCTION_HANDLE}
           position={Position.Bottom}
-          className="bg-neutral-400!"
+          className="bg-zinc-400!"
           title="Drag to a node to add a function leading there"
         />
       )}
@@ -165,7 +165,7 @@ export default function BaseNode({ id, data, selected, type }: NodeProps<ConfigC
 }
 
 const ROW_CLASS = "group relative flex items-center gap-1.5 pr-4";
-const SELECTED_ROW_CLASS = "bg-blue-50 dark:bg-blue-950/40";
+const SELECTED_ROW_CLASS = "bg-sky-50 dark:bg-sky-950/40";
 const MISSING_CLASS = "text-orange-600 dark:text-orange-400";
 
 function FunctionRows({
@@ -205,7 +205,7 @@ function FunctionRows({
         actions?.renameFunction(nodeId, functionIndex, name);
       }}
       onCancel={() => setEditing(null)}
-      className={`font-mono ${fn.name ? "" : "italic text-neutral-400"}`}
+      className={`font-mono ${fn.name ? "" : "italic text-zinc-400"}`}
       ariaLabel="Tool name"
       maxChars={NAME_LIMITS.tool}
     />
@@ -217,10 +217,10 @@ function FunctionRows({
     return (
       // The branch as a group: a tinted band behind the function and its
       // cases, and a guide line down from the fork icon past the case rows.
-      <div className="relative bg-purple-500/5 dark:bg-purple-400/5">
+      <div className="relative bg-sky-500/5 dark:bg-sky-400/5">
         <span
           aria-hidden
-          className="absolute w-px bg-purple-300 dark:bg-purple-700"
+          className="absolute w-px bg-sky-300 dark:bg-sky-700"
           style={{
             left: 15,
             top: NODE_CARD.rowHeight,
@@ -229,16 +229,14 @@ function FunctionRows({
         />
         <Row
           label={nameText}
-          icon={
-            <Split className="h-[13px] w-[13px] shrink-0 text-purple-600 dark:text-purple-400" />
-          }
+          icon={<Split className="h-[13px] w-[13px] shrink-0 text-sky-600 dark:text-sky-400" />}
           selected={selectedCase === "function"}
           onClick={() => select(null)}
           onRemove={removeFunction}
           removeTitle="Remove this function and its branch"
           trailing={
             <span
-              className="flex max-w-[45%] shrink-0 items-center gap-1 text-neutral-500"
+              className="flex max-w-[45%] shrink-0 items-center gap-1 text-zinc-500"
               title="The field of the tool result the branch keys on"
             >
               <ArrowRight className="h-[13px] w-[13px] shrink-0" />
@@ -252,7 +250,7 @@ function FunctionRows({
                   actions?.setBranchField(nodeId, functionIndex, field.trim());
                 }}
                 onCancel={() => setEditing(null)}
-                className={`font-mono ${transition.field ? "" : "italic text-neutral-400"}`}
+                className={`font-mono ${transition.field ? "" : "italic text-zinc-400"}`}
                 ariaLabel="Branch field"
                 maxChars={NAME_LIMITS.field}
               />
@@ -322,7 +320,7 @@ function FunctionRows({
   }
 
   const target = typeof transition === "string" ? transition : null;
-  const iconClass = "h-[13px] w-[13px] shrink-0 text-neutral-400";
+  const iconClass = "h-[13px] w-[13px] shrink-0 text-zinc-400";
   const icon =
     target === null ? (
       <Wrench className={iconClass} />
@@ -376,7 +374,7 @@ function Row({
   return (
     <div
       className={`${ROW_CLASS} ${indent ? "pl-7" : "pl-2.5"} ${selected ? SELECTED_ROW_CLASS : ""} ${
-        muted ? "text-neutral-500" : ""
+        muted ? "text-zinc-500" : ""
       }`}
       style={{ height: NODE_CARD.rowHeight }}
       title={title}
@@ -394,7 +392,7 @@ function Row({
       {onRemove ? (
         <button
           type="button"
-          className="nodrag nopan shrink-0 rounded p-0.5 text-neutral-400 opacity-0 hover:text-red-600 group-hover:opacity-100"
+          className="nodrag nopan shrink-0 rounded p-0.5 text-zinc-400 opacity-0 hover:text-red-600 group-hover:opacity-100"
           title={removeTitle}
           aria-label={removeTitle}
           onClick={(e) => {
@@ -412,7 +410,7 @@ function Row({
           type="source"
           id={handle}
           position={Position.Right}
-          className="bg-neutral-400! h-2.5! w-2.5! hover:bg-blue-500! hover:scale-125 transition-transform"
+          className="bg-zinc-400! h-2.5! w-2.5! hover:bg-sky-500! hover:scale-125 transition-transform"
           style={{ top: "50%" }}
         />
       )}

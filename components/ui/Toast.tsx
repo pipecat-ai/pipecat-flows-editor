@@ -48,7 +48,7 @@ export default function ToastContainer() {
               ? "border-red-400 bg-red-50 text-red-900 dark:bg-red-950 dark:text-red-100"
               : toast.type === "success"
                 ? "border-green-400 bg-green-50 text-green-900 dark:bg-green-950 dark:text-green-100"
-                : "border-blue-400 bg-blue-50 text-blue-900 dark:bg-blue-950 dark:text-blue-100"
+                : "border-sky-400 bg-sky-50 text-sky-900 dark:bg-sky-950 dark:text-sky-100"
           }`}
         >
           {toast.message}

@@ -72,7 +72,7 @@ export default function InlineText({
   return (
     <input
       ref={inputRef}
-      className={`nodrag nopan min-w-0 flex-1 rounded border border-blue-500 bg-white px-1 py-0 text-inherit outline-none dark:bg-neutral-900 ${className}`}
+      className={`nodrag nopan min-w-0 flex-1 rounded border border-sky-500 bg-white px-1 py-0 text-inherit outline-none dark:bg-zinc-900 ${className}`}
       value={draft}
       placeholder={placeholder}
       aria-label={ariaLabel}

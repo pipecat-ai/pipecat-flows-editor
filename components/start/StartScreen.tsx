@@ -78,7 +78,7 @@ export default function StartScreen({ onOpenFlow, onStartFromScratch, onDismiss 
 
   return (
     <div
-      className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 bg-neutral-50 p-6 dark:bg-neutral-950"
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 bg-zinc-50 p-6 dark:bg-zinc-950"
       role="dialog"
       aria-modal="true"
       aria-label="Start a flow"
@@ -99,7 +99,7 @@ export default function StartScreen({ onOpenFlow, onStartFromScratch, onDismiss 
         <>
           <div className="text-center">
             <h1 className="text-2xl font-semibold">Pipecat Flows Editor</h1>
-            <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
+            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
               Open a flow written by an agent or by hand, see it as a graph, and correct it.
             </p>
           </div>
@@ -129,7 +129,7 @@ export default function StartScreen({ onOpenFlow, onStartFromScratch, onDismiss 
               onClick={onStartFromScratch}
             />
           </div>
-          <p className="text-xs text-neutral-500">
+          <p className="text-xs text-zinc-500">
             or drop a YAML file anywhere · press Escape for a blank flow
           </p>
         </>
@@ -144,7 +144,7 @@ export default function StartScreen({ onOpenFlow, onStartFromScratch, onDismiss 
           <textarea
             id="start-paste"
             autoFocus
-            className="h-[60vh] w-full resize-none rounded-lg border bg-white p-3 font-mono text-sm dark:bg-neutral-900"
+            className="h-[60vh] w-full resize-none rounded-lg border bg-white p-3 font-mono text-sm dark:bg-zinc-900"
             placeholder={
               "initial_node: greet\nnodes:\n  greet:\n    task_messages:\n      - role: developer\n        content: Say hello."
             }
@@ -197,13 +197,13 @@ function Tile({
     <button
       type="button"
       onClick={onClick}
-      className={`flex flex-col items-start gap-2 rounded-xl border bg-white text-left shadow-sm transition-colors hover:border-blue-500 hover:bg-blue-50/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:bg-neutral-900 dark:hover:bg-blue-950/30 ${
+      className={`flex flex-col items-start gap-2 rounded-xl border bg-white text-left shadow-sm transition-colors hover:border-sky-500 hover:bg-sky-50/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 dark:bg-zinc-900 dark:hover:bg-sky-950/30 ${
         compact ? "p-4" : "p-5"
       }`}
     >
-      <span className="text-neutral-500">{icon}</span>
+      <span className="text-zinc-500">{icon}</span>
       <span className="font-semibold">{title}</span>
-      <span className="text-sm text-neutral-600 dark:text-neutral-400">{description}</span>
+      <span className="text-sm text-zinc-600 dark:text-zinc-400">{description}</span>
     </button>
   );
 }

@@ -129,7 +129,7 @@ export default function BranchEditor({
               branch.default && missing(branch.default)
                 ? "border-orange-400 dark:border-orange-500"
                 : ""
-            } ${selectedConditionIndex === -1 ? "ring-2 ring-blue-500 dark:ring-blue-400" : ""}`}
+            } ${selectedConditionIndex === -1 ? "ring-2 ring-sky-500 dark:ring-sky-400" : ""}`}
             onFocus={onFocus}
           >
             <SelectValue />
@@ -196,7 +196,7 @@ function CaseRow({
   return (
     <div
       className={`rounded border p-2 space-y-1 ${
-        isSelected ? "ring-2 ring-blue-500 dark:ring-blue-400" : ""
+        isSelected ? "ring-2 ring-sky-500 dark:ring-sky-400" : ""
       } ${targetMissing ? "border-orange-400 dark:border-orange-500" : ""}`}
     >
       <div className="flex items-center gap-2">

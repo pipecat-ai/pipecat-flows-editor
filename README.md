@@ -78,7 +78,7 @@ The examples under **Load Example** are served from `public/examples/`. Hello wo
 - **Next.js 16** (App Router)
 - **React 19** + **@xyflow/react** for the canvas
 - **TypeScript**, with the `FlowConfig` types generated from Pipecat's schema
-- **Tailwind CSS v4** + custom UI primitives
+- **Tailwind CSS v4** + custom UI primitives, on pipecat.ai's zinc tokens and Geist type so the editor and the site read as one product
 - **yaml** for parsing with comment preservation, **Ajv** for schema validation, **dagre** for auto-layout
 - **Monaco Editor** for the YAML pane
 - **Zustand** for editor state
