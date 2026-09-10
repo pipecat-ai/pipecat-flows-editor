@@ -15,7 +15,7 @@ A visual editor for Pipecat Flows. Build a flow with a coding agent, then visual
 - **Two views, one document** – The canvas and the YAML pane stay in step: a change on either side updates the other, with problems shown inline in the pane.
 - **Routing as data** – A function is a tool name and a destination: a node, or a branch table keyed on a field of the tool's result. A node card lists its functions as rows, a branch's cases as sub-rows, and each row has its own port.
 - **Pipecat's schema and checks** – Validation uses the JSON Schema Pipecat ships for `FlowConfig`, vendored and pinned, plus the same cross-reference checks its loader makes and the same graph warnings it reports: unreachable nodes, dead ends, and branches that always go one place. Every finding uses Pipecat's `FlowIssue` shape and codes.
-- **The handoff to code is a list** – The Flow panel lists every tool and action handler the config references and every `{{ variable }}` it uses, so you know what the Python side must provide.
+- **The handoff to code is a list** – The Flow panel lists every tool and action handler the config references and every `{{ key }}` placeholder its prompts read from the manager's state, so you know what the Python side must provide.
 - **What a node does, on the card** – Besides its functions, a card shows the node's actions as a short script: what it says or runs on entry above the functions, what it says or runs on exit below. Click a line to open the node's actions.
 - **Built for flows that arrive written** – Most flows are written by an agent or by hand and opened here to be seen and corrected. The start screen offers four ways in: open a file, paste YAML, start from an example, or a blank flow. A file dropped anywhere or YAML pasted anywhere opens at once.
 - **Local-first UX** – Autosave, undo/redo, keyboard shortcuts, light and dark themes, auto-layout on open, and Pipecat's own example flows.
@@ -54,7 +54,7 @@ npm run typecheck  # TypeScript
 - The initial node is whichever node `initial_node` names; use "Make initial node" in a node's context menu to move it. An end node is one with an `end_conversation` post-action. Every node has the same shape.
 - A node's name is its key in the config. Renaming a node rewrites every destination that pointed at it.
 - Routing lives on functions as `transition_to`: a node name, or a branch table with `field`, `cases`, and an optional `default`. Dragging from a row's port sets that row's destination; dragging from the node's bottom handle adds a function, and from a branch's "add case" row adds a case.
-- A `role_message` or a message's `content` may be `!include path`, which Pipecat fills in from a file beside the config when it loads. The editor keeps the reference as written and shows it as `!include path`; it cannot read the file, so variables in it are not listed. Type the same form into a field to make one.
+- A `role_message` or a message's `content` may be `!include path`, which Pipecat fills in from a file beside the config when it loads. The editor keeps the reference as written and shows it as `!include path`; it cannot read the file, so placeholders in it are not listed. Type the same form into a field to make one.
 - Tool descriptions and parameters are not in the config. They come from the direct functions in your Python tools module, referenced by name.
 - Edges are derived from the routing data. Deleting or renaming nodes surfaces broken references on the canvas and in the YAML pane.
 - Canvas positions are not part of the document. A freshly opened file is auto-laid out; positions are then kept in `localStorage`, keyed by flow name.
@@ -71,7 +71,7 @@ Toolbar actions let you:
 - **Open** – Read a `FlowConfig` file as YAML or JSON, validate it, and lay it out. A file in the editor's old JSON format is converted; what cannot convert (tool schemas, decisions) is reported by name.
 - **Save** – Download the flow as `<name>.yaml`, merged into the document it was opened from so comments are preserved.
 - **Layout** – Lay the nodes out automatically, the way a freshly opened file is.
-- **Sidebar** – Always open: it shows the selected node, or the flow when nothing is selected, with the flow's name, its global functions, the issues Pipecat would report, and the tools, action handlers, and variables the config refers to. It collapses from its header and reopens from the toolbar.
+- **Sidebar** – Always open: it shows the selected node, or the flow when nothing is selected, with the flow's name, its global functions, the issues Pipecat would report, and the tools, action handlers, and state placeholders the config refers to. It collapses from its header and reopens from the toolbar.
 - **YAML** – The tab on the canvas's bottom edge, and the "Node YAML" button in the inspector, open the document itself, with parse, schema, and reference problems marked inline.
 
 ### Example Flows

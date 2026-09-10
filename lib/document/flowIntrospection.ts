@@ -1,7 +1,7 @@
 /**
  * What a config asks of the code around it: the tools and action handlers
- * the handlers must define, and the variables the `Flow` must be given.
- * This list is the handoff to code; the editor generates no Python.
+ * the handlers must define, and the state keys the prompts read. This list
+ * is the handoff to code; the editor generates no Python.
  */
 
 import {
@@ -20,8 +20,13 @@ export interface NameReference {
 
 export const GLOBAL_SCOPE = "global";
 
-/** Pipecat's placeholder syntax, from `pipecat/flows/flow.py`. */
-export const VARIABLE_PATTERN = /\{\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}\}/g;
+/**
+ * Pipecat's placeholder syntax, `_PLACEHOLDER` in `pipecat/flows/manager.py`:
+ * `{{ key }}` or a dotted path such as `{{ order.size }}`, with a leading
+ * backslash marking a literal that is not a placeholder.
+ */
+export const PLACEHOLDER_PATTERN =
+  /(\\?)\{\{\s*([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s*\}\}/g;
 
 class References {
   private byName = new Map<string, string[]>();
@@ -76,12 +81,18 @@ export function registeredActionTypes(config: FlowConfig): NameReference[] {
   return refs.sorted();
 }
 
-/** Every `{{ variable }}` in the texts Pipecat renders: role messages, task messages, and action text. */
-export function templateVariables(config: FlowConfig): NameReference[] {
+/**
+ * Every `{{ key }}` placeholder in the texts the FlowManager renders from its
+ * state on entering a node: role messages, task messages, and `tts_say` text.
+ * Each distinct path once; escaped `\{{ key }}` literals are not placeholders.
+ */
+export function statePlaceholders(config: FlowConfig): NameReference[] {
   const refs = new References();
   for (const [nodeName, node] of Object.entries(config.nodes)) {
     for (const text of renderedTexts(node)) {
-      for (const match of text.matchAll(VARIABLE_PATTERN)) refs.add(match[1], nodeName);
+      for (const match of text.matchAll(PLACEHOLDER_PATTERN)) {
+        if (!match[1]) refs.add(match[2], nodeName);
+      }
     }
   }
   return refs.sorted();

@@ -82,7 +82,7 @@ describe("validateFlow report", () => {
     expect(report.ok).toBe(true);
     expect(report.issues).toEqual([]);
     expect(report.tools).toEqual(["check_kitchen", "choose_pizza", "finish", "report_status"]);
-    expect(report.variables).toEqual(["caller", "restaurant"]);
+    expect(report.placeholders).toEqual(["caller", "restaurant"]);
     expect(report.config).not.toBeNull();
   });
 

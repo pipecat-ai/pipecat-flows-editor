@@ -16,7 +16,7 @@ import {
   type NameReference,
   referencedTools,
   registeredActionTypes,
-  templateVariables,
+  statePlaceholders,
 } from "@/lib/document/flowIntrospection";
 import type { FlowConfigFunction } from "@/lib/schema/flowConfig";
 import { useFlowStore } from "@/lib/store/flowStore";
@@ -32,7 +32,7 @@ type Props = {
 /**
  * The flow beyond its nodes: the file name, the global functions, and what
  * the config asks of the code: the tools and handlers the Python must
- * define and the variables the Flow must be given.
+ * define and the state keys the prompts read.
  */
 export default function FlowPanel({ nodes, onCollapse }: Props) {
   const flowName = useFlowStore((state) => state.flowName);
@@ -44,14 +44,14 @@ export default function FlowPanel({ nodes, onCollapse }: Props) {
   const [selectedGlobal, setSelectedGlobal] = useState<number | null>(null);
 
   const availableNodeIds = nodes.map((n) => n.id);
-  const { tools, handlers, registered, variables, issues } = useMemo(() => {
+  const { tools, handlers, registered, placeholders, issues } = useMemo(() => {
     const config = canvasToConfig(nodes, globalFunctions, initialNode);
     const references = checkFlowConfigReferences(config);
     return {
       tools: referencedTools(config),
       handlers: actionHandlers(config),
       registered: registeredActionTypes(config),
-      variables: templateVariables(config),
+      placeholders: statePlaceholders(config),
       issues: references.length > 0 ? references : checkFlowGraph(config),
     };
   }, [nodes, globalFunctions, initialNode]);
@@ -197,10 +197,10 @@ export default function FlowPanel({ nodes, onCollapse }: Props) {
           items={registered}
         />
         <ReferenceList
-          title="Variables"
-          description="Placeholders in messages and action text, supplied when the Flow is constructed."
-          empty="No {{ variables }} used."
-          items={variables}
+          title="State placeholders"
+          description="Keys the prompts read from flow_manager.state on entering a node. Handlers store them, or the app sets them before initialize()."
+          empty="No {{ placeholders }} used."
+          items={placeholders}
         />
       </div>
     </div>

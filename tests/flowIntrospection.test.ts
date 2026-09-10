@@ -8,7 +8,7 @@ import {
   actionHandlers,
   referencedTools,
   registeredActionTypes,
-  templateVariables,
+  statePlaceholders,
 } from "@/lib/document/flowIntrospection";
 import type { FlowConfig } from "@/lib/schema/flowConfig";
 
@@ -103,8 +103,8 @@ describe("actionHandlers", () => {
   });
 });
 
-describe("templateVariables", () => {
-  it("finds variables in role messages, task messages, and action text", () => {
+describe("statePlaceholders", () => {
+  it("finds placeholders in role messages, task messages, and action text, once each", () => {
     const config: FlowConfig = {
       initial_node: "a",
       nodes: {
@@ -120,12 +120,34 @@ describe("templateVariables", () => {
         },
       },
     };
-    expect(templateVariables(config)).toEqual([
+    expect(statePlaceholders(config)).toEqual([
       { name: "caller", usedBy: ["a"] },
       { name: "restaurant_name", usedBy: ["a"] },
     ]);
-    expect(templateVariables(foodOrdering)).toEqual([
+    expect(statePlaceholders(foodOrdering)).toEqual([
       { name: "restaurant_name", usedBy: ["initial"] },
+    ]);
+  });
+
+  it("accepts dotted paths into stored mappings and skips escaped literals", () => {
+    const config: FlowConfig = {
+      initial_node: "a",
+      nodes: {
+        a: {
+          task_messages: [
+            {
+              role: "developer",
+              content:
+                "The quote is {{ quote.monthly_premium }} for {{quote.coverage.amount}}; write \\{{ key }} literally, not {{ key }}.",
+            },
+          ],
+        },
+      },
+    };
+    expect(statePlaceholders(config)).toEqual([
+      { name: "key", usedBy: ["a"] },
+      { name: "quote.coverage.amount", usedBy: ["a"] },
+      { name: "quote.monthly_premium", usedBy: ["a"] },
     ]);
   });
 });

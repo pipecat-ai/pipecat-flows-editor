@@ -13,7 +13,7 @@ import Ajv2020, { type ErrorObject } from "ajv/dist/2020";
 import {
   actionHandlers,
   referencedTools,
-  templateVariables,
+  statePlaceholders,
 } from "@/lib/document/flowIntrospection";
 import {
   BUILT_IN_ACTIONS_WITHOUT_HANDLER,
@@ -50,12 +50,12 @@ export function validateFlowConfigSchema(data: unknown): FlowConfigValidation {
 
 /**
  * The full report: schema and reference errors, and the graph warnings once
- * the config loads cleanly, with the tools and variables it refers to.
+ * the config loads cleanly, with the tools and state placeholders it refers to.
  */
 export function validateFlow(data: unknown): FlowReport & { config: FlowConfig | null } {
   const structural = validateFlowConfigSchema(data);
   if (!structural.valid) {
-    return { ok: false, issues: structural.issues, tools: [], variables: [], config: null };
+    return { ok: false, issues: structural.issues, tools: [], placeholders: [], config: null };
   }
   const config = structural.config;
   const references = checkFlowConfigReferences(config);
@@ -66,7 +66,7 @@ export function validateFlow(data: unknown): FlowReport & { config: FlowConfig |
     tools: [
       ...new Set([...referencedTools(config), ...actionHandlers(config)].map((r) => r.name)),
     ].sort(),
-    variables: templateVariables(config).map((v) => v.name),
+    placeholders: statePlaceholders(config).map((p) => p.name),
     config,
   };
 }

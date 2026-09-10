@@ -2,8 +2,8 @@
  * The shape of every finding the editor produces, matching `FlowIssue` in
  * `pipecat/flows/validation.py` so a report from either side reads the same.
  * The editor itself produces `schema` errors and the three graph warnings;
- * the tool and variable codes are here so a backend calling Pipecat's
- * `validate_flow` needs no mapping.
+ * the tool and handler codes are the ones `Flow` reports as a
+ * `FlowReferenceError`, here so a backend calling Pipecat needs no mapping.
  */
 
 export type FlowIssueLevel = "error" | "warning";
@@ -11,9 +11,10 @@ export type FlowIssueLevel = "error" | "warning";
 export type FlowIssueCode =
   | "schema"
   | "missing_tool"
+  | "ambiguous_tool"
   | "invalid_tool"
   | "missing_handler"
-  | "missing_variable"
+  | "ambiguous_handler"
   | "unreachable_node"
   | "dead_end"
   | "branch_single_target";
@@ -44,8 +45,8 @@ export interface FlowReport {
   issues: LocatedIssue[];
   /** Every tool the config references, including action handlers, sorted. */
   tools: string[];
-  /** Every `{{ variable }}` the config uses, sorted. */
-  variables: string[];
+  /** Every `{{ key }}` state placeholder the config's prompts read, sorted. */
+  placeholders: string[];
 }
 
 export function issueErrors<T extends FlowIssue>(issues: T[]): T[] {
