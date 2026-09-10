@@ -725,6 +725,7 @@ export default function EditorShell() {
               : false
           }
         />
+        <ToastContainer />
       </div>
       <div
         className={`flex flex-col overflow-hidden ${
@@ -775,7 +776,6 @@ export default function EditorShell() {
         )}
       </div>
       {!showStart && <YamlPanel text={yamlText} problems={yamlProblems} onChange={onYamlChange} />}
-      <ToastContainer />
     </div>
   );
 }
