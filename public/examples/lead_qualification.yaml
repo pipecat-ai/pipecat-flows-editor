@@ -3,9 +3,9 @@
 # node that waits for the caller rather than speaking first, and an end node
 # that says goodbye with a tts_say action.
 #
-# Tools the module must define: record_need, score_lead, schedule_demo,
-# decline_demo, send_resources.
-# Variables: company_name.
+# Handlers the Python must define: record_need, score_lead, schedule_demo,
+# send_resources. decline_demo is transition-only and needs no Python.
+# State keys the prompts read: company_name, set before initialize().
 
 initial_node: discover
 
@@ -53,6 +53,8 @@ nodes:
       - name: schedule_demo
         transition_to: end
       - name: decline_demo
+        transition_only: true
+        description: The caller would rather not book a demo.
         transition_to: send_resources
 
   send_resources:

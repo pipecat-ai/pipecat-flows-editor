@@ -76,7 +76,7 @@ Toolbar actions let you:
 
 ### Example Flows
 
-The examples under **Load Example** are served from `public/examples/`. Hello world, food ordering, restaurant reservation, patient intake, and podcast interview are Pipecat's own, copied verbatim from `examples/flows/` in the Pipecat repository at the commit the schema is vendored from, so each has a tools module and scenarios there. Order status and lead qualification are written for the editor; their header comments list the tools a module must define.
+The examples under **Load Example** are served from `public/examples/`. Hello world, food ordering, restaurant reservation, patient intake, insurance quote, and podcast interview are Pipecat's own: each is the `flow.yaml` of a directory under `examples/flows/yaml/` in the Pipecat repository, copied verbatim, with a `handlers.py` and a `bot.py` beside it there. Order status and lead qualification are written for the editor; their header comments list the handlers the Python must define and the state keys the prompts read.
 
 ## Tech Stack
 

@@ -20,13 +20,11 @@ const foodOrdering = loadExample("food_ordering.yaml");
 const restaurantReservation = loadExample("restaurant_reservation.yaml");
 
 describe("referencedTools", () => {
-  it("lists every tool with the nodes that offer it, globals last", () => {
+  it("lists every Python tool with the nodes that offer it, globals last", () => {
+    // choose_pizza, choose_sushi, complete_order, and revise_order are
+    // transition-only in Pipecat's example, so they are not tools
     expect(referencedTools(foodOrdering)).toEqual([
-      { name: "choose_pizza", usedBy: ["initial"] },
-      { name: "choose_sushi", usedBy: ["initial"] },
-      { name: "complete_order", usedBy: ["confirm"] },
       { name: "get_delivery_estimate", usedBy: ["global"] },
-      { name: "revise_order", usedBy: ["confirm"] },
       { name: "select_pizza_order", usedBy: ["choose_pizza"] },
       { name: "select_sushi_order", usedBy: ["choose_sushi"] },
     ]);

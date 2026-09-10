@@ -1,8 +1,9 @@
 /**
- * The editor's examples, served verbatim from `public/examples/`. Five are
- * Pipecat's own, copied from `examples/flows/` in the Pipecat repository at
- * the same commit as the vendored schema; the last two are authored here
- * until they are upstreamed with tools modules and scenarios.
+ * The editor's examples, served verbatim from `public/examples/`. Six are
+ * Pipecat's own, each the `flow.yaml` of a directory under
+ * `examples/flows/yaml/` in the Pipecat repository, where a `handlers.py`
+ * and a `bot.py` sit beside it; the last two are authored here until they
+ * are upstreamed with handlers of their own.
  */
 
 export interface FlowExample {
@@ -37,6 +38,12 @@ export const EXAMPLES: FlowExample[] = [
     name: "Patient Intake",
     description: "Verify identity, collect details section by section, read them back.",
     path: "/examples/patient_intake.yaml",
+  },
+  {
+    id: "insurance_quote",
+    name: "Insurance Quote",
+    description: "Collect details, quote, and re-enter the quote node as state changes.",
+    path: "/examples/insurance_quote.yaml",
   },
   {
     id: "podcast_interview",

@@ -1,5 +1,5 @@
-# The podcast interview flow as data. Loaded by podcast_interview_yaml.py and
-# joined to the tools in podcast_interview_tools.py. Every function named here
+# The podcast interview flow as data. Loaded by bot.py and
+# joined to the tools in handlers.py. Every function named here
 # is a direct function in that module; its description and parameters come
 # from the code. The interview node re-enters itself once per topic aspect.
 
@@ -60,8 +60,12 @@ nodes:
           conclude the interview.
     functions:
       - name: next_question
+        transition_only: true
+        description: Use this after you've thoroughly explored the current aspect with multiple questions and follow-ups.
         transition_to: interview
       - name: wrap_up
+        transition_only: true
+        description: Use this when you've gathered substantial insights and are ready to wrap up.
         transition_to: conclusion
 
   conclusion:
@@ -77,6 +81,8 @@ nodes:
           wrap up.
     functions:
       - name: end_interview
+        transition_only: true
+        description: Use this after the guest has shared their final thoughts.
         transition_to: final
 
   final:

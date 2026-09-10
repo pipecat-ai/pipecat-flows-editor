@@ -1,11 +1,11 @@
 # Order status and returns: find the order, branch on where it is, and offer
 # the right next step. Shows a branch with a default, a tool that stays on its
-# node until it finds an order, a global function available everywhere, and a
-# tts_say action.
+# node until it finds an order, a global function available everywhere,
+# transition-only functions that need no Python, and a tts_say action.
 #
-# Tools the module must define: look_up_order, cancel_order, keep_order,
-# report_missing, done, start_return, request_reship, transfer_to_agent.
-# Variables: store_name.
+# Handlers the Python must define: look_up_order, cancel_order, report_missing,
+# start_return, request_reship. The other functions are transition-only.
+# State keys the prompts read: store_name, set before initialize().
 
 initial_node: greet
 
@@ -58,6 +58,8 @@ nodes:
       - name: cancel_order
         transition_to: end
       - name: keep_order
+        transition_only: true
+        description: The caller wants to keep the order as it is.
         transition_to: end
 
   shipped:
@@ -71,6 +73,8 @@ nodes:
       - name: report_missing
         transition_to: end
       - name: done
+        transition_only: true
+        description: The caller has nothing else to ask about the shipment.
         transition_to: end
 
   delivered:
@@ -86,6 +90,8 @@ nodes:
       - name: request_reship
         transition_to: end
       - name: done
+        transition_only: true
+        description: The caller is happy with the delivery and has nothing else.
         transition_to: end
 
   end:
@@ -102,4 +108,6 @@ nodes:
 
 global_functions:
   - name: transfer_to_agent
+    transition_only: true
+    description: The caller asks for a human agent.
     transition_to: end

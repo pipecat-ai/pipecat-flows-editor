@@ -1,5 +1,5 @@
-# The restaurant reservation flow as data. Loaded by restaurant_reservation_yaml.py
-# and joined to the tools in restaurant_reservation_tools.py. Every function
+# The restaurant reservation flow as data. Loaded by bot.py
+# and joined to the tools in handlers.py. Every function
 # named here is a direct function in that module; its description and
 # parameters come from the code.
 
@@ -24,7 +24,9 @@ nodes:
   get_time:
     task_messages:
       - role: developer
-        content: Ask what time they'd like to dine. Restaurant is open 5 PM to 10 PM.
+        content: >-
+          Ask what time they'd like to dine for their party of {{ party_size }}.
+          Restaurant is open 5 PM to 10 PM.
     functions:
       - name: check_availability
         transition_to:
@@ -43,6 +45,8 @@ nodes:
           help them and then ask again whether there's anything else.
     functions:
       - name: end_conversation
+        transition_only: true
+        description: End the conversation.
         transition_to: end
 
   no_availability:
@@ -62,6 +66,8 @@ nodes:
             available: confirm
             unavailable: no_availability
       - name: end_conversation
+        transition_only: true
+        description: End the conversation.
         transition_to: end
 
   end:
