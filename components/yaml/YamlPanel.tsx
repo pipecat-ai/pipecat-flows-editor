@@ -4,8 +4,9 @@ import Editor, { type BeforeMount, type Monaco, type OnMount } from "@monaco-edi
 import { ChevronDown, ChevronUp } from "lucide-react";
 import type { editor as MonacoEditor } from "monaco-editor";
 import { useTheme } from "next-themes";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
+import { siteButton } from "@/components/site/siteButton";
 import type { FlowProblem } from "@/lib/document/flowDocument";
 import { useEditorStore } from "@/lib/store/editorStore";
 
@@ -219,10 +220,66 @@ function monoFontFamily() {
     .join(", ");
 }
 
+/** How long Monaco may take to arrive from its CDN before the pane offers a way out. */
+const LOAD_PATIENCE_MS = 8000;
+
+/**
+ * What the pane shows while Monaco loads. The loader never reports a failed
+ * CDN request, so after a while this offers a plain editor and a reload
+ * instead of waiting forever.
+ */
+function EditorLoading({ onFallback }: { onFallback: () => void }) {
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setSlow(true), LOAD_PATIENCE_MS);
+    return () => clearTimeout(timer);
+  }, []);
+  return (
+    <div className="flex h-full w-full flex-col items-center justify-center gap-4 p-6 text-center text-[13px] text-muted-foreground">
+      {slow ? (
+        <>
+          <p className="max-w-md text-pretty">
+            The YAML editor has not loaded from its CDN, which may be blocked on this network. A
+            plain editor keeps the document in sync without highlighting or inline problems.
+          </p>
+          <div className="flex gap-3">
+            <button type="button" className={`${siteButton.outline} h-9 px-4`} onClick={onFallback}>
+              Use a plain editor
+            </button>
+            <button
+              type="button"
+              className={`${siteButton.primary} h-9 px-4`}
+              onClick={() => window.location.reload()}
+            >
+              Reload the page
+            </button>
+          </div>
+        </>
+      ) : (
+        <p>Loading the YAML editor…</p>
+      )}
+    </div>
+  );
+}
+
+/** The document in a text area: the same two-way sync, without Monaco. */
+function PlainYamlEditor({ text, onChange }: Pick<Props, "text" | "onChange">) {
+  return (
+    <textarea
+      aria-label="YAML"
+      spellCheck={false}
+      className="block h-full w-full resize-none bg-card p-3 font-mono text-xs leading-5 text-foreground outline-none"
+      value={text}
+      onChange={(e) => onChange(e.target.value)}
+    />
+  );
+}
+
 function YamlEditor({ text, problems, onChange }: Props) {
   const { resolvedTheme } = useTheme();
   const editorRef = useRef<MonacoEditor.IStandaloneCodeEditor | null>(null);
   const monacoRef = useRef<Monaco | null>(null);
+  const [plain, setPlain] = useState(false);
 
   const applyMarkers = (monaco: Monaco, editor: MonacoEditor.IStandaloneCodeEditor) => {
     const model = editor.getModel();
@@ -256,12 +313,15 @@ function YamlEditor({ text, problems, onChange }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [problems]);
 
+  if (plain) return <PlainYamlEditor text={text} onChange={onChange} />;
+
   return (
     <Editor
       height="100%"
       language="yaml"
       value={text}
       theme={resolvedTheme === "dark" ? "pipecat-dark" : "pipecat-light"}
+      loading={<EditorLoading onFallback={() => setPlain(true)} />}
       beforeMount={beforeMount}
       onMount={onMount}
       onChange={(value) => onChange(value ?? "")}
