@@ -4,14 +4,14 @@ import { Plus } from "lucide-react";
 import { useEffect, useRef } from "react";
 
 import { Button } from "@/components/ui/button";
-import type { FlowFunctionJson } from "@/lib/schema/flow.schema";
+import type { FlowConfigFunction } from "@/lib/schema/flowConfig";
 import { useEditorStore } from "@/lib/store/editorStore";
 
 import { FunctionItem } from "./FunctionItem";
 
 type Props = {
-  functions: FlowFunctionJson[] | undefined;
-  onChange: (functions: FlowFunctionJson[]) => void;
+  functions: FlowConfigFunction[] | undefined;
+  onChange: (functions: FlowConfigFunction[]) => void;
   availableNodeIds: string[];
   currentNodeId?: string;
 };
@@ -34,7 +34,7 @@ export default function FunctionsForm({
   // Derive highlighted function index from store for scroll-into-view
   const highlightedFunctionIndex = selectedNodeId === currentNodeId ? selectedFunctionIndex : null;
 
-  const updateItem = (index: number, updates: Partial<FlowFunctionJson>) => {
+  const updateItem = (index: number, updates: Partial<FlowConfigFunction>) => {
     const next = [...items];
     next[index] = { ...next[index], ...updates };
     onChange(next);
@@ -42,7 +42,7 @@ export default function FunctionsForm({
 
   const addItem = () => {
     const newIndex = items.length;
-    onChange([...items, { name: "", description: "" }]);
+    onChange([...items, { name: "" }]);
     // Automatically select and expand the newly added function
     if (currentNodeId) {
       selectNode(currentNodeId, newIndex, null);
@@ -102,31 +102,36 @@ export default function FunctionsForm({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <div className="text-xs opacity-60">Functions</div>
+        <div className="text-[13px] text-muted-foreground">Functions</div>
         <Button variant="ghost" size="sm" className="h-6 gap-1" onClick={addItem}>
           <Plus className="h-4 w-4" /> Add
         </Button>
       </div>
-      {items.map((func, i) => (
-        <FunctionItem
-          key={i}
-          ref={(el) => setFunctionRef(i, el)}
-          func={func}
-          onChange={(updates) => updateItem(i, updates)}
-          onRemove={() => removeItem(i)}
-          availableNodeIds={availableNodeIds}
-          currentNodeId={currentNodeId}
-          functionIndex={i}
-          isSelected={selectedNodeId === currentNodeId && selectedFunctionIndex === i}
-          selectedConditionIndex={
-            selectedNodeId === currentNodeId && selectedFunctionIndex === i
-              ? selectedConditionIndex
-              : null
-          }
-        />
-      ))}
+      {/* Segments run edge to edge, past the tab's padding and its scrollbar gutter. */}
+      {items.length > 0 && (
+        <div className="-ml-3 -mr-1 divide-y border-t">
+          {items.map((func, i) => (
+            <FunctionItem
+              key={i}
+              ref={(el) => setFunctionRef(i, el)}
+              func={func}
+              onChange={(updates) => updateItem(i, updates)}
+              onRemove={() => removeItem(i)}
+              availableNodeIds={availableNodeIds}
+              currentNodeId={currentNodeId}
+              functionIndex={i}
+              isSelected={selectedNodeId === currentNodeId && selectedFunctionIndex === i}
+              selectedConditionIndex={
+                selectedNodeId === currentNodeId && selectedFunctionIndex === i
+                  ? selectedConditionIndex
+                  : null
+              }
+            />
+          ))}
+        </div>
+      )}
       {items.length === 0 && (
-        <div className="text-xs opacity-40 italic py-2">
+        <div className="text-[13px] text-muted-foreground italic py-2">
           No functions. Click "Add" to create one.
         </div>
       )}

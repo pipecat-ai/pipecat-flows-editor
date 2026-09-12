@@ -1,18 +1,21 @@
-import type { FlowNode } from "@/lib/types/flowTypes";
+import type { CanvasNode } from "@/lib/convert/configToCanvas";
 
-/**
- * Delete a node from the nodes array
- * Returns the updated nodes array with the specified node removed
- */
-export function deleteNode(nodes: FlowNode[], nodeId: string): FlowNode[] {
-  return nodes.filter((n) => n.id !== nodeId);
+import { dropFunctionTargets } from "./nodeUpdates";
+
+/** Removes a node and every destination on the other nodes that pointed at it. */
+export function deleteNode(nodes: CanvasNode[], nodeId: string): CanvasNode[] {
+  return nodes
+    .filter((n) => n.id !== nodeId)
+    .map((n) => ({
+      ...n,
+      data: { ...n.data, functions: dropFunctionTargets(n.data.functions ?? [], nodeId) },
+    }));
 }
 
 /**
- * Check if a node can be deleted (i.e., it's not a decision node)
- * Decision nodes are auto-managed by the useDecisionNodes hook
+ * Whether a node can be deleted. The initial node cannot: a flow always has
+ * an entry point, so make another node initial first.
  */
-export function canDeleteNode(node: FlowNode | undefined): boolean {
-  if (!node) return false;
-  return node.type !== "decision";
+export function canDeleteNode(node: CanvasNode | undefined): boolean {
+  return node !== undefined && node.type !== "initial";
 }

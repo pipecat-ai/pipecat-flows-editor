@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 
+import { useEditorStore } from "@/lib/store/editorStore";
+
 type ToastType = "success" | "error" | "info";
 
 type Toast = {
@@ -28,8 +30,15 @@ export function showToast(message: string, type: ToastType = "info") {
   }, 4000);
 }
 
+/**
+ * Toasts stack up from the canvas's bottom-right corner, clear of the
+ * toolbar, the zoom controls, and the YAML tab, and above the YAML pane
+ * when it is open. Mount it inside the canvas container.
+ */
 export default function ToastContainer() {
   const [current, setCurrent] = useState<Toast[]>([]);
+  const showYaml = useEditorStore((state) => state.showYaml);
+  const yamlHeight = useEditorStore((state) => state.yamlPanelHeight);
 
   useEffect(() => {
     listeners.add(setCurrent);
@@ -39,16 +48,19 @@ export default function ToastContainer() {
   }, []);
 
   return (
-    <div className="pointer-events-none fixed right-76 top-20 z-50 flex flex-col gap-2">
+    <div
+      className="pointer-events-none absolute right-4 z-40 flex flex-col-reverse items-end gap-2 transition-[bottom] duration-300"
+      style={{ bottom: showYaml ? yamlHeight + 16 : 16 }}
+    >
       {current.map((toast) => (
         <div
           key={toast.id}
-          className={`pointer-events-auto rounded-md border px-4 py-2 text-sm shadow-lg backdrop-blur ${
+          className={`pointer-events-auto border border-l-2 bg-card px-4 py-2 text-sm text-foreground ${
             toast.type === "error"
-              ? "border-red-400 bg-red-50 text-red-900 dark:bg-red-950 dark:text-red-100"
+              ? "border-l-red-500"
               : toast.type === "success"
-                ? "border-green-400 bg-green-50 text-green-900 dark:bg-green-950 dark:text-green-100"
-                : "border-blue-400 bg-blue-50 text-blue-900 dark:bg-blue-950 dark:text-blue-100"
+                ? "border-l-green-500"
+                : "border-l-brand"
           }`}
         >
           {toast.message}

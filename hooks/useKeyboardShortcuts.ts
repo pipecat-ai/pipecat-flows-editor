@@ -1,11 +1,9 @@
 import { useEffect } from "react";
 
-import type { FlowFunctionJson } from "@/lib/schema/flow.schema";
 import { useEditorStore } from "@/lib/store/editorStore";
 import type { FlowEdge, FlowNode } from "@/lib/types/flowTypes";
-import { canDeleteNode, deleteNode } from "@/lib/utils/nodeDeletion";
-import { duplicateNode } from "@/lib/utils/nodeDuplication";
-import { clearFunctionConnection } from "@/lib/utils/nodeUpdates";
+import { canDuplicateNode, duplicateNode } from "@/lib/utils/nodeDuplication";
+import { removeBranchCase, removeEdgeRoute, removeFunction } from "@/lib/utils/nodeUpdates";
 
 interface KeyboardShortcutsProps {
   nodes: FlowNode[];
@@ -13,12 +11,15 @@ interface KeyboardShortcutsProps {
   selectedNodeId: string | null;
   selectedFunctionIndex: number | null;
   setNodes: (updater: (nodes: FlowNode[]) => FlowNode[]) => void;
-  clearSelection: () => void;
+  /** Deletes a node with the editor's rules: destinations that pointed at it are dropped. */
+  deleteNode: (nodeId: string) => void;
   selectNode: (nodeId: string | null, functionIndex?: number | null) => void;
 }
 
 /**
- * Hook to handle keyboard shortcuts
+ * Delete removes what is selected: a selected edge loses its route, a
+ * selected row (function, case, or default) is removed, and otherwise the
+ * selected node is deleted. Cmd/Ctrl+D duplicates the selected node.
  */
 export function useKeyboardShortcuts({
   nodes,
@@ -26,7 +27,7 @@ export function useKeyboardShortcuts({
   selectedNodeId,
   selectedFunctionIndex,
   setNodes,
-  clearSelection,
+  deleteNode,
   selectNode,
 }: KeyboardShortcutsProps) {
   useEffect(() => {
@@ -42,27 +43,28 @@ export function useKeyboardShortcuts({
           target.closest("[data-monaco-editor]") !== null);
 
       // Undo/Redo handled by Toolbar component, not here
-      // Delete/Backspace for edges and nodes
       if ((e.key === "Delete" || e.key === "Backspace") && !isTyping) {
         e.preventDefault();
-        if (selectedNodeId && selectedFunctionIndex !== null) {
-          // Delete edge by clearing next_node_id
-          setNodes((nds) => clearFunctionConnection(nds, selectedNodeId, selectedFunctionIndex));
+        const selectedEdges = edges.filter((edge) => edge.selected);
+        if (selectedEdges.length > 0) {
+          setNodes((nds) => selectedEdges.reduce((acc, edge) => removeEdgeRoute(acc, edge), nds));
+          useEditorStore.getState().clearFunctionSelection();
+        } else if (selectedNodeId && selectedFunctionIndex !== null) {
+          const conditionIndex = useEditorStore.getState().selectedConditionIndex;
+          setNodes((nds) =>
+            conditionIndex !== null
+              ? removeBranchCase(nds, selectedNodeId, selectedFunctionIndex, conditionIndex)
+              : removeFunction(nds, selectedNodeId, selectedFunctionIndex)
+          );
           useEditorStore.getState().clearFunctionSelection();
         } else if (selectedNodeId) {
-          // Delete node
-          const nodeToDelete = nodes.find((n) => n.id === selectedNodeId);
-          if (canDeleteNode(nodeToDelete)) {
-            setNodes((nds) => deleteNode(nds, selectedNodeId));
-            clearSelection();
-          }
+          deleteNode(selectedNodeId);
         }
       } else if (modKey && e.key === "d") {
-        // Duplicate node
         e.preventDefault();
         if (selectedNodeId) {
           const selected = nodes.find((n) => n.id === selectedNodeId);
-          if (selected && canDeleteNode(selected)) {
+          if (canDuplicateNode(selected)) {
             const duplicatedNode = duplicateNode(selected, nodes);
             setNodes((nds) => nds.concat(duplicatedNode));
             selectNode(duplicatedNode.id);
@@ -73,5 +75,5 @@ export function useKeyboardShortcuts({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [nodes, selectedNodeId, selectedFunctionIndex, setNodes, clearSelection, selectNode]);
+  }, [nodes, edges, selectedNodeId, selectedFunctionIndex, setNodes, deleteNode, selectNode]);
 }

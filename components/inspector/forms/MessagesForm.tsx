@@ -3,27 +3,35 @@
 import { Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import type { MessageJson } from "@/lib/schema/flow.schema";
+import type { FlowConfigMessage } from "@/lib/schema/flowConfig";
 
 import { MessageItem } from "./MessageItem";
 
 type Props = {
   label: string;
-  messages: MessageJson[] | undefined;
-  onChange: (messages: MessageJson[]) => void;
+  /** A small mono tag beside the label, such as "required". */
+  tag?: string;
+  /** One line under the label saying what the messages are for. */
+  hint?: string;
+  messages: FlowConfigMessage[] | undefined;
+  onChange: (messages: FlowConfigMessage[]) => void;
 };
 
-export default function MessagesForm({ label, messages, onChange }: Props) {
+/** The small mono tag the inspector uses to mark a field required or optional. */
+export const FIELD_TAG_CLASS =
+  "font-mono text-[11px] uppercase tracking-[0.08em] text-muted-foreground/70";
+
+export default function MessagesForm({ label, tag, hint, messages, onChange }: Props) {
   const items = messages ?? [];
 
-  const updateItem = (index: number, updates: Partial<MessageJson>) => {
+  const updateItem = (index: number, updates: Partial<FlowConfigMessage>) => {
     const next = [...items];
     next[index] = { ...next[index], ...updates };
     onChange(next);
   };
 
   const addItem = () => {
-    onChange([...items, { role: "system", content: "" }]);
+    onChange([...items, { role: "developer", content: "" }]);
   };
 
   const removeItem = (index: number) => {
@@ -33,12 +41,16 @@ export default function MessagesForm({ label, messages, onChange }: Props) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <div className="text-xs opacity-60">{label}</div>
+        <div className="flex items-baseline gap-2">
+          <div className="text-[13px] text-muted-foreground">{label}</div>
+          {tag && <span className={FIELD_TAG_CLASS}>{tag}</span>}
+        </div>
         <Button variant="ghost" size="sm" className="h-6 gap-1" onClick={addItem}>
           <Plus className="h-4 w-4" />
           Add
         </Button>
       </div>
+      {hint && <div className="text-xs text-muted-foreground">{hint}</div>}
       {items.map((msg, i) => (
         <MessageItem
           key={i}
@@ -49,7 +61,7 @@ export default function MessagesForm({ label, messages, onChange }: Props) {
         />
       ))}
       {items.length === 0 && (
-        <div className="text-xs opacity-40 italic py-2">
+        <div className="text-[13px] text-muted-foreground italic py-2">
           No messages. Click "Add" to create one.
         </div>
       )}

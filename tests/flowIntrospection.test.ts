@@ -1,0 +1,151 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
+import { describe, expect, it } from "vitest";
+import { parse } from "yaml";
+
+import {
+  actionHandlers,
+  referencedTools,
+  registeredActionTypes,
+  statePlaceholders,
+} from "@/lib/document/flowIntrospection";
+import type { FlowConfig } from "@/lib/schema/flowConfig";
+
+function loadExample(name: string): FlowConfig {
+  return parse(readFileSync(resolve(__dirname, "../public/examples", name), "utf8"));
+}
+
+const foodOrdering = loadExample("food_ordering.yaml");
+const restaurantReservation = loadExample("restaurant_reservation.yaml");
+
+describe("referencedTools", () => {
+  it("lists every Python tool with the nodes that offer it, globals last", () => {
+    // choose_pizza, choose_sushi, complete_order, and revise_order are
+    // transition-only in Pipecat's example, so they are not tools
+    expect(referencedTools(foodOrdering)).toEqual([
+      { name: "get_delivery_estimate", usedBy: ["global"] },
+      { name: "select_pizza_order", usedBy: ["choose_pizza"] },
+      { name: "select_sushi_order", usedBy: ["choose_sushi"] },
+    ]);
+  });
+
+  it("merges a tool offered on several nodes", () => {
+    expect(referencedTools(restaurantReservation)).toContainEqual({
+      name: "check_availability",
+      usedBy: ["get_time", "no_availability"],
+    });
+  });
+
+  it("leaves out transition-only entries, which need no Python", () => {
+    const config: FlowConfig = {
+      initial_node: "a",
+      nodes: {
+        a: {
+          task_messages: [],
+          functions: [
+            { name: "go", transition_only: true, description: "Move on.", transition_to: "b" },
+            { name: "tool", transition_to: "b" },
+          ],
+        },
+        b: { task_messages: [] },
+      },
+      global_functions: [
+        { name: "bail", transition_only: true, description: "Leave.", transition_to: "b" },
+      ],
+    };
+    expect(referencedTools(config)).toEqual([{ name: "tool", usedBy: ["a"] }]);
+  });
+
+  it("skips unnamed entries", () => {
+    const config: FlowConfig = {
+      initial_node: "a",
+      nodes: { a: { task_messages: [], functions: [{ name: "" }] } },
+    };
+    expect(referencedTools(config)).toEqual([]);
+  });
+});
+
+describe("actionHandlers", () => {
+  it("lists handlers named on function and custom actions, and custom types registered in code", () => {
+    const config: FlowConfig = {
+      initial_node: "a",
+      nodes: {
+        a: {
+          task_messages: [],
+          pre_actions: [{ type: "function", handler: "warm_up" }, { type: "ring_bell" }],
+          post_actions: [
+            { type: "tts_say", text: "Bye" },
+            { type: "function", handler: "log" },
+          ],
+        },
+        b: {
+          task_messages: [],
+          post_actions: [
+            { type: "function", handler: "log" },
+            { type: "notify", handler: "send_notification" },
+            { type: "ring_bell" },
+          ],
+        },
+      },
+    };
+    expect(actionHandlers(config)).toEqual([
+      { name: "log", usedBy: ["a", "b"] },
+      { name: "send_notification", usedBy: ["b"] },
+      { name: "warm_up", usedBy: ["a"] },
+    ]);
+    expect(registeredActionTypes(config)).toEqual([{ name: "ring_bell", usedBy: ["a", "b"] }]);
+    expect(actionHandlers(foodOrdering)).toEqual([
+      { name: "check_kitchen_status", usedBy: ["initial"] },
+    ]);
+  });
+});
+
+describe("statePlaceholders", () => {
+  it("finds placeholders in role messages, task messages, and action text, once each", () => {
+    const config: FlowConfig = {
+      initial_node: "a",
+      nodes: {
+        a: {
+          role_message: "You work for {{ restaurant_name }}.",
+          task_messages: [
+            { role: "developer", content: "Greet {{caller}} at {{restaurant_name}}." },
+          ],
+          post_actions: [{ type: "tts_say", text: "Bye from {{ restaurant_name }}" }],
+        },
+        b: {
+          task_messages: [{ role: "developer", content: "No {{ 1bad }} or {{ spaced name }}." }],
+        },
+      },
+    };
+    expect(statePlaceholders(config)).toEqual([
+      { name: "caller", usedBy: ["a"] },
+      { name: "restaurant_name", usedBy: ["a"] },
+    ]);
+    expect(statePlaceholders(foodOrdering)).toEqual([
+      { name: "restaurant_name", usedBy: ["initial"] },
+    ]);
+  });
+
+  it("accepts dotted paths into stored mappings and skips escaped literals", () => {
+    const config: FlowConfig = {
+      initial_node: "a",
+      nodes: {
+        a: {
+          task_messages: [
+            {
+              role: "developer",
+              content:
+                "The quote is {{ quote.monthly_premium }} for {{quote.coverage.amount}}; write \\{{ key }} literally, not {{ key }}.",
+            },
+          ],
+        },
+      },
+    };
+    expect(statePlaceholders(config)).toEqual([
+      { name: "key", usedBy: ["a"] },
+      { name: "quote.coverage.amount", usedBy: ["a"] },
+      { name: "quote.monthly_premium", usedBy: ["a"] },
+    ]);
+  });
+});

@@ -1,8 +1,9 @@
 "use client";
 
-import { ChevronDown, ChevronRight, Plus, Trash2 } from "lucide-react";
-import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { Trash2 } from "lucide-react";
+import React, { useCallback, useEffect, useId, useState } from "react";
 
+import { Segment } from "@/components/inspector/Segment";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -15,24 +16,33 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import type { FlowFunctionJson } from "@/lib/schema/flow.schema";
+import {
+  type FlowConfigBranch,
+  type FlowConfigFunction,
+  functionTargets,
+  isBranch,
+} from "@/lib/schema/flowConfig";
 import { useEditorStore } from "@/lib/store/editorStore";
 import { formatFunctionName, validateFunctionName } from "@/lib/utils/nameFormatting";
 
-import { DecisionSection } from "./DecisionSection";
-import { type FunctionProperty, PropertyItem } from "./PropertyItem";
+import BranchEditor from "./BranchEditor";
 
 interface FunctionItemProps {
-  func: FlowFunctionJson;
-  onChange: (updates: Partial<FlowFunctionJson>) => void;
+  func: FlowConfigFunction;
+  onChange: (updates: Partial<FlowConfigFunction>) => void;
   onRemove: () => void;
   availableNodeIds: string[];
   currentNodeId?: string;
   functionIndex: number;
   isSelected: boolean;
-  selectedConditionIndex: number | null; // -1 for default, 0+ for condition index
+  selectedConditionIndex: number | null; // -1 for the branch default, 0+ for a case index
 }
 
+/**
+ * A function entry: a tool name and where it leads. Ordinarily the tool's
+ * description and parameters live in the Python handlers; a transition-only
+ * entry is defined here alone, with a description and the node it leads to.
+ */
 export const FunctionItem = React.forwardRef<HTMLDivElement, FunctionItemProps>(
   (
     {
@@ -40,436 +50,271 @@ export const FunctionItem = React.forwardRef<HTMLDivElement, FunctionItemProps>(
       onChange,
       onRemove,
       availableNodeIds,
+      currentNodeId,
       functionIndex,
       isSelected,
       selectedConditionIndex,
-      currentNodeId,
     },
     ref
   ) => {
-    // Check if next_node_id is invalid (pointing to a deleted node)
-    const hasInvalidNextNode =
-      func.next_node_id !== undefined && !availableNodeIds.includes(func.next_node_id);
+    const missingTargets = functionTargets(func).filter((t) => !availableNodeIds.includes(t));
+    const hasInvalidTarget = missingTargets.length > 0;
     const [functionName, setFunctionName] = useState(func.name);
     const [nameError, setNameError] = useState<string | null>(null);
-    const [timeoutInput, setTimeoutInput] = useState(func.timeout_secs?.toString() ?? "");
-    const [timeoutError, setTimeoutError] = useState<string | null>(null);
-    const nameInputRef = useRef<HTMLInputElement>(null);
     const [isExpanded, setIsExpanded] = useState(isSelected);
-    const defaultNextNodeRef = useRef<HTMLElement | null>(null);
     const functionNameId = useId();
-    const functionDescriptionId = useId();
-    const nextNodeId = useId();
-    const cancelOnInterruptionId = useId();
-    const timeoutSecsId = useId();
+    const descriptionId = useId();
+    const destinationId = useId();
+    const transitionOnly = Boolean(func.transition_only);
 
     useEffect(() => {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setFunctionName(func.name);
     }, [func.name]);
 
-    // Keep the timeout input in sync when the stored value changes externally
-    // (e.g. switching the selected function, undo/redo).
-    useEffect(() => {
-      /* eslint-disable react-hooks/set-state-in-effect */
-      setTimeoutInput(func.timeout_secs?.toString() ?? "");
-      setTimeoutError(null);
-      /* eslint-enable react-hooks/set-state-in-effect */
-    }, [func.timeout_secs]);
-
-    const properties = useMemo(() => func.properties ?? {}, [func.properties]);
-    const required = func.required ?? [];
-    const propertyEntries = Object.entries(properties);
-
-    const updateProperties = useCallback(
-      (newProperties: Record<string, FunctionProperty>) => {
-        onChange({
-          properties: Object.keys(newProperties).length > 0 ? newProperties : undefined,
-        });
-      },
-      [onChange]
-    );
-
-    const updateRequired = (propName: string, isRequired: boolean) => {
-      const newRequired = isRequired
-        ? [...required.filter((r) => r !== propName), propName]
-        : required.filter((r) => r !== propName);
-      onChange({ required: newRequired.length > 0 ? newRequired : undefined });
-    };
-
     // Auto-expand function when selected
     useEffect(() => {
       if (isSelected) {
-        // Use setTimeout to avoid setState in effect warning
-        const timeoutId = setTimeout(() => {
-          setIsExpanded(true);
-        }, 0);
+        const timeoutId = setTimeout(() => setIsExpanded(true), 0);
         return () => clearTimeout(timeoutId);
       }
     }, [isSelected]);
 
-    const addProperty = useCallback(() => {
-      const newKey = `property_${Date.now()}`;
-      updateProperties({
-        ...(properties as Record<string, FunctionProperty>),
-        [newKey]: { type: "string" as const },
-      });
-    }, [properties, updateProperties]);
-
-    const removeProperty = (propName: string) => {
-      const newProperties: Record<string, FunctionProperty> = {};
-      Object.entries(properties).forEach(([key, value]) => {
-        if (key !== propName) {
-          newProperties[key] = value as FunctionProperty;
-        }
-      });
-      updateProperties(newProperties);
-      // Also remove from required if present
-      if (required.includes(propName)) {
-        updateRequired(propName, false);
-      }
-    };
-
-    const updateProperty = (propName: string, updates: Partial<FunctionProperty>) => {
-      updateProperties({
-        ...(properties as Record<string, FunctionProperty>),
-        [propName]: {
-          ...(properties[propName] as FunctionProperty),
-          ...updates,
-        } as FunctionProperty,
-      });
-    };
-
-    const renameProperty = (oldName: string, newName: string) => {
-      if (oldName === newName || !newName.trim()) return;
-      if (properties[newName]) return; // Don't overwrite existing
-
-      const newProperties: Record<string, FunctionProperty> = {};
-      const wasRequired = required.includes(oldName);
-
-      Object.entries(properties).forEach(([key, value]) => {
-        if (key === oldName) {
-          newProperties[newName] = value as FunctionProperty;
-        } else {
-          newProperties[key] = value as FunctionProperty;
-        }
-      });
-
-      updateProperties(newProperties);
-
-      // Update required array
-      if (wasRequired) {
-        const newRequired = required.filter((r) => r !== oldName);
-        onChange({
-          required: [...newRequired, newName].length > 0 ? [...newRequired, newName] : undefined,
-        });
-      }
-    };
-
-    const handleNameChange = (newName: string) => {
-      // Allow raw input while typing (including spaces) - only format on blur
-      setFunctionName(newName);
-      setNameError(null);
-    };
-
     const handleNameBlur = () => {
-      // Format and validate on blur
       const formatted = formatFunctionName(functionName);
       const error = validateFunctionName(formatted);
-
       if (error) {
         setNameError(error);
-      } else {
-        // Update with formatted name
-        setFunctionName(formatted);
-        if (formatted !== func.name) {
-          onChange({ name: formatted });
-        }
-      }
-    };
-
-    // Validate the per-tool timeout on every keystroke. Empty clears it (use the
-    // global default); a positive number commits; anything else shows an error
-    // and leaves the stored value untouched (mirrors the function-name field).
-    const handleTimeoutChange = (raw: string) => {
-      setTimeoutInput(raw);
-      const trimmed = raw.trim();
-      if (trimmed === "") {
-        setTimeoutError(null);
-        if (func.timeout_secs !== undefined) onChange({ timeout_secs: undefined });
         return;
       }
-      const parsed = Number(trimmed);
-      if (!Number.isFinite(parsed) || parsed <= 0) {
-        setTimeoutError("Timeout must be a number greater than 0.");
-        return;
-      }
-      setTimeoutError(null);
-      if (func.timeout_secs !== parsed) onChange({ timeout_secs: parsed });
+      setFunctionName(formatted);
+      if (formatted !== func.name) onChange({ name: formatted });
     };
 
     const setSelectedFunctionIndex = useEditorStore((state) => state.setSelectedFunctionIndex);
-
     const handleFocus = useCallback(() => {
-      // Always update selection when focus enters any form element in this function
-      // This ensures UI focus shifts when user tabs/clicks between functions
-      // Store has guards to prevent unnecessary updates
       setSelectedFunctionIndex(functionIndex);
     }, [functionIndex, setSelectedFunctionIndex]);
 
+    const transition = func.transition_to;
+    const branch = isBranch(transition) ? transition : null;
+    const destination = typeof transition === "string" ? transition : undefined;
+
+    // A transition-only function is defined in the config alone: it needs a
+    // description and a node to lead to, and cannot branch. Turning it on
+    // keeps the destination, folding a branch to its default or first case.
+    const setTransitionOnly = (on: boolean) => {
+      if (!on) {
+        onChange({ transition_only: undefined, description: undefined });
+        return;
+      }
+      const target = branch
+        ? (branch.default ?? Object.values(branch.cases)[0])
+        : (destination ?? availableNodeIds[0] ?? "");
+      onChange({
+        transition_only: true,
+        description: func.description ?? "",
+        transition_to: target,
+      });
+    };
+    const needsMore = transitionOnly && (!func.description || typeof transition !== "string");
+
+    // Switching modes keeps the destination: a branch starts with one case
+    // leading where the node destination did, and back again the default or
+    // first case becomes the node destination.
+    const switchToBranch = () => {
+      const target = destination ?? currentNodeId ?? availableNodeIds[0] ?? "";
+      const next: FlowConfigBranch = { field: "", cases: { value_1: target } };
+      onChange({ transition_to: next });
+    };
+    const switchToNode = () => {
+      if (!branch) return;
+      const target = branch.default ?? Object.values(branch.cases)[0];
+      onChange({ transition_to: target });
+    };
+
     return (
-      <div
+      <Segment
         ref={ref}
-        className={`rounded-lg border overflow-hidden ${
-          hasInvalidNextNode
-            ? "border-orange-400 dark:border-orange-500 bg-orange-50/50 dark:bg-orange-950/20"
-            : "bg-white dark:bg-neutral-900"
-        } ${isSelected ? "ring-2 ring-blue-500 dark:ring-blue-400" : ""}`}
-      >
-        {/* Collapsible Header */}
-        <div className="flex items-center gap-2 p-3">
-          <button
-            type="button"
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="flex items-center gap-2 flex-1 min-w-0 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors -ml-1 -mr-1 px-1 py-1 rounded"
-          >
-            {isExpanded ? (
-              <ChevronDown className="h-4 w-4 opacity-60 shrink-0" />
-            ) : (
-              <ChevronRight className="h-4 w-4 opacity-60 shrink-0" />
-            )}
-            <span className="text-xs font-medium truncate">
-              {functionName || func.name || `Function ${functionIndex + 1}`}
-            </span>
-          </button>
+        title={functionName || func.name || `Function ${functionIndex + 1}`}
+        expanded={isExpanded}
+        onToggle={() => setIsExpanded(!isExpanded)}
+        selected={isSelected}
+        invalid={hasInvalidTarget || needsMore}
+        actions={
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-6 w-6 shrink-0"
+                  className="h-7 w-7 shrink-0 p-0 text-muted-foreground hover:text-foreground"
                   onClick={(e) => {
                     e.stopPropagation();
                     onRemove();
                   }}
+                  aria-label="Remove function"
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Trash2 className="size-4" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>Remove function</TooltipContent>
             </Tooltip>
           </TooltipProvider>
+        }
+      >
+        <div className="space-y-2">
+          <label htmlFor={functionNameId} className="text-[13px] text-muted-foreground">
+            Tool name
+          </label>
+          <Input
+            id={functionNameId}
+            className={`h-8 text-[13px] ${nameError ? "border-red-500" : ""}`}
+            value={functionName}
+            onChange={(e) => {
+              setFunctionName(e.target.value);
+              setNameError(null);
+            }}
+            onFocus={handleFocus}
+            onBlur={handleNameBlur}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") e.currentTarget.blur();
+            }}
+            placeholder="e.g., choose_pizza"
+          />
+          {nameError && <div className="mt-1 text-[13px] text-red-600">{nameError}</div>}
+          <div className="text-xs text-muted-foreground">
+            {transitionOnly
+              ? "The tool's name as the LLM sees it. Defined here; no Python."
+              : "A direct function in the handlers. Its description and parameters come from the code."}
+          </div>
         </div>
 
-        {/* Collapsible Content */}
-        <div
-          className={`overflow-hidden transition-all duration-200 ease-in-out ${
-            isExpanded ? "max-h-[5000px] opacity-100" : "max-h-0 opacity-0"
-          }`}
-        >
-          <div className="p-4 space-y-4">
-            {/* Basic Info Section */}
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <label htmlFor={functionNameId} className="text-xs opacity-60">
-                  Function name
-                </label>
-                <Input
-                  ref={nameInputRef}
-                  id={functionNameId}
-                  className={`h-8 text-xs ${nameError ? "border-red-500" : ""}`}
-                  value={functionName}
-                  onChange={(e) => handleNameChange(e.target.value)}
-                  onFocus={handleFocus}
-                  onBlur={handleNameBlur}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.currentTarget.blur();
-                    }
-                  }}
-                  placeholder="e.g., choose_pizza"
-                />
-                {nameError && <div className="mt-1 text-xs text-red-600">{nameError}</div>}
-              </div>
-              <div className="space-y-2">
-                <label htmlFor={functionDescriptionId} className="text-xs opacity-60">
-                  Description
-                </label>
-                <Textarea
-                  id={functionDescriptionId}
-                  className="min-h-20 text-xs"
-                  value={func.description}
-                  onChange={(e) => onChange({ description: e.target.value })}
-                  onFocus={handleFocus}
-                  placeholder="Describe what this function does"
-                />
-              </div>
-            </div>
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 text-[13px]">
+            <Checkbox
+              checked={transitionOnly}
+              onCheckedChange={(value) => setTransitionOnly(value === true)}
+              onFocus={handleFocus}
+            />
+            Transition only
+          </label>
+          <div className="text-xs text-muted-foreground">
+            Defined in the config alone: no parameters and no code, just a description for the LLM
+            and the node it leads to.
+          </div>
+          {transitionOnly && (
+            <>
+              <label htmlFor={descriptionId} className="block text-[13px] text-muted-foreground">
+                Description
+              </label>
+              <Textarea
+                id={descriptionId}
+                className="min-h-20 text-[13px]"
+                value={func.description ?? ""}
+                onChange={(e) => onChange({ description: e.target.value })}
+                onFocus={handleFocus}
+                placeholder="What the tool is for, for the LLM"
+              />
+            </>
+          )}
+        </div>
 
-            {/* Properties Section */}
-            <div className="pt-3 border-t border-neutral-200 dark:border-neutral-700">
-              <div className="flex items-center justify-between mb-3">
-                <div className="text-xs font-medium opacity-80">Properties</div>
-                <Button variant="ghost" size="sm" className="h-6 gap-1" onClick={addProperty}>
-                  <Plus className="h-4 w-4" /> Add Property
-                </Button>
-              </div>
-              {propertyEntries.length === 0 ? (
-                <div className="text-xs opacity-40 italic py-2">
-                  No properties. Click "Add Property" to create one.
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {propertyEntries.map(([propName, prop]) => (
-                    <PropertyItem
-                      key={propName}
-                      propName={propName}
-                      property={prop as FunctionProperty}
-                      isRequired={required.includes(propName)}
-                      onUpdate={(updates) => updateProperty(propName, updates)}
-                      onRename={(newName) => renameProperty(propName, newName)}
-                      onRemove={() => removeProperty(propName)}
-                      onRequiredChange={(isReq) => updateRequired(propName, isReq)}
-                      onFocus={handleFocus}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Call Options Section (@flows_tool_options) */}
-            <div className="pt-3 border-t border-neutral-200 dark:border-neutral-700">
-              <div className="text-xs font-medium opacity-80 mb-3">Call options</div>
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id={cancelOnInterruptionId}
-                  checked={Boolean(func.cancel_on_interruption)}
-                  onCheckedChange={(checked: boolean) =>
-                    onChange({ cancel_on_interruption: checked ? true : undefined })
-                  }
-                  onFocus={handleFocus}
-                />
-                <label
-                  htmlFor={cancelOnInterruptionId}
-                  className="text-xs opacity-60 cursor-pointer"
+        <div className="pt-3 border-t">
+          <div className="mb-2 flex items-center justify-between">
+            <label
+              htmlFor={destinationId}
+              className="text-[13px] font-medium text-foreground flex items-center gap-1"
+            >
+              Transition to
+              {hasInvalidTarget && (
+                <span
+                  className="text-orange-600 dark:text-orange-400 text-[13px]"
+                  title="Invalid: target node was deleted"
                 >
-                  Cancel on interruption
-                </label>
-              </div>
-              <div className="space-y-2 mt-3">
-                <label htmlFor={timeoutSecsId} className="text-xs opacity-60">
-                  Timeout (seconds)
-                </label>
-                <Input
-                  id={timeoutSecsId}
-                  type="number"
-                  step="any"
-                  className={`h-8 text-xs ${timeoutError ? "border-red-500" : ""}`}
-                  value={timeoutInput}
-                  onChange={(e) => handleTimeoutChange(e.target.value)}
-                  onFocus={handleFocus}
-                  placeholder="Use global default"
-                />
-                {timeoutError && <div className="mt-1 text-xs text-red-600">{timeoutError}</div>}
-              </div>
-            </div>
-
-            {/* Next Node Section */}
-            <div className="pt-3 border-t border-neutral-200 dark:border-neutral-700">
-              <div className="mb-2 flex items-center justify-between">
-                <label
-                  ref={(el) => {
-                    defaultNextNodeRef.current = el;
-                  }}
-                  htmlFor={nextNodeId}
-                  className="text-xs font-medium opacity-80 flex items-center gap-1"
-                >
-                  {func.decision ? "Default Next Node" : "Next Node"}
-                  {hasInvalidNextNode && (
-                    <span
-                      className="text-orange-600 dark:text-orange-400 text-xs"
-                      title="Invalid: target node was deleted"
-                    >
-                      ⚠
-                    </span>
-                  )}
-                </label>
-                {func.next_node_id && !func.decision && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 text-xs px-2"
-                    onClick={() => onChange({ next_node_id: undefined })}
-                  >
-                    Clear
-                  </Button>
-                )}
-              </div>
-              {hasInvalidNextNode && (
-                <div className="mb-2 text-xs text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-orange-950/40 px-2 py-1 rounded">
-                  Invalid: Target node "{func.next_node_id}" was deleted
-                </div>
+                  ⚠
+                </span>
               )}
-              {availableNodeIds.length > 0 ? (
-                <Select
-                  value={
-                    func.decision
-                      ? func.decision.default_next_node_id
-                      : (func.next_node_id ?? undefined)
-                  }
-                  onValueChange={(v) => {
-                    if (func.decision) {
-                      onChange({
-                        decision: {
-                          ...func.decision,
-                          default_next_node_id: v,
-                        },
-                      });
-                    } else {
-                      onChange({ next_node_id: v });
-                    }
-                  }}
-                  onOpenChange={(open) => {
-                    if (open) {
-                      handleFocus();
-                    }
-                  }}
-                >
-                  <SelectTrigger
-                    id={nextNodeId}
-                    className={`h-8 text-xs ${hasInvalidNextNode ? "border-orange-400 dark:border-orange-500" : ""}`}
-                    onFocus={handleFocus}
-                  >
-                    <SelectValue placeholder="Select next node..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableNodeIds.map((nodeId) => (
-                      <SelectItem key={nodeId} value={nodeId}>
-                        {nodeId}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <div className="text-xs opacity-40 italic py-1">No other nodes available</div>
-              )}
+            </label>
+            {transition !== undefined && transition !== null && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 text-[13px] px-2"
+                onClick={() => onChange({ transition_to: undefined })}
+              >
+                Clear
+              </Button>
+            )}
+          </div>
+          {hasInvalidTarget && (
+            <div className="mb-2 text-[13px] text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-orange-950/40 px-2 py-1">
+              Invalid: no node named {missingTargets.map((t) => `"${t}"`).join(", ")}
             </div>
-
-            {/* Decision Section */}
-            <DecisionSection
-              func={func}
-              onChange={onChange}
+          )}
+          {!transitionOnly && (
+            <div
+              className="mb-2 inline-flex border text-[13px] overflow-hidden"
+              role="radiogroup"
+              aria-label="Destination kind"
+            >
+              <button
+                type="button"
+                role="radio"
+                aria-checked={!branch}
+                className={`px-2 py-1 ${!branch ? "bg-secondary" : "text-muted-foreground"}`}
+                onClick={() => branch && switchToNode()}
+              >
+                A node
+              </button>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={Boolean(branch)}
+                className={`px-2 py-1 border-l ${branch ? "bg-secondary" : "text-muted-foreground"}`}
+                onClick={() => !branch && switchToBranch()}
+              >
+                Branch on the result
+              </button>
+            </div>
+          )}
+          {branch && !transitionOnly ? (
+            <BranchEditor
+              branch={branch}
+              onChange={(next) => onChange({ transition_to: next })}
               availableNodeIds={availableNodeIds}
               currentNodeId={currentNodeId}
-              functionIndex={functionIndex}
-              isSelected={isSelected}
               selectedConditionIndex={selectedConditionIndex}
               onFocus={handleFocus}
             />
-          </div>
+          ) : availableNodeIds.length > 0 ? (
+            <Select
+              value={destination}
+              onValueChange={(v) => onChange({ transition_to: v })}
+              onOpenChange={(open) => {
+                if (open) handleFocus();
+              }}
+            >
+              <SelectTrigger
+                id={destinationId}
+                className={`h-8 text-[13px] ${hasInvalidTarget ? "border-orange-400 dark:border-orange-500" : ""}`}
+                onFocus={handleFocus}
+              >
+                <SelectValue placeholder={transitionOnly ? "Choose a node" : "Stay on this node"} />
+              </SelectTrigger>
+              <SelectContent>
+                {availableNodeIds.map((nodeId) => (
+                  <SelectItem key={nodeId} value={nodeId}>
+                    {nodeId}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <div className="text-[13px] text-muted-foreground italic py-1">No nodes available</div>
+          )}
         </div>
-      </div>
+      </Segment>
     );
   }
 );

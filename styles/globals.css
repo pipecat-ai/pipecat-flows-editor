@@ -5,10 +5,12 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  --radius-xl: calc(var(--radius) * 1.4);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -23,92 +25,82 @@
   --color-muted-foreground: var(--muted-foreground);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
+  --color-accent-line: var(--accent-line);
+  --color-accent-line-soft: var(--accent-line-soft);
+  /* The brand indigo: primary, and its light and dark tints. `brand` follows
+     the theme, primary on light and the light tint on dark. */
+  --color-brand: var(--brand);
+  --color-brand-primary: #4f46e5;
+  --color-brand-light: #a5b4fc;
+  --color-brand-dark: #312e81;
   --color-destructive: var(--destructive);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --color-chart-1: var(--chart-1);
-  --color-chart-2: var(--chart-2);
-  --color-chart-3: var(--chart-3);
-  --color-chart-4: var(--chart-4);
-  --color-chart-5: var(--chart-5);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-ring: var(--sidebar-ring);
 }
 
+/*
+ * Semantic color tokens, on the Tailwind zinc scale, matching pipecat.ai so
+ * the editor and the site read as one product. Components use the semantic
+ * utilities (bg-background, border-border, ...) or zinc-* directly; the
+ * brand indigo is the one non-gray accent, for selection and links.
+ */
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  --radius: 0.5rem;
+  --background: var(--color-zinc-50);
+  --foreground: var(--color-zinc-950);
+  --card: var(--color-white);
+  --card-foreground: var(--color-zinc-950);
+  --popover: var(--color-white);
+  --popover-foreground: var(--color-zinc-950);
+  --primary: var(--color-zinc-950);
+  --primary-foreground: var(--color-zinc-50);
+  --secondary: var(--color-zinc-100);
+  --secondary-foreground: var(--color-zinc-950);
+  --muted: var(--color-zinc-100);
+  --muted-foreground: var(--color-zinc-500);
+  --accent: var(--color-zinc-100);
+  --accent-foreground: var(--color-zinc-950);
+  --accent-line: var(--color-zinc-400);
+  --accent-line-soft: var(--color-zinc-300);
+  --brand: var(--color-brand-primary);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --border: var(--color-zinc-200);
+  --input: var(--color-zinc-200);
+  --ring: var(--color-zinc-400);
+  --sidebar: var(--color-white);
+  --sidebar-foreground: var(--color-zinc-950);
+  --sidebar-border: var(--color-zinc-200);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
+  --background: var(--color-zinc-950);
+  --foreground: var(--color-zinc-50);
+  --card: var(--color-zinc-900);
+  --card-foreground: var(--color-zinc-50);
+  --popover: var(--color-zinc-900);
+  --popover-foreground: var(--color-zinc-50);
+  --primary: var(--color-zinc-50);
+  --primary-foreground: var(--color-zinc-950);
+  --secondary: var(--color-zinc-800);
+  --secondary-foreground: var(--color-zinc-50);
+  --muted: var(--color-zinc-800);
+  --muted-foreground: var(--color-zinc-400);
+  --accent: var(--color-zinc-800);
+  --accent-foreground: var(--color-zinc-50);
+  --accent-line: var(--color-zinc-600);
+  --accent-line-soft: var(--color-zinc-700);
+  --brand: var(--color-brand-light);
   --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --border: var(--color-zinc-800);
+  --input: var(--color-zinc-800);
+  --ring: var(--color-zinc-600);
+  --sidebar: var(--color-zinc-900);
+  --sidebar-foreground: var(--color-zinc-50);
+  --sidebar-border: var(--color-zinc-800);
 }
 
 @layer base {
@@ -118,4 +110,77 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* Small caps label in the mono face, as pipecat.ai sets eyebrows and buttons. */
+@utility type-mono-label {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: var(--text-xs--line-height);
+  font-weight: var(--font-weight-medium);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/*
+ * Crosshair marks at a frame's four corners, adapted from pipecat.ai's
+ * globals.css. Color follows --crosshair-color, else the accent line.
+ */
+@utility crosshair-frame {
+  position: relative;
+  --crosshair-size: --spacing(5);
+
+  @media (width < 40rem) {
+    --crosshair-size: --spacing(3);
+  }
+
+  &::before {
+    content: "";
+    position: absolute;
+    inset: calc(var(--crosshair-size) / -2 - var(--crosshair-offset, 0.5px));
+    pointer-events: none;
+    color: var(--crosshair-color, var(--color-accent-line));
+    background:
+      linear-gradient(currentColor, currentColor) left 0 top
+        calc(var(--crosshair-size) / 2 - 0.5px) / var(--crosshair-size) 1px no-repeat,
+      linear-gradient(currentColor, currentColor) left calc(var(--crosshair-size) / 2 - 0.5px) top
+        0 / 1px var(--crosshair-size) no-repeat,
+      linear-gradient(currentColor, currentColor) right 0 top
+        calc(var(--crosshair-size) / 2 - 0.5px) / var(--crosshair-size) 1px no-repeat,
+      linear-gradient(currentColor, currentColor) right calc(var(--crosshair-size) / 2 - 0.5px) top
+        0 / 1px var(--crosshair-size) no-repeat,
+      linear-gradient(currentColor, currentColor) left 0 bottom
+        calc(var(--crosshair-size) / 2 - 0.5px) / var(--crosshair-size) 1px no-repeat,
+      linear-gradient(currentColor, currentColor) left calc(var(--crosshair-size) / 2 - 0.5px)
+        bottom 0 / 1px var(--crosshair-size) no-repeat,
+      linear-gradient(currentColor, currentColor) right 0 bottom
+        calc(var(--crosshair-size) / 2 - 0.5px) / var(--crosshair-size) 1px no-repeat,
+      linear-gradient(currentColor, currentColor) right calc(var(--crosshair-size) / 2 - 0.5px)
+        bottom 0 / 1px var(--crosshair-size) no-repeat;
+  }
+}
+
+/* The canvas in the same two colors as everything else: resting edges, dots,
+   and ports on the accent line, a selected edge in sky. Controls sit on the
+   card surface with a hairline border. */
+.react-flow {
+  /* The canvas on the page's own ground, so a column that resizes around it
+     never exposes a different shade. */
+  --xy-background-color: var(--background);
+  --xy-edge-stroke: var(--accent-line);
+  --xy-edge-stroke-selected: var(--brand);
+  /* Dots one step darker in light mode, where the soft line is too faint on zinc-50. */
+  --xy-background-pattern-color: var(--accent-line);
+  --xy-controls-button-background-color: var(--card);
+  --xy-controls-button-background-color-hover: var(--accent);
+  --xy-controls-button-color: var(--foreground);
+  --xy-controls-button-color-hover: var(--foreground);
+  --xy-controls-button-border-color: var(--border);
+}
+.dark .react-flow {
+  --xy-background-pattern-color: var(--accent-line-soft);
+}
+.react-flow__controls {
+  box-shadow: none;
+  border: 1px solid var(--border);
 }
