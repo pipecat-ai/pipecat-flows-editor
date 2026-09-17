@@ -28,9 +28,6 @@ export interface LayoutOptions {
   measure?: (node: Node) => { width: number; height: number };
 }
 
-/** Space reserved beside a card with a self-loop, for the loop around its right side. */
-export const SELF_LOOP_SIDEROOM = 48;
-
 /** The node card's geometry, shared with the size estimate so layout matches rendering. */
 export const NODE_CARD = {
   width: 280,
@@ -47,8 +44,22 @@ export const COMPACT_END = { width: 160, height: 36 };
 /** The decision node's geometry: a flat diamond with the field inside, and its distance under a new source. */
 export const DECISION = { width: 120, height: 44, gap: 48 };
 
-/** An edge label's footprint in the layout, from its text. */
-export const EDGE_LABEL = { height: 20, charWidth: 6.6, padding: 14 };
+/** An edge label's pill: its height, the width per character, the glyph and padding, and how many characters it shows. */
+export const EDGE_LABEL = { height: 20, charWidth: 6.6, padding: 30, maxChars: 28 };
+
+/** How wide an edge label's pill is, from its text. */
+export function edgeLabelWidth(text: string): number {
+  const chars = Math.min(text.length, EDGE_LABEL.maxChars);
+  return Math.max(24, chars * EDGE_LABEL.charWidth + EDGE_LABEL.padding);
+}
+
+/** How far right of a card the run of a loop around it sits, so the label on the run clears the card. */
+export function loopClearance(text: string): number {
+  return edgeLabelWidth(text) / 2 + 16;
+}
+
+/** How much each further loop around the same card steps outward. */
+export const LOOP_STEP = 14;
 
 /** The card's description: the node's first task message, on one line, or nothing. */
 export function cardDescription(data: Pick<ConfigNodeData, "task_messages">): string {
@@ -98,9 +109,8 @@ export function estimateNodeSize(node: Node): { width: number; height: number } 
   };
 }
 
-function labelWidth(edge: Edge): number {
-  const text = typeof edge.label === "string" ? edge.label : "";
-  return Math.max(24, text.length * EDGE_LABEL.charWidth + EDGE_LABEL.padding);
+function labelText(edge: Edge): string {
+  return typeof edge.label === "string" ? edge.label : "";
 }
 
 /**
@@ -144,15 +154,33 @@ export function layoutGraph<N extends Node>(
   graph.setGraph({ rankdir: direction, nodesep: nodeSpacing, ranksep: rankSpacing, edgesep: 24 });
   graph.setDefaultEdgeLabel(() => ({}));
 
-  // A self-loop goes around its card's right side, so the card gets room there
-  const loops = new Set(edges.filter((e) => e.source === e.target).map((e) => e.source));
+  // A loop around a card, a self-loop or a case back to its own node, runs
+  // up the card's right side with its label on the run, so the card gets
+  // room there for the widest label, and for each further loop outward
+  const loopRoom = new Map<string, number>();
+  const loopCount = new Map<string, number>();
+  for (const edge of edges) {
+    const around =
+      edge.source === edge.target
+        ? edge.source
+        : (edge.data as CanvasEdgeData | undefined)?.sourceNodeId === edge.target
+          ? edge.target
+          : null;
+    if (!around) continue;
+    const text = labelText(edge);
+    const room = loopClearance(text) + edgeLabelWidth(text) / 2 + 8;
+    loopRoom.set(around, Math.max(loopRoom.get(around) ?? 0, room));
+    loopCount.set(around, (loopCount.get(around) ?? 0) + 1);
+  }
   const sizes = new Map<string, { width: number; height: number }>();
   for (const node of nodes) {
     const size =
       node.measured?.width && node.measured?.height
         ? { width: node.measured.width, height: node.measured.height }
         : measure(node);
-    const sideroom = loops.has(node.id) ? SELF_LOOP_SIDEROOM : 0;
+    const sideroom = loopRoom.has(node.id)
+      ? loopRoom.get(node.id)! + (loopCount.get(node.id)! - 1) * LOOP_STEP
+      : 0;
     sizes.set(node.id, { width: size.width + sideroom, height: size.height });
     graph.setNode(node.id, { width: size.width + sideroom, height: size.height });
   }
@@ -166,7 +194,7 @@ export function layoutGraph<N extends Node>(
     graph.setEdge(
       edge.source,
       edge.target,
-      { width: labelWidth(edge), height: EDGE_LABEL.height, labelpos: "c" },
+      { width: edgeLabelWidth(labelText(edge)), height: EDGE_LABEL.height, labelpos: "c" },
       edge.id
     );
   }

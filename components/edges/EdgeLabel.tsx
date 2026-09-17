@@ -4,9 +4,7 @@ import { EdgeLabelRenderer } from "@xyflow/react";
 import { ArrowRight, CornerDownRight, Split } from "lucide-react";
 
 import type { CanvasEdgeKind } from "@/lib/convert/configToCanvas";
-
-/** How many characters of a label the edge shows before an ellipsis. */
-const LABEL_LIMIT = 28;
+import { EDGE_LABEL } from "@/lib/layout/autoLayout";
 
 const GLYPHS = {
   transition: ArrowRight,
@@ -37,7 +35,8 @@ export default function EdgeLabel({
   onClick: () => void;
 }) {
   if (!text) return null;
-  const shown = text.length > LABEL_LIMIT ? `${text.slice(0, LABEL_LIMIT - 1)}…` : text;
+  const shown =
+    text.length > EDGE_LABEL.maxChars ? `${text.slice(0, EDGE_LABEL.maxChars - 1)}…` : text;
   const Glyph = GLYPHS[kind];
   return (
     <EdgeLabelRenderer>

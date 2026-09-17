@@ -15,7 +15,7 @@ import InlineText from "./InlineText";
  * keys on inside. The function that leads here is the label on the edge
  * in; the cases are the labels on the edges out, which leave by the side
  * facing their target. Without a default, an unmatched value stays on the
- * source node, which a dashed outline says. The field renames in place;
+ * source node, which the tooltip says. The field renames in place;
  * selecting the diamond selects its function.
  */
 export default function DecisionNode({ data, selected }: NodeProps<DecisionCanvasNode>) {
@@ -31,8 +31,9 @@ export default function DecisionNode({ data, selected }: NodeProps<DecisionCanva
   ]
     .map(([x, y]) => `${x},${y}`)
     .join(" ");
+  // The tips take and start connections; the handles there are invisible
   const handleClass =
-    "bg-accent-line! h-2.5! w-2.5! hover:bg-brand! hover:scale-125 transition-transform";
+    "h-3! w-3! rounded-none! border-0! bg-transparent! hover:bg-brand/40! transition-colors";
   const title = `${data.functionName || "A function"} branches on ${data.field || "a field"} of its result${
     data.hasDefault ? "" : "; a value that matches no case stays on the node"
   }`;
@@ -45,7 +46,6 @@ export default function DecisionNode({ data, selected }: NodeProps<DecisionCanva
           points={points}
           className={`fill-card ${selected ? "stroke-brand" : "stroke-accent-line"}`}
           strokeWidth={selected ? 1.5 : 1}
-          strokeDasharray={data.hasDefault ? undefined : "4 3"}
           strokeLinejoin="round"
         />
       </svg>

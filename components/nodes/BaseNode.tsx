@@ -84,7 +84,8 @@ export default function BaseNode({ id, data, selected, type }: NodeProps<ConfigC
           type="target"
           id={IN_HANDLE}
           position={Position.Top}
-          className="bg-accent-line! h-2.5! w-2.5!"
+          className="w-full! h-2! left-0! transform-none! rounded-none! border-0! bg-transparent! hover:bg-brand/30! transition-colors"
+          style={{ top: -4 }}
         />
         <LogOut className="h-[13px] w-[13px] shrink-0 text-muted-foreground" />
         <InlineText
@@ -113,11 +114,14 @@ export default function BaseNode({ id, data, selected, type }: NodeProps<ConfigC
       onMouseOver={() => setHovering(true)}
       onMouseLeave={() => setHovering(false)}
     >
+      {/* Edges attach anywhere along the top and bottom edges; the strips are
+          invisible and only there to start or take a connection by drag. */}
       <Handle
         type="target"
         id={IN_HANDLE}
         position={Position.Top}
-        className="bg-accent-line! h-2.5! w-2.5!"
+        className="w-full! h-2! left-0! transform-none! rounded-none! border-0! bg-transparent! hover:bg-brand/30! transition-colors"
+        style={{ top: -4 }}
       />
       <div
         className={`flex items-center gap-1.5 px-2.5 text-[13px] font-semibold ${
@@ -189,8 +193,9 @@ export default function BaseNode({ id, data, selected, type }: NodeProps<ConfigC
           type="source"
           id={OUT_HANDLE}
           position={Position.Bottom}
-          className="bg-accent-line! h-2.5! w-2.5! hover:bg-brand! hover:scale-125 transition-transform"
-          title="Drag to a node to add a function leading there"
+          className="w-full! h-2! left-0! transform-none! rounded-none! border-0! bg-transparent! hover:bg-brand/30! transition-colors"
+          style={{ bottom: -4 }}
+          title="Drag from here to a node to add a function leading there"
         />
       )}
       {!isEndNode && actions && (

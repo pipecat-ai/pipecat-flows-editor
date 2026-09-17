@@ -19,7 +19,7 @@ import {
   layoutGraph,
   layoutNodes,
   NODE_CARD,
-  SELF_LOOP_SIDEROOM,
+  loopClearance,
 } from "@/lib/layout/autoLayout";
 import type { FlowConfig } from "@/lib/schema/flowConfig";
 import { clearPositions, loadPositions, savePositions } from "@/lib/storage/positionStore";
@@ -340,10 +340,10 @@ describe("layoutNodes", () => {
     const placed = layoutNodes(nodes, edges);
     const b = placed.find((n) => n.id === "b")!;
     const c = placed.find((n) => n.id === "c")!;
-    // b and c share a rank; the gap between them includes b's sideroom
+    // b and c share a rank; the gap between them has room for b's loop and its label
     expect(b.position.y).toBe(c.position.y);
     const gap = Math.abs(b.position.x - c.position.x);
-    expect(gap).toBeGreaterThanOrEqual(estimateNodeSize(b).width + SELF_LOOP_SIDEROOM);
+    expect(gap).toBeGreaterThanOrEqual(estimateNodeSize(b).width + loopClearance("again"));
   });
 
   it("survives self-loops and dangling edges", () => {
