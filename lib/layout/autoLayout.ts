@@ -131,6 +131,9 @@ export interface EdgeRoute {
   label?: { x: number; y: number };
   source: { x: number; y: number };
   target: { x: number; y: number };
+  /** The nodes the route joins. Edge ids are reused after an edit, so an edge takes a route only between the same nodes. */
+  sourceNodeId: string;
+  targetNodeId: string;
 }
 
 export type EdgeRoutes = Record<string, EdgeRoute>;
@@ -234,6 +237,8 @@ export function layoutGraph<N extends Node>(
         : {}),
       source: { ...source },
       target: { ...target },
+      sourceNodeId: edge.source,
+      targetNodeId: edge.target,
     };
   }
 

@@ -88,7 +88,12 @@ export default function LabeledEdge({
 }: EdgeProps<CanvasEdge>) {
   const actions = useCanvasActions();
   const { setEdges, setNodes } = useReactFlow();
-  const route = useEditorStore((state) => state.edgeRoutes[id]);
+  // A route keyed by this edge's id from an earlier layout may belong to a
+  // different edge now, since ids are reused when functions are removed,
+  // reordered, or retargeted; it counts only between the same two nodes
+  const stored = useEditorStore((state) => state.edgeRoutes[id]);
+  const route =
+    stored && stored.sourceNodeId === source && stored.targetNodeId === target ? stored : undefined;
   const sourceNode = useInternalNode(source);
   const targetNode = useInternalNode(target);
   const fromDecision = data?.kind === "case" || data?.kind === "default";

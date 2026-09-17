@@ -470,6 +470,7 @@ describe("layoutGraph routes", () => {
     }
     // Endpoints are recorded where the layout put them
     expect(routes[long.id].target).toEqual(placed.find((n) => n.id === "c")!.position);
+    expect(routes[long.id]).toMatchObject({ sourceNodeId: long.source, targetNodeId: long.target });
   });
 
   it("hands the routes out with the canvas", () => {
