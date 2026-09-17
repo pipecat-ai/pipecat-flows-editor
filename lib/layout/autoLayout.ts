@@ -3,8 +3,9 @@
  * document, so a config with no stored positions is laid out with dagre,
  * top to bottom, the way a conversation is read: edges leave a card's
  * bottom and enter the next card's top, and a branch's decision node sits
- * between its source and its targets. See `lib/storage/positionStore.ts`
- * for what happens after that.
+ * between its source and its targets, and the routes it gives the edges
+ * stretch with the nodes when they are moved by hand. See
+ * `lib/storage/positionStore.ts` for what happens after that.
  */
 
 import dagre from "@dagrejs/dagre";
@@ -102,21 +103,45 @@ function labelWidth(edge: Edge): number {
   return Math.max(24, text.length * EDGE_LABEL.charWidth + EDGE_LABEL.padding);
 }
 
+/**
+ * How the layout routed an edge: the points it runs through, from the
+ * source's border, past the nodes in between, to the target's border, the
+ * slot it reserved for the label, and where its endpoints were placed, so
+ * the route can stretch with the endpoints when they are moved by hand.
+ */
+export interface EdgeRoute {
+  points: Array<{ x: number; y: number }>;
+  label?: { x: number; y: number };
+  source: { x: number; y: number };
+  target: { x: number; y: number };
+}
+
+export type EdgeRoutes = Record<string, EdgeRoute>;
+
 /** Returns copies of `nodes` with dagre-assigned positions. Edges are unchanged. */
 export function layoutNodes<N extends Node>(
   nodes: N[],
   edges: Edge[],
   options: LayoutOptions = {}
 ): N[] {
+  return layoutGraph(nodes, edges, options).nodes;
+}
+
+/** Lays the nodes out and keeps how each edge was routed between them. */
+export function layoutGraph<N extends Node>(
+  nodes: N[],
+  edges: Edge[],
+  options: LayoutOptions = {}
+): { nodes: N[]; routes: EdgeRoutes } {
   const {
     direction = "TB",
-    nodeSpacing = 64,
-    rankSpacing = 160,
+    nodeSpacing = 56,
+    rankSpacing = 140,
     measure = estimateNodeSize,
   } = options;
 
   const graph = new dagre.graphlib.Graph({ multigraph: true });
-  graph.setGraph({ rankdir: direction, nodesep: nodeSpacing, ranksep: rankSpacing });
+  graph.setGraph({ rankdir: direction, nodesep: nodeSpacing, ranksep: rankSpacing, edgesep: 24 });
   graph.setDefaultEdgeLabel(() => ({}));
 
   // A self-loop goes around its card's right side, so the card gets room there
@@ -148,7 +173,7 @@ export function layoutNodes<N extends Node>(
 
   dagre.layout(graph);
 
-  return nodes.map((node) => {
+  const placedNodes = nodes.map((node) => {
     const placed = graph.node(node.id);
     const size = sizes.get(node.id)!;
     // dagre reports centers; React Flow positions are top-left corners. The
@@ -158,4 +183,24 @@ export function layoutNodes<N extends Node>(
       position: { x: placed.x - size.width / 2, y: placed.y - size.height / 2 },
     };
   });
+  const positions = new Map(placedNodes.map((node) => [node.id, node.position]));
+
+  const routes: EdgeRoutes = {};
+  for (const edge of edges) {
+    const routed = graph.edge({ v: edge.source, w: edge.target, name: edge.id });
+    const source = positions.get(edge.source);
+    const target = positions.get(edge.target);
+    if (!routed || !source || !target) continue;
+    const points = (routed.points ?? []).map((p: { x: number; y: number }) => ({ x: p.x, y: p.y }));
+    routes[edge.id] = {
+      points,
+      ...(typeof routed.x === "number" && typeof routed.y === "number"
+        ? { label: { x: routed.x, y: routed.y } }
+        : {}),
+      source: { ...source },
+      target: { ...target },
+    };
+  }
+
+  return { nodes: placedNodes, routes };
 }

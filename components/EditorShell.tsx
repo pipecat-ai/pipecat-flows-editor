@@ -54,7 +54,7 @@ import {
   isLegacyFlowJson,
 } from "@/lib/document/legacyImport";
 import { serializeFlow } from "@/lib/document/serializeFlow";
-import { layoutNodes } from "@/lib/layout/autoLayout";
+import { type EdgeRoutes, layoutGraph } from "@/lib/layout/autoLayout";
 import { getTemplateByType } from "@/lib/nodes/templates";
 import type { FlowConfig, FlowConfigFunction } from "@/lib/schema/flowConfig";
 import { LEGACY_STORAGE_KEY, loadCurrentFlow, saveCurrentFlow } from "@/lib/storage/localStore";
@@ -92,7 +92,13 @@ import { readFlowFile } from "@/lib/utils/readFlowFile";
 import { issueErrors, summarizeIssues } from "@/lib/validation/flowIssues";
 
 /** An undo snapshot is the whole document: the canvas and the flow-level global functions. */
-type History = { nodes: FlowNode[]; edges: FlowEdge[]; globalFunctions: FlowConfigFunction[] };
+type History = {
+  nodes: FlowNode[];
+  edges: FlowEdge[];
+  globalFunctions: FlowConfigFunction[];
+  /** How the layout routed the edges, when the canvas came from one. */
+  routes?: EdgeRoutes;
+};
 
 /** Structural equality with key order ignored, for comparing configs from different sources. */
 function sameConfig(a: FlowConfig | null, b: FlowConfig | null): boolean {
@@ -250,6 +256,11 @@ export default function EditorShell() {
     []
   );
 
+  // Set when a flow is opened; the next layout of measured cards fits the view
+  // A flow that was just opened is laid out once its cards are measured,
+  // since layout on data alone works from size estimates, and then fitted
+  const layoutPendingRef = useRef(false);
+  const fitPendingRef = useRef(false);
   const fitViewSoon = useCallback(() => {
     setTimeout(() => {
       useEditorStore.getState().rfInstance?.fitView?.({ padding: 0.2, duration: 300 });
@@ -261,6 +272,7 @@ export default function EditorShell() {
       skipUndoPushRef.current = true;
       setNodes(next.nodes);
       setEdges(next.edges);
+      useEditorStore.getState().setEdgeRoutes(next.routes ?? {});
       useFlowStore.getState().setGlobalFunctions(next.globalFunctions);
       undoManagerRef.current = new UndoManager<History>(next);
       clearSelection();
@@ -312,6 +324,10 @@ export default function EditorShell() {
         initialNode: parsed.config.initial_node,
       });
       replaceCanvas({ ...canvas, globalFunctions });
+      // A file is laid out once its cards are measured; a restored
+      // arrangement is kept as it was
+      layoutPendingRef.current = !options.keepPositions;
+      fitPendingRef.current = true;
       // The pane shows the file as written
       paneConfigRef.current = parsed.config;
       setYamlText(text);
@@ -326,7 +342,6 @@ export default function EditorShell() {
       } else if (!options.silent) {
         showToast(`Opened ${flowName}`, "success");
       }
-      fitViewSoon();
       return true;
     },
     [replaceCanvas, loadFlow, fitViewSoon]
@@ -335,7 +350,8 @@ export default function EditorShell() {
   const startNewFlow = useCallback(() => {
     resetFlow();
     replaceCanvas({ nodes: newFlowNodes(), edges: [], globalFunctions: [] });
-    fitViewSoon();
+    layoutPendingRef.current = true;
+    fitPendingRef.current = true;
   }, [replaceCanvas, resetFlow, fitViewSoon]);
 
   // New Flow shows the start screen over a blank flow; so does a first visit
@@ -398,8 +414,8 @@ export default function EditorShell() {
     }
   }, [selectedNodeId, rfInstance]);
 
-  // Document sync (debounced): serialize the canvas, autosave it with the
-  // canvas positions, and rewrite the YAML pane when the config changed.
+  // Document sync (debounced): serialize the canvas, autosave it, and
+  // rewrite the YAML pane when the config changed.
   useEffect(() => {
     if (!hydratedRef.current) return;
     const id = setTimeout(() => {
@@ -435,6 +451,7 @@ export default function EditorShell() {
       const canvas = configToCanvas(parsed.config, { positions });
       setNodes(canvas.nodes);
       setEdges(canvas.edges);
+      useEditorStore.getState().setEdgeRoutes(canvas.routes ?? {});
       setDocument(parsed.document);
       setGlobalFunctions(parsed.config.global_functions ?? []);
     },
@@ -610,10 +627,36 @@ export default function EditorShell() {
     setContextMenuOpen(false);
   }, [contextMenuNodeId, setConfigNodes]);
 
+  // Lays the flow out and records how the edges were routed, so they can
+  // follow their routes and stretch with any node moved by hand later
+  const applyLayout = useCallback(() => {
+    const laid = layoutGraph(nodesRef.current, edges);
+    skipUndoPushRef.current = true;
+    setNodes(laid.nodes);
+    useEditorStore.getState().setEdgeRoutes(laid.routes);
+  }, [edges, setNodes]);
+
   const handleAutoLayout = useCallback(() => {
-    setNodes((nds) => layoutNodes(nds, edges));
+    applyLayout();
     fitViewSoon();
-  }, [setNodes, edges, fitViewSoon]);
+  }, [applyLayout, fitViewSoon]);
+
+  const measuredKey = nodes
+    .map((n) => `${n.id}|${n.measured?.width ?? 0}x${n.measured?.height ?? 0}`)
+    .join(";");
+  useEffect(() => {
+    const current = nodesRef.current;
+    if (current.length === 0 || !current.every((n) => n.measured?.width)) return;
+    if (layoutPendingRef.current) {
+      layoutPendingRef.current = false;
+      applyLayout();
+    }
+    if (fitPendingRef.current) {
+      fitPendingRef.current = false;
+      fitViewSoon();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [measuredKey]);
 
   // Recomputed only when a node is added, removed, renamed, or changes type,
   // not on every drag, so cards do not re-render for position changes.

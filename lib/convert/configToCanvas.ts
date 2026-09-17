@@ -19,7 +19,13 @@
 
 import type { Edge, Node } from "@xyflow/react";
 
-import { DECISION, layoutNodes, type LayoutOptions, NODE_CARD } from "@/lib/layout/autoLayout";
+import {
+  DECISION,
+  type EdgeRoutes,
+  layoutGraph,
+  type LayoutOptions,
+  NODE_CARD,
+} from "@/lib/layout/autoLayout";
 import {
   type FlowConfig,
   type FlowConfigBranch,
@@ -109,10 +115,12 @@ export function nodeFunctions(node: FlowCanvasNode | undefined): FlowConfigFunct
 export interface Canvas {
   nodes: FlowCanvasNode[];
   edges: CanvasEdge[];
+  /** How the layout routed the edges, when the canvas came from one. */
+  routes?: EdgeRoutes;
 }
 
 export interface ConfigToCanvasOptions {
-  /** Stored positions, applied over the auto-layout for the nodes they cover. */
+  /** Stored positions, applied over the layout for the nodes they cover; the routes stretch to them. */
   positions?: NodePositions;
   layout?: LayoutOptions;
 }
@@ -276,15 +284,15 @@ export function edgesForNodes(nodes: ReadonlyArray<FlowCanvasNode>): CanvasEdge[
   return markFanning(edges);
 }
 
-/** Nodes and edges for a config, positioned by stored positions and auto-layout. */
+/** Nodes and edges for a config, laid out, with how the layout routed the edges. */
 export function configToCanvas(config: FlowConfig, options: ConfigToCanvasOptions = {}): Canvas {
   const graph = configToGraph(config);
-  const laidOut = layoutNodes(graph.nodes, graph.edges, options.layout);
+  const laidOut = layoutGraph(graph.nodes, graph.edges, options.layout);
   const positions = options.positions ?? {};
-  const nodes = laidOut.map((node) =>
+  const nodes = laidOut.nodes.map((node) =>
     positions[node.id] ? { ...node, position: { ...positions[node.id] } } : node
   );
-  return { nodes, edges: graph.edges };
+  return { nodes, edges: graph.edges, routes: laidOut.routes };
 }
 
 function edge(

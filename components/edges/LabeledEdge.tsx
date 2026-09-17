@@ -1,41 +1,25 @@
 "use client";
 
-import {
-  BaseEdge,
-  type EdgeProps,
-  getBezierPath,
-  Position,
-  useEdges,
-  useInternalNode,
-  useNodes,
-  useReactFlow,
-} from "@xyflow/react";
+import { BaseEdge, type EdgeProps, useInternalNode, useReactFlow } from "@xyflow/react";
 
-import {
-  ARROW_MARKER,
-  ARROW_MARKER_SELECTED,
-  type CanvasEdge,
-  type FlowCanvasNode,
-} from "@/lib/convert/configToCanvas";
+import { ARROW_MARKER, ARROW_MARKER_SELECTED, type CanvasEdge } from "@/lib/convert/configToCanvas";
+import { useEditorStore } from "@/lib/store/editorStore";
 
 import { useCanvasActions } from "../nodes/canvasActions";
-import { loopPath, nodeBox } from "./edgeGeometry";
+import { loopPath, nodeBox, smoothPath } from "./edgeGeometry";
 import EdgeLabel from "./EdgeLabel";
 
-/** How far apart the labels of edges between the same two nodes are stacked. */
-const STEP = 18;
-/** Beyond this, a case leaves its decision node by the side rather than the bottom. */
-const SIDE_MARGIN = 24;
-
 /**
- * An edge with its function name or case value on it. A curve from the
- * source's bottom edge to the target's top, with the label at its midpoint,
- * where curves that leave one card spread apart on their own. A card's
- * edges leave from points spread along its bottom edge in the order of
- * their targets, so a fan-out never tangles at one exit. A case leaves its
- * decision node by the side facing its target, and a case that leads back
- * to the branch's own node is drawn as a loop around that card. Clicking
- * the label selects the edge.
+ * An edge with its function name or case value on it. The layout owns the
+ * geometry: the edge is a smooth curve through the route the layout gave
+ * it, which leaves the source's border, passes beside the nodes in between,
+ * and arrives at the target's border, with the label in the slot the layout
+ * reserved for it. When a node is moved by hand, its end of every route
+ * moves with it, fading out toward the other end, so the edge keeps its
+ * shape and never jumps. An edge that has no route yet, added since the
+ * last layout, is a plain curve between the handles. A case that leads
+ * back to the branch's own node is drawn as a loop around that card, since
+ * the layout does not route those. Clicking the label selects the edge.
  */
 export default function LabeledEdge({
   id,
@@ -52,9 +36,9 @@ export default function LabeledEdge({
 }: EdgeProps<CanvasEdge>) {
   const actions = useCanvasActions();
   const { setEdges, setNodes } = useReactFlow();
-  const edges = useEdges<CanvasEdge>();
-  const nodes = useNodes<FlowCanvasNode>();
+  const route = useEditorStore((state) => state.edgeRoutes[id]);
   const sourceNode = useInternalNode(source);
+  const targetNode = useInternalNode(target);
   const fromDecision = data?.kind === "case" || data?.kind === "default";
   const sourceCard = useInternalNode(fromDecision ? (data?.sourceNodeId ?? "") : source);
 
@@ -71,10 +55,10 @@ export default function LabeledEdge({
   };
   const marker = selected ? ARROW_MARKER_SELECTED : ARROW_MARKER;
   const stroke = { ...style, strokeWidth: selected ? 1.5 : 1 };
-  const box = nodeBox(sourceNode);
 
   // A case leading back to the branch's own node loops around that card
   if (fromDecision && sourceNode && sourceCard && target === data?.sourceNodeId) {
+    const box = nodeBox(sourceNode);
     const start: [number, number] = [box.right, box.y + box.height / 2];
     const { path, labelX, labelY } = loopPath(
       start,
@@ -97,51 +81,51 @@ export default function LabeledEdge({
     );
   }
 
-  let startX = sourceX;
-  let startY = sourceY;
-  let startPosition = Position.Bottom;
-  if (fromDecision && sourceNode) {
-    // From a decision node, leave by the side that faces the target
-    if (targetX < box.x - SIDE_MARGIN) {
-      startX = box.x;
-      startY = box.y + box.height / 2;
-      startPosition = Position.Left;
-    } else if (targetX > box.right + SIDE_MARGIN) {
-      startX = box.right;
-      startY = box.y + box.height / 2;
-      startPosition = Position.Right;
-    }
-  } else if (sourceNode && box.width > 0) {
-    // From a card, leave from a point along the bottom edge, in target order
-    const centerOf = (nodeId: string) => {
-      const n = nodes.find((node) => node.id === nodeId);
-      return n ? n.position.x + (n.measured?.width ?? 0) / 2 : 0;
+  let points: Array<[number, number]> = [
+    [sourceX, sourceY],
+    [targetX, targetY],
+  ];
+  let labelAt: { x: number; y: number } | undefined;
+  if (route && route.points.length >= 2 && sourceNode && targetNode) {
+    // The route stretches with its endpoints: a node moved by hand carries
+    // its end of the route with it, fading out toward the other end, so
+    // the edge keeps its shape and its label and never jumps.
+    const from = sourceNode.internals.positionAbsolute;
+    const to = targetNode.internals.positionAbsolute;
+    const shift = (fraction: number, x: number, y: number): [number, number] => [
+      x + (from.x - route.source.x) * (1 - fraction) + (to.x - route.target.x) * fraction,
+      y + (from.y - route.source.y) * (1 - fraction) + (to.y - route.target.y) * fraction,
+    ];
+    const last = route.points.length - 1;
+    points = route.points.map((p, i) => shift(i / last, p.x, p.y));
+    // The layout attaches to a node's box; a decision node's diamond meets
+    // its box only at the four tips, so an end on its bottom or top edge
+    // moves to the tip there.
+    const snap = (node: typeof sourceNode, point: [number, number], edge: "top" | "bottom") => {
+      if (!node || node.type !== "decision") return point;
+      const box = nodeBox(node);
+      const y = edge === "bottom" ? box.bottom : box.y;
+      return Math.abs(point[1] - y) < 2 ? ([box.centerX, y] as [number, number]) : point;
     };
-    const siblings = edges
-      .filter((e) => e.source === source && e.target !== e.source)
-      .sort((a, b) => centerOf(a.target) - centerOf(b.target) || a.id.localeCompare(b.id));
-    const index = Math.max(
-      0,
-      siblings.findIndex((e) => e.id === id)
-    );
-    if (siblings.length > 1) {
-      const inset = Math.min(32, box.width / (siblings.length + 1) / 2);
-      const span = box.width - inset * 2;
-      startX = box.x + inset + (span * index) / (siblings.length - 1);
-      startY = box.bottom;
+    points[0] = snap(sourceNode, points[0], "bottom");
+    points[points.length - 1] = snap(targetNode, points[points.length - 1], "top");
+    if (route.label) {
+      // The label moves with the nearest stretch of the route
+      const nearest = route.points.reduce(
+        (best, p, i) => {
+          const d = Math.hypot(p.x - route.label!.x, p.y - route.label!.y);
+          return d < best.d ? { d, i } : best;
+        },
+        { d: Infinity, i: 0 }
+      ).i;
+      const [x, y] = shift(nearest / last, route.label.x, route.label.y);
+      labelAt = { x, y };
     }
   }
-
-  const [path, labelX, labelY] = getBezierPath({
-    sourceX: startX,
-    sourceY: startY,
-    sourcePosition: startPosition,
-    targetX,
-    targetY,
-    targetPosition: Position.Top,
-    curvature: 0.3,
-  });
-  const stack = (data?.parallelIndex ?? 0) * STEP;
+  const path = smoothPath(points);
+  const mid = points[Math.floor(points.length / 2)];
+  const labelX = labelAt?.x ?? (points.length === 2 ? (points[0][0] + points[1][0]) / 2 : mid[0]);
+  const labelY = labelAt?.y ?? (points.length === 2 ? (points[0][1] + points[1][1]) / 2 : mid[1]);
 
   return (
     <>
@@ -150,7 +134,7 @@ export default function LabeledEdge({
         text={text}
         kind={kind}
         x={labelX}
-        y={labelY + stack}
+        y={labelY}
         selected={selected}
         onClick={select}
       />

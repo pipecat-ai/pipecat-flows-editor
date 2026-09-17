@@ -7,6 +7,7 @@ import {
   type FlowCanvasNode,
   nodeFunctions,
 } from "@/lib/convert/configToCanvas";
+import type { EdgeRoutes } from "@/lib/layout/autoLayout";
 import type { FlowConfigFunction } from "@/lib/schema/flowConfig";
 import type { ReactFlowInstance } from "@/lib/types/flowTypes";
 
@@ -43,6 +44,8 @@ interface EditorState {
 
   // React Flow instance
   rfInstance: ReactFlowInstance | null;
+  /** How the last layout routed each edge; an edge whose endpoint has moved since ignores its route. */
+  edgeRoutes: EdgeRoutes;
 
   // Internal state for tracking
   _isDeletingFunction: boolean;
@@ -63,6 +66,7 @@ interface EditorState {
   setSidebarCollapsed: (collapsed: boolean) => void;
   requestInspectorTab: (tab: string | null) => void;
   setRfInstance: (instance: ReactFlowInstance | null) => void;
+  setEdgeRoutes: (routes: EdgeRoutes) => void;
 
   // Selection actions (with validation and logic)
   selectNode: (
@@ -125,6 +129,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
     isInspectorResizing: false,
     sidebarCollapsed: readSidebarCollapsed(),
     rfInstance: null,
+    edgeRoutes: {},
     _isDeletingFunction: false,
     requestedInspectorTab: null,
 
@@ -167,6 +172,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
       set({ sidebarCollapsed: collapsed });
     },
     setRfInstance: (instance) => set({ rfInstance: instance }),
+    setEdgeRoutes: (edgeRoutes) => set({ edgeRoutes }),
     requestInspectorTab: (tab) => set({ requestedInspectorTab: tab }),
 
     // Selection actions with validation

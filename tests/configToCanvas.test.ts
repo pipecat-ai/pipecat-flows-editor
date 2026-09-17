@@ -14,7 +14,13 @@ import {
   parseDecisionNodeId,
   reconcileDecisionNodes,
 } from "@/lib/convert/configToCanvas";
-import { estimateNodeSize, layoutNodes, SELF_LOOP_SIDEROOM } from "@/lib/layout/autoLayout";
+import {
+  estimateNodeSize,
+  layoutGraph,
+  layoutNodes,
+  NODE_CARD,
+  SELF_LOOP_SIDEROOM,
+} from "@/lib/layout/autoLayout";
 import type { FlowConfig } from "@/lib/schema/flowConfig";
 import { clearPositions, loadPositions, savePositions } from "@/lib/storage/positionStore";
 
@@ -367,6 +373,47 @@ describe("layoutNodes", () => {
   });
 });
 
+describe("layoutGraph routes", () => {
+  const config: FlowConfig = {
+    initial_node: "a",
+    nodes: {
+      a: {
+        task_messages: [],
+        functions: [{ name: "f", transition_to: { field: "k", cases: { x: "b", y: "c" } } }],
+      },
+      b: { task_messages: [], functions: [{ name: "g", transition_to: "c" }] },
+      c: { task_messages: [], post_actions: [{ type: "end_conversation" }] },
+    },
+  };
+
+  it("routes a long edge beside the node between its ranks, with a label slot for every edge", () => {
+    const { nodes, edges } = configToGraph(config);
+    const { nodes: placed, routes } = layoutGraph(nodes, edges);
+    const b = placed.find((n) => n.id === "b")!;
+    const long = edges.find((e) => e.source === decisionNodeId("a", 0) && e.target === "c")!;
+    const waypoints = routes[long.id].points.slice(1, -1);
+    expect(waypoints.length).toBeGreaterThanOrEqual(1);
+    // The waypoints keep the edge out of b's column
+    for (const point of waypoints) {
+      const inside = point.x > b.position.x && point.x < b.position.x + NODE_CARD.width;
+      const alongside = point.y > b.position.y && point.y < b.position.y + 76;
+      expect(inside && alongside).toBe(false);
+    }
+    for (const edge of edges) {
+      const route = routes[edge.id];
+      expect(route.label!.y).toBeGreaterThan(route.source.y);
+      expect(route.label!.y).toBeLessThan(route.target.y + 76);
+    }
+    // Endpoints are recorded where the layout put them
+    expect(routes[long.id].target).toEqual(placed.find((n) => n.id === "c")!.position);
+  });
+
+  it("hands the routes out with the canvas", () => {
+    const canvas = configToCanvas(config);
+    expect(Object.keys(canvas.routes!).sort()).toEqual(canvas.edges.map((e) => e.id).sort());
+  });
+});
+
 describe("configToCanvas", () => {
   it("auto-lays out a config with no stored positions", () => {
     const { nodes } = configToCanvas(foodOrdering);
@@ -374,21 +421,21 @@ describe("configToCanvas", () => {
     expect(new Set(positions).size).toBe(nodes.length);
   });
 
-  it("applies stored positions over the layout for the nodes they cover, decisions included", () => {
+  it("routes a branch's cases as separate edges from the decision node", () => {
+    const { edges } = configToCanvas(restaurantReservation);
+    expect(edges.filter((e) => e.source === decisionNodeId("get_time", 0))).toHaveLength(2);
+  });
+
+  it("applies stored positions over the layout, and keeps the routes from the layout", () => {
     const decision = decisionNodeId("get_time", 0);
     const stored = { initial: { x: 5, y: 7 }, [decision]: { x: 900, y: 900 } };
-    const { nodes } = configToCanvas(restaurantReservation, { positions: stored });
+    const { nodes, routes } = configToCanvas(restaurantReservation, { positions: stored });
     const byId = new Map(nodes.map((n) => [n.id, n.position]));
     expect(byId.get("initial")).toEqual({ x: 5, y: 7 });
     expect(byId.get(decision)).toEqual({ x: 900, y: 900 });
     expect(byId.get("end")).not.toEqual({ x: 0, y: 0 });
-  });
-
-  it("keeps a branch's cases as separate edges when positions are stored", () => {
-    const { edges } = configToCanvas(restaurantReservation, {
-      positions: { get_time: { x: 1, y: 2 } },
-    });
-    expect(edges.filter((e) => e.source === decisionNodeId("get_time", 0))).toHaveLength(2);
+    // The routes record where the layout put the endpoints, so an edge can stretch to the stored spot
+    expect(routes!["edge:get_time:0"].target).not.toEqual({ x: 900, y: 900 });
   });
 });
 
@@ -403,15 +450,12 @@ describe("positionStore", () => {
     expect(loadPositions("unknown")).toEqual({});
   });
 
-  it("ignores malformed stored values", () => {
+  it("ignores malformed stored values and arrangements from the horizontal canvas", () => {
     localStorage.setItem("pipecat-flows-editor/positions/v2/bad", '{"a": {"x": "1"}}');
     localStorage.setItem("pipecat-flows-editor/positions/v2/worse", "not json");
+    localStorage.setItem("pipecat-flows-editor/positions/old", '{"initial": {"x": 1, "y": 2}}');
     expect(loadPositions("bad")).toEqual({});
     expect(loadPositions("worse")).toEqual({});
-  });
-
-  it("does not read arrangements stored for the horizontal canvas", () => {
-    localStorage.setItem("pipecat-flows-editor/positions/old", '{"initial": {"x": 1, "y": 2}}');
     expect(loadPositions("old")).toEqual({});
   });
 
