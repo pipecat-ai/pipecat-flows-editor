@@ -634,10 +634,11 @@ export default function EditorShell() {
   }, [contextMenuNodeId, setConfigNodes]);
 
   // Lays the flow out and records how the edges were routed, so they can
-  // follow their routes and stretch with any node moved by hand later
+  // follow their routes and stretch with any node moved by hand later. From
+  // the toolbar this is an edit the author can undo; the layout that runs
+  // after a flow opens is not, and skips the undo step itself.
   const applyLayout = useCallback(() => {
     const laid = layoutGraph(nodesRef.current, edges);
-    skipUndoPushRef.current = true;
     setNodes(laid.nodes);
     useEditorStore.getState().setEdgeRoutes(laid.routes);
   }, [edges, setNodes]);
@@ -655,6 +656,7 @@ export default function EditorShell() {
     if (current.length === 0 || !current.every((n) => n.measured?.width)) return;
     if (layoutPendingRef.current) {
       layoutPendingRef.current = false;
+      skipUndoPushRef.current = true;
       applyLayout();
     }
     if (fitPendingRef.current) {
