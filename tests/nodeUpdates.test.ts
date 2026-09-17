@@ -170,6 +170,14 @@ describe("removeEdgeRoute", () => {
     const transition = edges.find((e) => e.data?.kind === "transition")!;
     expect(functionsOf(removeEdgeRoute(nodes, transition), "a")[0]).toEqual({ name: "go" });
   });
+
+  it("removes the whole branch for the edge into its decision node", () => {
+    const { nodes, edges } = canvas();
+    const branch = edges.find((e) => e.data?.kind === "branch")!;
+    const after = functionsOf(removeEdgeRoute(nodes, branch), "a")[1];
+    expect(after.transition_to).toBeUndefined();
+    expect(after.name).toBe(functionsOf(nodes, "a")[1].name);
+  });
 });
 
 describe("handleConnection", () => {
