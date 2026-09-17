@@ -14,7 +14,7 @@ import {
   isBranch,
 } from "@/lib/schema/flowConfig";
 
-import type { CanvasNode, ConfigNodeData } from "./configToCanvas";
+import { type ConfigNodeData, configNodesOf, type FlowCanvasNode } from "./configToCanvas";
 
 /**
  * A function entry as the config carries it, keys in Pipecat's order. An
@@ -73,13 +73,15 @@ export function configNodeFromData(data: ConfigNodeData): FlowConfigNode {
  * different node silently becoming the entry point.
  */
 export function canvasToConfig(
-  nodes: CanvasNode[],
+  nodes: ReadonlyArray<FlowCanvasNode>,
   globalFunctions: FlowConfigFunction[] = [],
   fallbackInitialNode = ""
 ): FlowConfig {
-  const initial = nodes.find((node) => node.type === "initial");
+  // Decision nodes are a drawing of a function's branch table, not config
+  const configNodes = configNodesOf(nodes);
+  const initial = configNodes.find((node) => node.type === "initial");
   const config: FlowConfig = { initial_node: initial?.id ?? fallbackInitialNode, nodes: {} };
-  for (const node of nodes) config.nodes[node.id] = configNodeFromData(node.data);
+  for (const node of configNodes) config.nodes[node.id] = configNodeFromData(node.data);
   if (globalFunctions.length) config.global_functions = globalFunctions.map(cleanFunction);
   return config;
 }

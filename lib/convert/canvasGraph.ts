@@ -1,12 +1,12 @@
 /**
  * Keeps the edges in step with the nodes. Every edge is a function of the
- * nodes' function entries, so after any edit they are recomputed and
+ * config nodes' function entries, so after any edit they are recomputed and
  * reconciled with what is on the canvas.
  */
 
-import { type CanvasEdge, type CanvasNode, edgesForNodes } from "./configToCanvas";
+import { type CanvasEdge, edgesForNodes, type FlowCanvasNode } from "./configToCanvas";
 
-export function deriveCanvasEdges(nodes: CanvasNode[]): CanvasEdge[] {
+export function deriveCanvasEdges(nodes: ReadonlyArray<FlowCanvasNode>): CanvasEdge[] {
   return edgesForNodes(nodes);
 }
 
@@ -26,8 +26,12 @@ export function reconcileEdges(
     return (
       !existing ||
       existing.source !== edge.source ||
-      existing.sourceHandle !== edge.sourceHandle ||
-      existing.target !== edge.target
+      existing.target !== edge.target ||
+      existing.label !== edge.label ||
+      existing.data?.parallelIndex !== edge.data?.parallelIndex ||
+      existing.data?.parallelCount !== edge.data?.parallelCount ||
+      existing.data?.inboundIndex !== edge.data?.inboundIndex ||
+      existing.data?.inboundCount !== edge.data?.inboundCount
     );
   });
   if (!changed) return { changed: false, edges: current };

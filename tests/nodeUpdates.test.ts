@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  type Canvas,
   type CanvasNode,
   type ConfigCanvasNode,
+  configNodesOf,
   configToCanvas,
+  decisionNodeId,
 } from "@/lib/convert/configToCanvas";
 import type { FlowConfig, FlowConfigFunction } from "@/lib/schema/flowConfig";
 import { handleConnection } from "@/lib/utils/connectionHandlers";
@@ -39,7 +42,13 @@ const config: FlowConfig = {
   },
 };
 
-const canvas = () => configToCanvas(config);
+/** The config nodes of a canvas; the helpers here do not touch decision nodes. */
+const configOnly = (canvas: Canvas): Omit<Canvas, "nodes"> & { nodes: CanvasNode[] } => ({
+  ...canvas,
+  nodes: configNodesOf(canvas.nodes),
+});
+
+const canvas = () => configOnly(configToCanvas(config));
 const functionsOf = (nodes: CanvasNode[], id: string) =>
   (nodes.find((n) => n.id === id) as ConfigCanvasNode).data.functions ?? [];
 
@@ -164,60 +173,37 @@ describe("removeEdgeRoute", () => {
 });
 
 describe("handleConnection", () => {
-  const connect = (nodesIn: CanvasNode[], sourceHandle: string | null, target: string) => {
+  const connect = (nodesIn: CanvasNode[], source: string, target: string) => {
     let nodes = nodesIn;
     const result = handleConnection(
-      { source: "a", target, sourceHandle, targetHandle: null },
+      { source, target, sourceHandle: "out", targetHandle: "in" },
       nodes,
       (update) => (nodes = update(nodes))
     );
     return { result, nodes };
   };
 
-  it("adds a function from the node's own handle", () => {
-    const { result, nodes } = connect(canvas().nodes, null, "b");
+  it("adds a function from a card's exit", () => {
+    const { result, nodes } = connect(canvas().nodes, "a", "b");
     expect(functionsOf(nodes, "a")[2]).toEqual({ name: "function_3", transition_to: "b" });
     expect(result).toEqual({ sourceNodeId: "a", functionIndex: 2, caseIndex: null });
   });
 
-  it("sets a function's destination from its row", () => {
-    const { result, nodes } = connect(canvas().nodes, "fn:0", "a");
-    expect(functionsOf(nodes, "a")[0]).toEqual({ name: "go", transition_to: "a" });
-    expect(result).toEqual({ sourceNodeId: "a", functionIndex: 0, caseIndex: null });
-  });
-
-  it("sets a case's target, the default, or adds a case from the branch's rows", () => {
-    const retarget = connect(canvas().nodes, "fn:1:case:bad", "b");
-    expect(functionsOf(retarget.nodes, "a")[1].transition_to).toMatchObject({
-      cases: { ok: "b", bad: "b" },
-    });
-    expect(retarget.result).toEqual({ sourceNodeId: "a", functionIndex: 1, caseIndex: 1 });
-
-    const setDefault = connect(canvas().nodes, "fn:1:default", "a");
-    expect(functionsOf(setDefault.nodes, "a")[1].transition_to).toMatchObject({ default: "a" });
-    expect(setDefault.result?.caseIndex).toBe(-1);
-
-    const addNew = connect(canvas().nodes, "fn:1:new-case", "a");
-    expect(functionsOf(addNew.nodes, "a")[1].transition_to).toMatchObject({
+  it("adds a case from a decision node", () => {
+    const { result, nodes } = connect(canvas().nodes, decisionNodeId("a", 1), "a");
+    expect(functionsOf(nodes, "a")[1].transition_to).toMatchObject({
       cases: { ok: "b", bad: "a", value_3: "a" },
     });
-    expect(addNew.result?.caseIndex).toBe(2);
+    expect(result).toEqual({ sourceNodeId: "a", functionIndex: 1, caseIndex: 2 });
   });
 
-  it("ignores handles that name nothing", () => {
-    const { result, nodes } = connect(canvas().nodes, "fn:7", "b");
-    expect(result).toBeNull();
-    expect(nodes).toEqual(canvas().nodes);
-    expect(connect(canvas().nodes, "fn:0:case:x", "b").result).toBeNull();
-  });
-
-  it("routes an unnamed function from its own row rather than adding one", () => {
-    const nodes = canvas().nodes.map((n) =>
-      n.id === "a" ? { ...n, data: { ...n.data, functions: [{ name: "" }] } } : n
-    );
-    const { result, nodes: after } = connect(nodes, "fn:0", "b");
-    expect(functionsOf(after, "a")).toEqual([{ name: "", transition_to: "b" }]);
-    expect(result).toEqual({ sourceNodeId: "a", functionIndex: 0, caseIndex: null });
+  it("ignores a connection into a decision node, from an unknown node, or from a decision of a plain function", () => {
+    const nodes = canvas().nodes;
+    expect(connect(nodes, "a", decisionNodeId("a", 1)).result).toBeNull();
+    expect(connect(nodes, "nowhere", "b").result).toBeNull();
+    expect(connect(nodes, decisionNodeId("a", 0), "b").result).toBeNull();
+    expect(connect(nodes, decisionNodeId("a", 7), "b").result).toBeNull();
+    expect(connect(nodes, "a", decisionNodeId("a", 1)).nodes).toEqual(nodes);
   });
 });
 

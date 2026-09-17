@@ -1,4 +1,4 @@
-import type { CanvasNode } from "@/lib/convert/configToCanvas";
+import type { CanvasNode, FlowCanvasNode } from "@/lib/convert/configToCanvas";
 
 import { dropFunctionTargets } from "./nodeUpdates";
 
@@ -14,8 +14,10 @@ export function deleteNode(nodes: CanvasNode[], nodeId: string): CanvasNode[] {
 
 /**
  * Whether a node can be deleted. The initial node cannot: a flow always has
- * an entry point, so make another node initial first.
+ * an entry point, so make another node initial first. A decision node
+ * cannot either: it stands for a function on its source, which is what to
+ * remove.
  */
-export function canDeleteNode(node: CanvasNode | undefined): boolean {
-  return node !== undefined && node.type !== "initial";
+export function canDeleteNode(node: FlowCanvasNode | undefined): boolean {
+  return node !== undefined && node.type !== "initial" && node.type !== "decision";
 }

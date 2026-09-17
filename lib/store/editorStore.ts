@@ -1,6 +1,12 @@
 import { create } from "zustand";
 
-import { type CanvasEdge, type CanvasNode, nodeFunctions } from "@/lib/convert/configToCanvas";
+import {
+  type CanvasEdge,
+  type CanvasNode,
+  type DecisionNodeData,
+  type FlowCanvasNode,
+  nodeFunctions,
+} from "@/lib/convert/configToCanvas";
 import type { FlowConfigFunction } from "@/lib/schema/flowConfig";
 import type { ReactFlowInstance } from "@/lib/types/flowTypes";
 
@@ -64,11 +70,11 @@ interface EditorState {
     functionIndex?: number | null,
     conditionIndex?: number | null
   ) => void;
-  selectNodeFromEdge: (edge: CanvasEdge, nodes: CanvasNode[]) => void;
+  selectNodeFromEdge: (edge: CanvasEdge, nodes: ReadonlyArray<FlowCanvasNode>) => void;
   selectNodeFromCanvas: (
-    node: CanvasNode | null,
+    node: FlowCanvasNode | null,
     edge: CanvasEdge | null,
-    nodes: CanvasNode[]
+    nodes: ReadonlyArray<FlowCanvasNode>
   ) => void;
   clearSelection: (preserveIfDeleting?: boolean) => void;
 
@@ -218,6 +224,10 @@ export const useEditorStore = create<EditorState>((set, get) => {
     selectNodeFromCanvas: (node, edge, nodes) => {
       if (edge) {
         get().selectNodeFromEdge(edge, nodes);
+      } else if (node && node.type === "decision") {
+        // A decision node stands for a branch function on its source
+        const data = node.data as DecisionNodeData;
+        get().selectNode(data.sourceNodeId, data.functionIndex, null);
       } else if (node) {
         // Only update if node changed (clear function index when switching nodes)
         if (get().selectedNodeId !== node.id) {

@@ -15,6 +15,7 @@ import { PanelRightOpen } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import LabeledEdge from "@/components/edges/LabeledEdge";
 import SelfLoopEdge from "@/components/edges/SelfLoopEdge";
 import Toolbar from "@/components/header/Toolbar";
 import InspectorPanel from "@/components/inspector/InspectorPanel";
@@ -24,6 +25,7 @@ import {
   CanvasActionsContext,
   CanvasNodeTypesContext,
 } from "@/components/nodes/canvasActions";
+import DecisionNode from "@/components/nodes/DecisionNode";
 import NodeContextMenu from "@/components/nodes/NodeContextMenu";
 import StartScreen from "@/components/start/StartScreen";
 import { Button } from "@/components/ui/button";
@@ -33,6 +35,11 @@ import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { deriveCanvasEdges, reconcileEdges } from "@/lib/convert/canvasGraph";
 import { canvasToConfig } from "@/lib/convert/canvasToConfig";
 import { configToCanvas, nodeFunctions } from "@/lib/convert/configToCanvas";
+import {
+  configNodesOf,
+  reconcileDecisionNodes,
+  withDecisionNodes,
+} from "@/lib/convert/configToCanvas";
 import {
   createFlowDocument,
   DEFAULT_FLOW_NAME,
@@ -54,6 +61,7 @@ import { LEGACY_STORAGE_KEY, loadCurrentFlow, saveCurrentFlow } from "@/lib/stor
 import { loadPositions, positionsFromNodes, savePositions } from "@/lib/storage/positionStore";
 import { useEditorStore } from "@/lib/store/editorStore";
 import { useFlowStore } from "@/lib/store/flowStore";
+import type { CanvasNode } from "@/lib/types/flowTypes";
 import type { FlowEdge, FlowNode, ReactFlowInstance } from "@/lib/types/flowTypes";
 import { UndoManager } from "@/lib/undo/undoManager";
 import { handleConnection } from "@/lib/utils/connectionHandlers";
@@ -198,6 +206,16 @@ export default function EditorShell() {
   const nodesRef = useRef<FlowNode[]>([]);
   nodesRef.current = nodes;
 
+  // The helpers under lib/utils work on config nodes. The decision nodes
+  // derived from them are brought in step after every edit, keeping their
+  // positions, and the effect below catches any path that bypasses this.
+  const configNodes = useMemo(() => configNodesOf(nodes), [nodes]);
+  const setConfigNodes = useCallback(
+    (updater: (nodes: CanvasNode[]) => CanvasNode[]) =>
+      setNodes((nds) => withDecisionNodes(updater(configNodesOf(nds)), nds)),
+    [setNodes]
+  );
+
   // React Flow's own delete handling goes through here; keep the editor's rules
   const onNodesChange = useCallback(
     (changes: Parameters<typeof onNodesChangeBase>[0]) =>
@@ -218,6 +236,7 @@ export default function EditorShell() {
       initial: BaseNode,
       node: BaseNode,
       end: BaseNode,
+      decision: DecisionNode,
     }),
     []
   );
@@ -225,6 +244,7 @@ export default function EditorShell() {
   // Memoize edgeTypes for custom edge rendering
   const edgeTypes = useMemo(
     () => ({
+      labeled: LabeledEdge,
       selfloop: SelfLoopEdge,
     }),
     []
@@ -347,11 +367,17 @@ export default function EditorShell() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Edges are derived from the nodes' function entries
+  // Decision nodes and edges are derived from the config nodes' function
+  // entries. A stale decision set is corrected first; the edges follow.
   useEffect(() => {
+    const reconciled = reconcileDecisionNodes(nodes);
+    if (reconciled !== nodes) {
+      setNodes(reconciled);
+      return;
+    }
     const derived = deriveCanvasEdges(nodes);
     setEdges((current) => reconcileEdges(current, derived).edges);
-  }, [nodes, setEdges]);
+  }, [nodes, setNodes, setEdges]);
 
   // Keep selected node visually selected in React Flow (separate effect to avoid loops)
   // Only update when selectedNodeId changes, NOT when selectedFunctionIndex changes
@@ -447,21 +473,21 @@ export default function EditorShell() {
   const handleDeleteNodeById = useCallback(
     (nodeId: string) => {
       if (!canDeleteNode(nodesRef.current.find((n) => n.id === nodeId))) return;
-      setNodes((nds) => deleteNode(nds, nodeId));
+      setConfigNodes((nds) => deleteNode(nds, nodeId));
       const flow = useFlowStore.getState();
       flow.setGlobalFunctions(dropFunctionTargets(flow.globalFunctions, nodeId));
       if (useEditorStore.getState().selectedNodeId === nodeId) clearSelection();
     },
-    [setNodes, clearSelection]
+    [setConfigNodes, clearSelection]
   );
 
   // Keyboard shortcuts (excluding undo/redo which is handled by Toolbar)
   useKeyboardShortcuts({
-    nodes,
+    nodes: configNodes,
     edges,
     selectedNodeId,
     selectedFunctionIndex,
-    setNodes,
+    setNodes: setConfigNodes,
     deleteNode: handleDeleteNodeById,
     selectNode,
   });
@@ -478,14 +504,14 @@ export default function EditorShell() {
   const handleDuplicateNode = useCallback(() => {
     if (!contextMenuNodeId) return;
 
-    const nodeToDuplicate = nodes.find((n) => n.id === contextMenuNodeId);
+    const nodeToDuplicate = configNodes.find((n) => n.id === contextMenuNodeId);
     if (!canDuplicateNode(nodeToDuplicate)) return;
 
-    const duplicatedNode = duplicateNode(nodeToDuplicate, nodes);
-    setNodes((nds) => nds.concat(duplicatedNode));
+    const duplicatedNode = duplicateNode(nodeToDuplicate, configNodes);
+    setConfigNodes((nds) => nds.concat(duplicatedNode));
     selectNode(duplicatedNode.id);
     setContextMenuOpen(false);
-  }, [contextMenuNodeId, nodes, setNodes, selectNode]);
+  }, [contextMenuNodeId, configNodes, setConfigNodes, selectNode]);
 
   // Handle delete action
   const handleDeleteNode = useCallback(() => {
@@ -499,7 +525,7 @@ export default function EditorShell() {
   const applyAdded = useCallback(
     (added: Added | null) => {
       if (!added) return;
-      setNodes(added.nodes);
+      setNodes((nds) => withDecisionNodes(added.nodes, nds));
       selectNode(added.sourceNodeId, added.functionIndex, added.caseIndex ?? null);
       setTimeout(() => {
         rfInstance?.setNodes((nds) =>
@@ -526,44 +552,48 @@ export default function EditorShell() {
   const handleRenameNode = useCallback(
     (oldId: string, newId: string) => {
       if (newId === oldId) return;
-      setNodes((nds) => renameNode(nds, oldId, newId));
+      setConfigNodes((nds) => renameNode(nds, oldId, newId));
       const flow = useFlowStore.getState();
       flow.setGlobalFunctions(renameFunctionTargets(flow.globalFunctions, oldId, newId));
       const editor = useEditorStore.getState();
       if (editor.selectedNodeId === oldId) selectNode(newId, editor.selectedFunctionIndex);
     },
-    [setNodes, selectNode]
+    [setConfigNodes, selectNode]
   );
 
   const canvasActions = useMemo<CanvasActions>(
     () => ({
       addDestination: (sourceNodeId, kind) => {
-        const added = addDestination(nodesRef.current, sourceNodeId, kind);
+        const added = addDestination(configNodesOf(nodesRef.current), sourceNodeId, kind);
         applyAdded(added);
         return added?.functionIndex ?? null;
       },
       addBranchCase: (sourceNodeId, functionIndex) =>
-        applyAdded(addBranchCaseDestination(nodesRef.current, sourceNodeId, functionIndex)),
+        applyAdded(
+          addBranchCaseDestination(configNodesOf(nodesRef.current), sourceNodeId, functionIndex)
+        ),
       removeFunction: (nodeId, functionIndex) => {
-        setNodes((nds) => removeFunction(nds, nodeId, functionIndex));
+        setConfigNodes((nds) => removeFunction(nds, nodeId, functionIndex));
         useEditorStore.getState().clearFunctionSelection();
       },
       removeBranchCase: (nodeId, functionIndex, caseIndex) => {
-        setNodes((nds) => removeBranchCase(nds, nodeId, functionIndex, caseIndex));
+        setConfigNodes((nds) => removeBranchCase(nds, nodeId, functionIndex, caseIndex));
         useEditorStore.getState().clearFunctionSelection();
       },
       renameFunction: (nodeId, functionIndex, name) => {
         const formatted = formatFunctionName(name);
         if (validateFunctionName(formatted)) return;
-        setNodes((nds) => renameFunction(nds, nodeId, functionIndex, formatted));
+        setConfigNodes((nds) => renameFunction(nds, nodeId, functionIndex, formatted));
       },
       renameBranchCase: (nodeId, functionIndex, oldValue, newValue) =>
-        setNodes((nds) => renameBranchCase(nds, nodeId, functionIndex, oldValue, newValue)),
+        setConfigNodes((nds) => renameBranchCase(nds, nodeId, functionIndex, oldValue, newValue)),
       setBranchField: (nodeId, functionIndex, field) =>
-        setNodes((nds) => setBranchField(nds, nodeId, functionIndex, field)),
+        setConfigNodes((nds) => setBranchField(nds, nodeId, functionIndex, field)),
       renameNode: (nodeId, name) => {
         if (!name.trim()) return;
-        const others = nodesRef.current.map((n) => n.id).filter((id) => id !== nodeId);
+        const others = configNodesOf(nodesRef.current)
+          .map((n) => n.id)
+          .filter((id) => id !== nodeId);
         handleRenameNode(nodeId, generateNodeIdFromLabel(name, others));
       },
       selectRow: (sourceNodeId, functionIndex, caseIndex) => {
@@ -571,14 +601,14 @@ export default function EditorShell() {
         focusNode(sourceNodeId);
       },
     }),
-    [applyAdded, selectNode, focusNode, setNodes, handleRenameNode]
+    [applyAdded, selectNode, focusNode, setConfigNodes, handleRenameNode]
   );
 
   const handleMakeInitial = useCallback(() => {
     if (!contextMenuNodeId) return;
-    setNodes((nds) => setInitialNode(nds, contextMenuNodeId));
+    setConfigNodes((nds) => setInitialNode(nds, contextMenuNodeId));
     setContextMenuOpen(false);
-  }, [contextMenuNodeId, setNodes]);
+  }, [contextMenuNodeId, setConfigNodes]);
 
   const handleAutoLayout = useCallback(() => {
     setNodes((nds) => layoutNodes(nds, edges));
@@ -671,6 +701,33 @@ export default function EditorShell() {
             .catch((error: Error) => showToast(error.message, "error"));
         }}
       >
+        {/* Arrowheads for the edges, in the accent line and, when selected, the brand color. */}
+        <svg aria-hidden className="absolute h-0 w-0">
+          <defs>
+            <marker
+              id="flow-arrow"
+              viewBox="0 0 10 10"
+              refX="9"
+              refY="5"
+              markerWidth="7"
+              markerHeight="7"
+              orient="auto-start-reverse"
+            >
+              <path d="M 0 0 L 10 5 L 0 10 z" className="fill-accent-line" />
+            </marker>
+            <marker
+              id="flow-arrow-selected"
+              viewBox="0 0 10 10"
+              refX="9"
+              refY="5"
+              markerWidth="7"
+              markerHeight="7"
+              orient="auto-start-reverse"
+            >
+              <path d="M 0 0 L 10 5 L 0 10 z" className="fill-brand" />
+            </marker>
+          </defs>
+        </svg>
         <CanvasActionsContext.Provider value={canvasActions}>
           <CanvasNodeTypesContext.Provider value={canvasNodeTypes}>
             <ReactFlow
@@ -682,7 +739,7 @@ export default function EditorShell() {
               onNodesChange={onNodesChange}
               onEdgesChange={onEdgesChange}
               onConnect={(params) => {
-                const connected = handleConnection(params, nodes, setNodes);
+                const connected = handleConnection(params, configNodes, setConfigNodes);
                 if (!connected) return;
                 selectNode(connected.sourceNodeId, connected.functionIndex, connected.caseIndex);
                 focusNode(connected.sourceNodeId);
@@ -704,7 +761,7 @@ export default function EditorShell() {
               zoomOnScroll={false}
               deleteKeyCode={null}
               zoomOnDoubleClick={false}
-              // Flows grow to the right; let a long one be seen whole
+              // Flows grow downward; let a long one be seen whole
               minZoom={0.2}
               proOptions={{ hideAttribution: true }}
               onInit={(instance) => setRfInstance(instance as unknown as ReactFlowInstance)}
@@ -766,13 +823,13 @@ export default function EditorShell() {
             style={{ width: `${inspectorPanelWidth}px`, maxWidth: "min(100vw, 800px)" }}
           >
             <InspectorPanel
-              nodes={nodes}
-              availableNodeIds={nodes.map((n) => n.id)}
+              nodes={configNodes}
+              availableNodeIds={configNodes.map((n) => n.id)}
               onChange={(next) => {
                 if (!selectedNodeId || selectedNodeId !== next.id) return;
 
                 const previousFunctions = nodeFunctions(nodes.find((n) => n.id === selectedNodeId));
-                setNodes((nds) => updateNodeData(nds, next.id, next.data));
+                setConfigNodes((nds) => updateNodeData(nds, next.id, next.data));
                 if (next.data.functions !== undefined) {
                   validateFunctionIndexAfterUpdate(next.id, previousFunctions, next.data.functions);
                 }
@@ -781,7 +838,7 @@ export default function EditorShell() {
                 if (kind === "edge") {
                   const edge = edges.find((e) => e.id === id);
                   if (!edge?.data) return;
-                  setNodes((nds) => removeEdgeRoute(nds, edge));
+                  setConfigNodes((nds) => removeEdgeRoute(nds, edge));
                   const functionIndex = edge.data.functionIndex;
                   if (
                     selectedNodeId === edge.data.sourceNodeId &&

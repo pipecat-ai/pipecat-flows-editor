@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import { deriveCanvasEdges } from "@/lib/convert/canvasGraph";
-import { type ConfigCanvasNode, configToCanvas } from "@/lib/convert/configToCanvas";
+import {
+  type Canvas,
+  type CanvasNode,
+  type ConfigCanvasNode,
+  configNodesOf,
+  configToCanvas,
+} from "@/lib/convert/configToCanvas";
 import type { FlowConfig } from "@/lib/schema/flowConfig";
 import { addBranchCaseDestination, addDestination, setInitialNode } from "@/lib/utils/nodeCreation";
 import { canDeleteNode, deleteNode } from "@/lib/utils/nodeDeletion";
@@ -13,7 +19,14 @@ const config: FlowConfig = {
     next: { task_messages: [] },
   },
 };
-const canvas = () => configToCanvas(config);
+
+/** The config nodes of a canvas; the helpers here do not touch decision nodes. */
+const configOnly = (canvas: Canvas): Omit<Canvas, "nodes"> & { nodes: CanvasNode[] } => ({
+  ...canvas,
+  nodes: configNodesOf(canvas.nodes),
+});
+
+const canvas = () => configOnly(configToCanvas(config));
 const configNode = (nodes: ReturnType<typeof canvas>["nodes"], id: string) =>
   nodes.find((n) => n.id === id) as ConfigCanvasNode;
 
@@ -32,16 +45,17 @@ describe("addDestination", () => {
     expect(node.data.task_messages.length).toBeGreaterThan(0);
   });
 
-  it("places children to the right of the source, stacked past existing destinations", () => {
+  it("places children below the source, stepped right past existing destinations", () => {
     const nodes = canvas().nodes.map((n) =>
       n.id === "start"
         ? { ...n, position: { x: 100, y: 50 }, measured: { width: 80, height: 32 } }
         : n
     );
+    // start already leads to one node, so the first addition is the second column
     const first = addDestination(nodes, "start", "node")!;
-    expect(configNode(first.nodes, first.newNodeId!).position).toEqual({ x: 270, y: 170 });
+    expect(configNode(first.nodes, first.newNodeId!).position).toEqual({ x: 428, y: 202 });
     const second = addDestination(first.nodes, "start", "end")!;
-    expect(configNode(second.nodes, second.newNodeId!).position).toEqual({ x: 270, y: 290 });
+    expect(configNode(second.nodes, second.newNodeId!).position).toEqual({ x: 756, y: 202 });
   });
 
   it("adds an end node with an end_conversation post-action", () => {
@@ -59,9 +73,10 @@ describe("addDestination", () => {
       name: "function_2",
       transition_to: { field: "", cases: { value_1: added.newNodeId } },
     });
-    expect(deriveCanvasEdges(added.nodes).map((e) => [e.sourceHandle, e.target])).toEqual([
-      ["fn:0", "next"],
-      ["fn:1:case:value_1", added.newNodeId],
+    expect(deriveCanvasEdges(added.nodes).map((e) => [e.source, e.target, e.label])).toEqual([
+      ["start", "next", "go"],
+      ["start", "decision:1:start", "function_2"],
+      ["decision:1:start", added.newNodeId, "value_1"],
     ]);
   });
 

@@ -7,7 +7,9 @@
 export type Position = { x: number; y: number };
 export type NodePositions = Record<string, Position>;
 
-const STORAGE_KEY_PREFIX = "pipecat-flows-editor/positions/";
+// The version segment changed when the canvas turned vertical, so arrangements
+// stored for the horizontal canvas are not applied to it.
+const STORAGE_KEY_PREFIX = "pipecat-flows-editor/positions/v2/";
 
 function storageKey(flowName: string): string {
   return `${STORAGE_KEY_PREFIX}${flowName}`;

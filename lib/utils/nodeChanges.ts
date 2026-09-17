@@ -1,6 +1,6 @@
 import type { NodeChange } from "@xyflow/react";
 
-import type { CanvasNode } from "@/lib/convert/configToCanvas";
+import type { FlowCanvasNode } from "@/lib/convert/configToCanvas";
 import { canDeleteNode } from "@/lib/utils/nodeDeletion";
 
 /**
@@ -10,9 +10,9 @@ import { canDeleteNode } from "@/lib/utils/nodeDeletion";
  * needs.
  */
 export function filterNodeChanges(
-  changes: NodeChange<CanvasNode>[],
-  nodes: CanvasNode[]
-): NodeChange<CanvasNode>[] {
+  changes: NodeChange<FlowCanvasNode>[],
+  nodes: ReadonlyArray<FlowCanvasNode>
+): NodeChange<FlowCanvasNode>[] {
   return changes.filter(
     (change) => change.type !== "remove" || canDeleteNode(nodes.find((n) => n.id === change.id))
   );

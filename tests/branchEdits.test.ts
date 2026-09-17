@@ -1,9 +1,21 @@
 import { describe, expect, it } from "vitest";
 
-import { type ConfigCanvasNode, configToCanvas } from "@/lib/convert/configToCanvas";
+import {
+  type Canvas,
+  type CanvasNode,
+  type ConfigCanvasNode,
+  configNodesOf,
+  configToCanvas,
+} from "@/lib/convert/configToCanvas";
 import type { FlowConfig } from "@/lib/schema/flowConfig";
 import { addCase, removeCase, renameCase, setCaseTarget } from "@/lib/utils/branchEdits";
 import { removeBranchCase } from "@/lib/utils/nodeUpdates";
+
+/** The config nodes of a canvas; the helpers here do not touch decision nodes. */
+const configOnly = (canvas: Canvas): Omit<Canvas, "nodes"> & { nodes: CanvasNode[] } => ({
+  ...canvas,
+  nodes: configNodesOf(canvas.nodes),
+});
 
 describe("branch case edits", () => {
   const cases = { ok: "confirm", bad: "retry" };
@@ -51,11 +63,11 @@ describe("removeBranchCase", () => {
       },
     },
   };
-  const fn = (nodes: ReturnType<typeof configToCanvas>["nodes"]) =>
+  const fn = (nodes: CanvasNode[]) =>
     (nodes.find((n) => n.id === "a") as ConfigCanvasNode).data.functions![0];
 
   it("removes the case at an index or the default at -1", () => {
-    const { nodes } = configToCanvas(config);
+    const { nodes } = configOnly(configToCanvas(config));
     expect(fn(removeBranchCase(nodes, "a", 0, 1)).transition_to).toEqual({
       field: "s",
       cases: { ok: "a" },

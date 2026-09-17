@@ -4,7 +4,12 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
 
-import { configToCanvas } from "@/lib/convert/configToCanvas";
+import {
+  type Canvas,
+  type CanvasNode,
+  configNodesOf,
+  configToCanvas,
+} from "@/lib/convert/configToCanvas";
 import {
   applyConfigToDocument,
   createFlowDocument,
@@ -15,6 +20,12 @@ import {
 } from "@/lib/document/flowDocument";
 import { serializeFlow } from "@/lib/document/serializeFlow";
 import type { FlowConfig } from "@/lib/schema/flowConfig";
+
+/** The config nodes of a canvas; the helpers here do not touch decision nodes. */
+const configOnly = (canvas: Canvas): Omit<Canvas, "nodes"> & { nodes: CanvasNode[] } => ({
+  ...canvas,
+  nodes: configNodesOf(canvas.nodes),
+});
 
 const foodOrderingText = readFileSync(
   resolve(__dirname, "../public/examples/food_ordering.yaml"),
@@ -147,7 +158,7 @@ describe("createFlowDocument", () => {
 describe("serializeFlow", () => {
   it("round-trips Pipecat's example through the canvas with its comments", () => {
     const parsed = parseFlowYaml(foodOrderingText);
-    const canvas = configToCanvas(parsed.config!);
+    const canvas = configOnly(configToCanvas(parsed.config!));
     const { text, issues } = serializeFlow(canvas.nodes, {
       document: parsed.document,
       globalFunctions: parsed.config!.global_functions ?? [],
@@ -158,7 +169,7 @@ describe("serializeFlow", () => {
   });
 
   it("creates a document for a new flow and reports reference errors", () => {
-    const canvas = configToCanvas(minimal());
+    const canvas = configOnly(configToCanvas(minimal()));
     const nodes = canvas.nodes.filter((n) => n.id !== "end");
     const { text, issues, document } = serializeFlow(nodes, {
       document: null,
@@ -270,7 +281,7 @@ describe("round trip of an unresolved initial_node", () => {
     const text = "initial_node: greeting_typo\nnodes:\n  greeting:\n    task_messages: []\n";
     const parsed = parseFlowYaml(text);
     expect(parsed.config).not.toBeNull();
-    const canvas = configToCanvas(parsed.config!);
+    const canvas = configOnly(configToCanvas(parsed.config!));
     expect(canvas.nodes.map((n) => n.type)).toEqual(["node"]);
     const { text: out, issues } = serializeFlow(canvas.nodes, {
       document: parsed.document,
