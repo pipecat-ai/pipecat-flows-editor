@@ -1,23 +1,19 @@
 "use client";
 
 import { EdgeLabelRenderer } from "@xyflow/react";
-import { ArrowRight, CornerDownRight, Split } from "lucide-react";
+import { Split } from "lucide-react";
 
 import type { CanvasEdgeKind } from "@/lib/convert/configToCanvas";
 import { EDGE_LABEL } from "@/lib/layout/autoLayout";
 
-const GLYPHS = {
-  transition: ArrowRight,
-  branch: Split,
-  case: CornerDownRight,
-  default: CornerDownRight,
-} satisfies Record<CanvasEdgeKind, typeof ArrowRight>;
-
 /**
- * An edge's text as a pill in the inverse of the card's colors, so a label
- * and a node can never be mistaken for each other, with a glyph for what
- * the edge is: a transition, the way into a branch, or one of its cases.
- * A selected edge's pill is brand.
+ * An edge's text as a square tag in the inverse of the card's colors, so
+ * a label and a card can never be mistaken for each other; under the
+ * pointer and when selected the tag goes brand. The edge into a branch
+ * carries a glyph, since the diamond it leads to is the only other sign
+ * that the function's result is branched on; a transition's direction is
+ * its arrowhead, and a case is known by the diamond it leaves. A selected
+ * edge's pill is brand.
  */
 export default function EdgeLabel({
   text,
@@ -37,21 +33,23 @@ export default function EdgeLabel({
   if (!text) return null;
   const shown =
     text.length > EDGE_LABEL.maxChars ? `${text.slice(0, EDGE_LABEL.maxChars - 1)}…` : text;
-  const Glyph = GLYPHS[kind];
+  const branch = kind === "branch";
   return (
     <EdgeLabelRenderer>
       <button
         type="button"
-        className={`nodrag nopan pointer-events-auto absolute flex items-center gap-1 rounded-full py-0.5 pr-2 pl-1.5 font-mono text-[11px] leading-4 transition-colors ${
+        className={`nodrag nopan pointer-events-auto absolute flex items-center gap-1 rounded-sm border py-0.5 font-mono text-[11px] leading-4 transition-colors ${
+          branch ? "pr-2 pl-1.5" : "px-2"
+        } ${
           selected
-            ? "bg-brand text-white"
-            : "bg-primary text-primary-foreground hover:bg-brand hover:text-white"
+            ? "border-brand bg-brand text-white dark:text-zinc-950"
+            : "border-transparent bg-primary text-primary-foreground hover:bg-brand hover:text-white dark:hover:text-zinc-950"
         } ${kind === "default" ? "italic" : ""}`}
         style={{ transform: `translate(-50%, -50%) translate(${x}px, ${y}px)` }}
         title={text}
         onClick={onClick}
       >
-        <Glyph className="size-3 shrink-0 opacity-70" />
+        {branch && <Split className="size-3 shrink-0 opacity-70" />}
         {shown}
       </button>
     </EdgeLabelRenderer>

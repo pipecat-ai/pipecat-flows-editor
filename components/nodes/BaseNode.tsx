@@ -1,18 +1,7 @@
 "use client";
 
 import { Handle, type NodeProps, Position } from "@xyflow/react";
-import {
-  AlertTriangle,
-  ArrowRight,
-  LogOut,
-  Play,
-  Plug,
-  Plus,
-  Volume2,
-  Wrench,
-  X,
-  Zap,
-} from "lucide-react";
+import { AlertTriangle, ArrowRight, LogOut, Play, Wrench, X } from "lucide-react";
 import { useState } from "react";
 
 import { useHoverWithGrace } from "@/hooks/useHoverWithGrace";
@@ -223,8 +212,6 @@ export default function BaseNode({ id, data, selected, type }: NodeProps<ConfigC
   );
 }
 
-const ACTION_ICONS = { says: Volume2, handler: Zap, custom: Plug, more: Plus };
-
 /**
  * The node's actions as a short script under its name: what it says, in
  * quotes, and what it runs, so what happens on entry and exit is visible
@@ -249,24 +236,20 @@ function ActionLines({
   };
   return (
     <div className={`py-1 ${className ?? ""}`}>
-      {lines.map((line, i) => {
-        const Icon = ACTION_ICONS[line.kind];
-        return (
-          <button
-            key={i}
-            type="button"
-            className="nodrag flex w-full min-w-0 items-center gap-1.5 px-2.5 text-left text-[11px] text-muted-foreground transition-colors hover:text-foreground"
-            style={{ height: NODE_CARD.rowHeight }}
-            title={line.title}
-            onClick={open}
-          >
-            <Icon className="h-[13px] w-[13px] shrink-0" />
-            <span className={`truncate ${line.kind === "says" ? "italic" : "font-mono"}`}>
-              {line.text}
-            </span>
-          </button>
-        );
-      })}
+      {lines.map((line, i) => (
+        <button
+          key={i}
+          type="button"
+          className="nodrag flex w-full min-w-0 items-center px-2.5 text-left text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+          style={{ height: NODE_CARD.rowHeight }}
+          title={line.title}
+          onClick={open}
+        >
+          <span className={`truncate ${line.kind === "says" ? "italic" : "font-mono"}`}>
+            {line.text}
+          </span>
+        </button>
+      ))}
     </div>
   );
 }
