@@ -865,36 +865,44 @@ export default function EditorShell() {
             className="shrink-0 h-full"
             style={{ width: `${inspectorPanelWidth}px`, maxWidth: "min(100vw, 800px)" }}
           >
-            <InspectorPanel
-              nodes={configNodes}
-              availableNodeIds={configNodes.map((n) => n.id)}
-              onChange={(next) => {
-                if (!selectedNodeId || selectedNodeId !== next.id) return;
+            <CanvasActionsContext.Provider value={canvasActions}>
+              <InspectorPanel
+                nodes={configNodes}
+                availableNodeIds={configNodes.map((n) => n.id)}
+                onChange={(next) => {
+                  if (!selectedNodeId || selectedNodeId !== next.id) return;
 
-                const previousFunctions = nodeFunctions(nodes.find((n) => n.id === selectedNodeId));
-                setConfigNodes((nds) => updateNodeData(nds, next.id, next.data));
-                if (next.data.functions !== undefined) {
-                  validateFunctionIndexAfterUpdate(next.id, previousFunctions, next.data.functions);
-                }
-              }}
-              onDelete={(id, kind) => {
-                if (kind === "edge") {
-                  const edge = edges.find((e) => e.id === id);
-                  if (!edge?.data) return;
-                  setConfigNodes((nds) => removeEdgeRoute(nds, edge));
-                  const functionIndex = edge.data.functionIndex;
-                  if (
-                    selectedNodeId === edge.data.sourceNodeId &&
-                    selectedFunctionIndex === functionIndex
-                  ) {
-                    useEditorStore.getState().clearFunctionSelection();
+                  const previousFunctions = nodeFunctions(
+                    nodes.find((n) => n.id === selectedNodeId)
+                  );
+                  setConfigNodes((nds) => updateNodeData(nds, next.id, next.data));
+                  if (next.data.functions !== undefined) {
+                    validateFunctionIndexAfterUpdate(
+                      next.id,
+                      previousFunctions,
+                      next.data.functions
+                    );
                   }
-                } else {
-                  handleDeleteNodeById(id);
-                }
-              }}
-              onRenameNode={handleRenameNode}
-            />
+                }}
+                onDelete={(id, kind) => {
+                  if (kind === "edge") {
+                    const edge = edges.find((e) => e.id === id);
+                    if (!edge?.data) return;
+                    setConfigNodes((nds) => removeEdgeRoute(nds, edge));
+                    const functionIndex = edge.data.functionIndex;
+                    if (
+                      selectedNodeId === edge.data.sourceNodeId &&
+                      selectedFunctionIndex === functionIndex
+                    ) {
+                      useEditorStore.getState().clearFunctionSelection();
+                    }
+                  } else {
+                    handleDeleteNodeById(id);
+                  }
+                }}
+                onRenameNode={handleRenameNode}
+              />
+            </CanvasActionsContext.Provider>
           </div>
         )}
       </div>

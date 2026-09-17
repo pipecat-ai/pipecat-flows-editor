@@ -25,6 +25,8 @@ import {
 import { useEditorStore } from "@/lib/store/editorStore";
 import { formatFunctionName, validateFunctionName } from "@/lib/utils/nameFormatting";
 
+import { useCanvasActions } from "@/components/nodes/canvasActions";
+
 import BranchEditor from "./BranchEditor";
 
 interface FunctionItemProps {
@@ -57,6 +59,7 @@ export const FunctionItem = React.forwardRef<HTMLDivElement, FunctionItemProps>(
     },
     ref
   ) => {
+    const actions = useCanvasActions();
     const missingTargets = functionTargets(func).filter((t) => !availableNodeIds.includes(t));
     const hasInvalidTarget = missingTargets.length > 0;
     const [functionName, setFunctionName] = useState(func.name);
@@ -284,6 +287,11 @@ export const FunctionItem = React.forwardRef<HTMLDivElement, FunctionItemProps>(
               onChange={(next) => onChange({ transition_to: next })}
               availableNodeIds={availableNodeIds}
               currentNodeId={currentNodeId}
+              onAddCase={
+                actions && currentNodeId
+                  ? () => actions.addBranchCase(currentNodeId, functionIndex)
+                  : undefined
+              }
               selectedConditionIndex={selectedConditionIndex}
               onFocus={handleFocus}
             />

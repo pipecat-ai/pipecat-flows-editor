@@ -22,8 +22,10 @@ interface BranchEditorProps {
   branch: FlowConfigBranch;
   onChange: (branch: FlowConfigBranch) => void;
   availableNodeIds: string[];
-  /** The node the function belongs to; the target for a new case. */
+  /** The node the function belongs to; the target for a new case when nothing better is offered. */
   currentNodeId?: string;
+  /** Adds a case leading to a new node; without it, a new case leads to the current node. */
+  onAddCase?: () => void;
   selectedConditionIndex: number | null; // -1 for the default, 0+ for a case index
   onFocus?: () => void;
 }
@@ -37,6 +39,7 @@ export default function BranchEditor({
   onChange,
   availableNodeIds,
   currentNodeId,
+  onAddCase,
   selectedConditionIndex,
   onFocus,
 }: BranchEditorProps) {
@@ -69,11 +72,14 @@ export default function BranchEditor({
             size="sm"
             className="h-6 gap-1"
             onClick={() =>
-              onChange({
-                ...branch,
-                cases: addCase(branch.cases, currentNodeId ?? availableNodeIds[0] ?? ""),
-              })
+              onAddCase
+                ? onAddCase()
+                : onChange({
+                    ...branch,
+                    cases: addCase(branch.cases, currentNodeId ?? availableNodeIds[0] ?? ""),
+                  })
             }
+            title={onAddCase ? "Add a case leading to a new node" : undefined}
           >
             <Plus className="h-4 w-4" /> Add case
           </Button>
