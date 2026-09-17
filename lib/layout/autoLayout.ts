@@ -91,6 +91,13 @@ export function nodeRowCount(node: Node): number {
  */
 export function estimateNodeSize(node: Node): { width: number; height: number } {
   if (node.type === "decision") return { width: DECISION.width, height: DECISION.height };
+  if (node.type === "global") {
+    const rows = ((node.data?.functions as FlowConfigFunction[] | undefined) ?? []).length;
+    return {
+      width: NODE_CARD.width,
+      height: NODE_CARD.headerHeight + rows * NODE_CARD.rowHeight + NODE_CARD.padding,
+    };
+  }
   const data = node.data as ConfigNodeData;
   if (isCompactEnd(node.type, data)) return { ...COMPACT_END };
   const rows = nodeRowCount(node);
@@ -156,7 +163,8 @@ export function layoutGraph<N extends Node>(
 
   // A loop around a card, a self-loop or a case back to its own node, runs
   // up the card's right side with its label on the run, so the card gets
-  // room there for the widest label, and for each further loop outward
+  // room for the widest label, and for each further loop outward. The room
+  // is added on both sides so the card stays centered on its column.
   const loopRoom = new Map<string, number>();
   const loopCount = new Map<string, number>();
   for (const edge of edges) {
@@ -181,8 +189,8 @@ export function layoutGraph<N extends Node>(
     const sideroom = loopRoom.has(node.id)
       ? loopRoom.get(node.id)! + (loopCount.get(node.id)! - 1) * LOOP_STEP
       : 0;
-    sizes.set(node.id, { width: size.width + sideroom, height: size.height });
-    graph.setNode(node.id, { width: size.width + sideroom, height: size.height });
+    sizes.set(node.id, size);
+    graph.setNode(node.id, { width: size.width + 2 * sideroom, height: size.height });
   }
   for (const edge of edges) {
     // Self-loops carry no layout information and dagre handles them poorly;
@@ -204,8 +212,7 @@ export function layoutGraph<N extends Node>(
   const placedNodes = nodes.map((node) => {
     const placed = graph.node(node.id);
     const size = sizes.get(node.id)!;
-    // dagre reports centers; React Flow positions are top-left corners. The
-    // sideroom sits to the right, so the card keeps the left of its box.
+    // dagre reports centers; React Flow positions are top-left corners
     return {
       ...node,
       position: { x: placed.x - size.width / 2, y: placed.y - size.height / 2 },

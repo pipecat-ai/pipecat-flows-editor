@@ -4,6 +4,7 @@ import { Trash2 } from "lucide-react";
 import React, { useCallback, useEffect, useId, useState } from "react";
 
 import { Segment } from "@/components/inspector/Segment";
+import { useCanvasActions } from "@/components/nodes/canvasActions";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -24,8 +25,6 @@ import {
 } from "@/lib/schema/flowConfig";
 import { useEditorStore } from "@/lib/store/editorStore";
 import { formatFunctionName, validateFunctionName } from "@/lib/utils/nameFormatting";
-
-import { useCanvasActions } from "@/components/nodes/canvasActions";
 
 import BranchEditor from "./BranchEditor";
 

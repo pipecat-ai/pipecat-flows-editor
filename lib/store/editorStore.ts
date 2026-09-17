@@ -51,6 +51,8 @@ interface EditorState {
   _isDeletingFunction: boolean;
   /** A tab the inspector should show next, set by a card and cleared once shown. */
   requestedInspectorTab: string | null;
+  /** The global function open in the Flow panel, by index. */
+  selectedGlobalIndex: number | null;
 
   // Basic setters
   setSelectedNodeId: (id: string | null) => void;
@@ -65,6 +67,7 @@ interface EditorState {
   setIsInspectorResizing: (isResizing: boolean) => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
   requestInspectorTab: (tab: string | null) => void;
+  selectGlobal: (index: number | null) => void;
   setRfInstance: (instance: ReactFlowInstance | null) => void;
   setEdgeRoutes: (routes: EdgeRoutes) => void;
 
@@ -132,6 +135,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
     edgeRoutes: {},
     _isDeletingFunction: false,
     requestedInspectorTab: null,
+    selectedGlobalIndex: null,
 
     // Basic setters
     setSelectedNodeId: (id) => {
@@ -174,6 +178,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
     setRfInstance: (instance) => set({ rfInstance: instance }),
     setEdgeRoutes: (edgeRoutes) => set({ edgeRoutes }),
     requestInspectorTab: (tab) => set({ requestedInspectorTab: tab }),
+    selectGlobal: (index) => set({ selectedGlobalIndex: index }),
 
     // Selection actions with validation
     selectNode: (nodeId, functionIndex = null, conditionIndex = null) => {
@@ -234,6 +239,9 @@ export const useEditorStore = create<EditorState>((set, get) => {
         // A decision node stands for a branch function on its source
         const data = node.data as DecisionNodeData;
         get().selectNode(data.sourceNodeId, data.functionIndex, null);
+      } else if (node && node.type === "global") {
+        // The global card's functions are edited in the Flow panel
+        get().clearSelection();
       } else if (node) {
         // Only update if node changed (clear function index when switching nodes)
         if (get().selectedNodeId !== node.id) {

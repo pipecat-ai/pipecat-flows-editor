@@ -1,7 +1,7 @@
 "use client";
 
 import { Copy, PanelRightClose, Plus } from "lucide-react";
-import { useId, useMemo, useState } from "react";
+import { useId, useMemo } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +19,7 @@ import {
   statePlaceholders,
 } from "@/lib/document/flowIntrospection";
 import type { FlowConfigFunction } from "@/lib/schema/flowConfig";
+import { useEditorStore } from "@/lib/store/editorStore";
 import { useFlowStore } from "@/lib/store/flowStore";
 import { checkFlowConfigReferences, checkFlowGraph } from "@/lib/validation/flowConfigValidator";
 
@@ -41,7 +42,8 @@ export default function FlowPanel({ nodes, onCollapse }: Props) {
   const setGlobalFunctions = useFlowStore((state) => state.setGlobalFunctions);
   const initialNode = useFlowStore((state) => state.initialNode);
   const nameId = useId();
-  const [selectedGlobal, setSelectedGlobal] = useState<number | null>(null);
+  const selectedGlobal = useEditorStore((state) => state.selectedGlobalIndex);
+  const setSelectedGlobal = useEditorStore((state) => state.selectGlobal);
 
   const availableNodeIds = nodes.map((n) => n.id);
   const { tools, handlers, registered, placeholders, issues } = useMemo(() => {

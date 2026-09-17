@@ -26,6 +26,7 @@ import {
   CanvasNodeTypesContext,
 } from "@/components/nodes/canvasActions";
 import DecisionNode from "@/components/nodes/DecisionNode";
+import GlobalNode from "@/components/nodes/GlobalNode";
 import NodeContextMenu from "@/components/nodes/NodeContextMenu";
 import StartScreen from "@/components/start/StartScreen";
 import { Button } from "@/components/ui/button";
@@ -37,8 +38,10 @@ import { canvasToConfig } from "@/lib/convert/canvasToConfig";
 import { configToCanvas, nodeFunctions } from "@/lib/convert/configToCanvas";
 import {
   configNodesOf,
+  isConfigNode,
   reconcileDecisionNodes,
   withDecisionNodes,
+  withGlobalNode,
 } from "@/lib/convert/configToCanvas";
 import {
   createFlowDocument,
@@ -243,6 +246,7 @@ export default function EditorShell() {
       node: BaseNode,
       end: BaseNode,
       decision: DecisionNode,
+      global: GlobalNode,
     }),
     []
   );
@@ -384,16 +388,17 @@ export default function EditorShell() {
   }, []);
 
   // Decision nodes and edges are derived from the config nodes' function
-  // entries. A stale decision set is corrected first; the edges follow.
+  // entries, and the global card from the global functions. A stale set
+  // is corrected first; the edges follow.
   useEffect(() => {
-    const reconciled = reconcileDecisionNodes(nodes);
+    const reconciled = withGlobalNode(reconcileDecisionNodes(nodes), globalFunctions);
     if (reconciled !== nodes) {
       setNodes(reconciled);
       return;
     }
     const derived = deriveCanvasEdges(nodes);
     setEdges((current) => reconcileEdges(current, derived).edges);
-  }, [nodes, setNodes, setEdges]);
+  }, [nodes, globalFunctions, setNodes, setEdges]);
 
   // Keep selected node visually selected in React Flow (separate effect to avoid loops)
   // Only update when selectedNodeId changes, NOT when selectedFunctionIndex changes
@@ -512,6 +517,7 @@ export default function EditorShell() {
   // Handle node context menu
   const handleNodeContextMenu = useCallback((event: React.MouseEvent, node: FlowNode) => {
     event.preventDefault();
+    if (!isConfigNode(node)) return;
     setContextMenuPosition({ x: event.clientX, y: event.clientY });
     setContextMenuNodeId(node.id);
     setContextMenuOpen(true);

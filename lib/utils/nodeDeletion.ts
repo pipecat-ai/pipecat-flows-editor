@@ -19,5 +19,10 @@ export function deleteNode(nodes: CanvasNode[], nodeId: string): CanvasNode[] {
  * remove.
  */
 export function canDeleteNode(node: FlowCanvasNode | undefined): boolean {
-  return node !== undefined && node.type !== "initial" && node.type !== "decision";
+  return (
+    node !== undefined &&
+    node.type !== "initial" &&
+    node.type !== "decision" &&
+    node.type !== "global"
+  );
 }

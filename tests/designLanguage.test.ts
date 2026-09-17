@@ -21,6 +21,7 @@ const KEEP_RADIUS = new Set([
   "components/nodes/NodeContextMenu.tsx",
   // The canvas: node cards, edge labels, and what sits on them
   "components/nodes/BaseNode.tsx",
+  "components/nodes/GlobalNode.tsx",
   "components/edges/EdgeLabel.tsx",
   "components/nodes/InlineText.tsx",
   "components/nodes/NodeAddToolbar.tsx",

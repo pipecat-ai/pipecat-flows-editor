@@ -8,7 +8,6 @@ import {
   type CanvasEdge,
   nodeFunctions,
 } from "@/lib/convert/configToCanvas";
-
 import { loopClearance } from "@/lib/layout/autoLayout";
 
 import { useCanvasActions } from "../nodes/canvasActions";

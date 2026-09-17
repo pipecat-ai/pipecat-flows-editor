@@ -8,6 +8,7 @@ import {
   configNodesOf,
   configToCanvas,
 } from "@/lib/convert/configToCanvas";
+import { DECISION } from "@/lib/layout/autoLayout";
 import type { FlowConfig } from "@/lib/schema/flowConfig";
 import { addBranchCaseDestination, addDestination, setInitialNode } from "@/lib/utils/nodeCreation";
 import { canDeleteNode, deleteNode } from "@/lib/utils/nodeDeletion";
@@ -66,9 +67,13 @@ describe("addDestination", () => {
     expect(node.data.post_actions).toEqual([{ type: "end_conversation" }]);
   });
 
-  it("adds a branch whose first case leads to the new node", () => {
+  it("adds a branch whose first case leads to the new node, placed under the decision", () => {
     const added = addDestination(canvas().nodes, "start", "branch")!;
     expect(added.caseIndex).toBe(0);
+    const plain = addDestination(canvas().nodes, "start", "node")!;
+    expect(configNode(added.nodes, added.newNodeId!).position.y).toBe(
+      configNode(plain.nodes, plain.newNodeId!).position.y + DECISION.gap + DECISION.height
+    );
     expect(configNode(added.nodes, "start").data.functions![1]).toEqual({
       name: "function_2",
       transition_to: { field: "", cases: { value_1: added.newNodeId } },

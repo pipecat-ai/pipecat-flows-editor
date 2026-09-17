@@ -153,13 +153,21 @@ export default function LabeledEdge({
     ];
     const last = route.points.length - 1;
     points = route.points.map((p, i) => shift(i / last, p.x, p.y));
-    // The layout attaches to a node's box; a decision node's diamond meets
-    // its box only at the four tips, so an end on the box moves to the tip
-    // on that side.
+    // The layout attaches to a node's box, which may be wider than the card
+    // when there is room beside it for a loop, so an end on the top or
+    // bottom is kept within the card; a decision node's diamond meets its
+    // box only at the four tips, so an end on the box moves to the tip on
+    // that side.
     const snap = (node: Node, point: [number, number]): [number, number] => {
-      if (!node || node.type !== "decision") return point;
+      if (!node) return point;
       const box = nodeBox(node);
       const midY = box.y + box.height / 2;
+      if (node.type !== "decision") {
+        const side = sideOf(box, point);
+        if (side !== "top" && side !== "bottom") return point;
+        const x = Math.min(box.right - ATTACH_INSET, Math.max(box.x + ATTACH_INSET, point[0]));
+        return [x, side === "top" ? box.y : box.bottom];
+      }
       switch (sideOf(box, point)) {
         case "left":
           return [box.x, midY];

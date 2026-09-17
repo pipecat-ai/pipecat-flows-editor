@@ -10,16 +10,19 @@ import {
   configToGraph,
   decisionNodeId,
   deriveConfigNodeType,
+  GLOBAL_NODE_ID,
+  isConfigNode,
   isDecisionNode,
   parseDecisionNodeId,
   reconcileDecisionNodes,
+  withGlobalNode,
 } from "@/lib/convert/configToCanvas";
 import {
   estimateNodeSize,
   layoutGraph,
   layoutNodes,
-  NODE_CARD,
   loopClearance,
+  NODE_CARD,
 } from "@/lib/layout/autoLayout";
 import type { FlowConfig } from "@/lib/schema/flowConfig";
 import { clearPositions, loadPositions, savePositions } from "@/lib/storage/positionStore";
@@ -55,6 +58,7 @@ describe("configToGraph", () => {
       ["choose_sushi", "node"],
       ["confirm", "node"],
       ["end", "end"],
+      [GLOBAL_NODE_ID, "global"],
     ]);
     expect(edges.map((e) => [e.source, e.target, e.label])).toEqual([
       ["initial", "choose_pizza", "choose_pizza"],
@@ -152,11 +156,20 @@ describe("configToGraph", () => {
     });
   });
 
-  it("draws nothing for functions without a destination and for global functions", () => {
+  it("draws no edge for a function without a destination, and the global functions as one card", () => {
     const { nodes, edges } = configToGraph(foodOrdering);
     expect(foodOrdering.global_functions).toEqual([{ name: "get_delivery_estimate" }]);
-    expect(nodes).toHaveLength(5);
+    expect(nodes).toHaveLength(6);
     expect(edges).toHaveLength(6);
+    const global = nodes.find((n) => n.id === GLOBAL_NODE_ID)!;
+    expect(global.type).toBe("global");
+    expect(global.data.functions).toEqual([{ name: "get_delivery_estimate" }]);
+    expect(configNodesOf(nodes)).toHaveLength(5);
+  });
+
+  it("has no global card when there are no global functions", () => {
+    const { nodes } = configToGraph(restaurantReservation);
+    expect(nodes.some((n) => n.id === GLOBAL_NODE_ID)).toBe(false);
   });
 
   it("numbers edges that share a source and target so they can be drawn apart", () => {
@@ -220,7 +233,7 @@ describe("reconcileDecisionNodes", () => {
     const id = decisionNodeId("get_time", 0);
     const moved = nodes.map((n) => (n.id === id ? { ...n, position: { x: 7, y: 9 } } : n));
     const retargeted = moved.map((n) =>
-      n.id === "get_time" && !isDecisionNode(n)
+      n.id === "get_time" && isConfigNode(n)
         ? {
             ...n,
             data: {
@@ -241,11 +254,37 @@ describe("reconcileDecisionNodes", () => {
     expect(isDecisionNode(decision) && decision.data.caseValues).toEqual(["available"]);
 
     const unbranched = retargeted.map((n) =>
-      n.id === "get_time" && !isDecisionNode(n)
+      n.id === "get_time" && isConfigNode(n)
         ? { ...n, data: { ...n.data, functions: [{ name: "check_availability" }] } }
         : n
     );
     expect(reconcileDecisionNodes(unbranched).some((n) => n.id === id)).toBe(false);
+  });
+});
+
+describe("withGlobalNode", () => {
+  it("adds the global card, keeps its place while its functions change, and removes it with them", () => {
+    const { nodes } = configToCanvas(restaurantReservation);
+    expect(withGlobalNode(nodes, [])).toBe(nodes);
+    const help = { name: "help" };
+    const added = withGlobalNode(nodes, [help]);
+    const card = added.find((n) => n.id === GLOBAL_NODE_ID)!;
+    expect(card.type).toBe("global");
+    expect(card.data.functions).toEqual([help]);
+    // Above and to the left of the flow
+    expect(card.position.x).toBeLessThan(Math.min(...nodes.map((n) => n.position.x)));
+    expect(withGlobalNode(added, [help])).toBe(added);
+
+    const moved = added.map((n) =>
+      n.id === GLOBAL_NODE_ID ? { ...n, position: { x: 3, y: 4 } } : n
+    );
+    const renamed = withGlobalNode(moved, [{ name: "assist", transition_to: "end" }]);
+    const after = renamed.find((n) => n.id === GLOBAL_NODE_ID)!;
+    expect(after.position).toEqual({ x: 3, y: 4 });
+    expect(after.data.functions).toEqual([{ name: "assist", transition_to: "end" }]);
+    expect(configNodesOf(renamed)).toEqual(configNodesOf(nodes));
+
+    expect(withGlobalNode(renamed, []).some((n) => n.id === GLOBAL_NODE_ID)).toBe(false);
   });
 });
 
@@ -319,6 +358,31 @@ describe("layoutNodes", () => {
       width: 280,
       height: 76,
     });
+  });
+
+  it("keeps a card with a self-loop centered on its column", () => {
+    const config: FlowConfig = {
+      initial_node: "a",
+      nodes: {
+        a: { task_messages: [], functions: [{ name: "to_b", transition_to: "b" }] },
+        b: {
+          task_messages: [],
+          functions: [
+            { name: "again", transition_to: "b" },
+            { name: "to_c", transition_to: "c" },
+          ],
+        },
+        c: { task_messages: [] },
+      },
+    };
+    const { nodes, edges } = configToGraph(config);
+    const placed = layoutNodes(nodes, edges);
+    const centerX = (id: string) => {
+      const node = placed.find((n) => n.id === id)!;
+      return node.position.x + estimateNodeSize(node).width / 2;
+    };
+    expect(centerX("b")).toBeCloseTo(centerX("a"));
+    expect(centerX("c")).toBeCloseTo(centerX("a"));
   });
 
   it("leaves room beside a card with a self-loop", () => {

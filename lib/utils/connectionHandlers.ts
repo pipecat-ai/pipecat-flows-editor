@@ -1,6 +1,11 @@
 import type { Connection } from "@xyflow/react";
 
-import { type CanvasNode, nodeFunctions, parseDecisionNodeId } from "@/lib/convert/configToCanvas";
+import {
+  type CanvasNode,
+  GLOBAL_NODE_ID,
+  nodeFunctions,
+  parseDecisionNodeId,
+} from "@/lib/convert/configToCanvas";
 import { type FlowConfigFunction, isBranch } from "@/lib/schema/flowConfig";
 import { addCase } from "@/lib/utils/branchEdits";
 import { newFunctionName } from "@/lib/utils/nodeCreation";
@@ -26,6 +31,7 @@ export function handleConnection(
 ): Connected | null {
   const { source, target } = params;
   if (!source || !target || parseDecisionNodeId(target)) return null;
+  if (source === GLOBAL_NODE_ID || target === GLOBAL_NODE_ID) return null;
 
   const decision = parseDecisionNodeId(source);
   const sourceNodeId = decision?.sourceNodeId ?? source;

@@ -10,7 +10,7 @@ import {
   type ConfigCanvasNode,
   nodeFunctions,
 } from "@/lib/convert/configToCanvas";
-import { NODE_CARD } from "@/lib/layout/autoLayout";
+import { DECISION, NODE_CARD } from "@/lib/layout/autoLayout";
 import { getTemplateByType } from "@/lib/nodes/templates";
 import { type FlowConfigFunction, functionTargets, isBranch } from "@/lib/schema/flowConfig";
 
@@ -46,11 +46,16 @@ export function newFunctionName(functions: FlowConfigFunction[]): string {
   return generateNodeIdFromLabel(`function_${names.length + 1}`, names);
 }
 
-/** Below the source, stepped rightward past its existing destinations. */
-function placeBelow(source: CanvasNode, siblingCount: number) {
+/**
+ * Below the source, stepped rightward past its existing destinations; a
+ * branch's target goes below the decision node that sits under the card.
+ */
+function placeBelow(source: CanvasNode, siblingCount: number, underDecision = false) {
+  const decision = underDecision ? DECISION.gap + DECISION.height : 0;
   return {
     x: source.position.x + siblingCount * CHILD_SPACING_X,
-    y: source.position.y + (source.measured?.height ?? DEFAULT_NODE_HEIGHT) + CHILD_GAP_Y,
+    y:
+      source.position.y + (source.measured?.height ?? DEFAULT_NODE_HEIGHT) + decision + CHILD_GAP_Y,
   };
 }
 
@@ -97,7 +102,7 @@ export function addDestination(
   }
   const node = newNode(
     kind === "end" ? "end" : "node",
-    placeBelow(source, destinationCount(functions)),
+    placeBelow(source, destinationCount(functions), kind === "branch"),
     nodes.map((n) => n.id)
   );
   const fn: FlowConfigFunction =
@@ -128,7 +133,7 @@ export function addBranchCaseDestination(
   if (!source || !fn || !isBranch(fn.transition_to)) return null;
   const node = newNode(
     "node",
-    placeBelow(source, destinationCount(functions)),
+    placeBelow(source, destinationCount(functions), true),
     nodes.map((n) => n.id)
   );
   const updated: FlowConfigFunction = {

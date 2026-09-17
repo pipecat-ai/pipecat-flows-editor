@@ -64,16 +64,34 @@ export interface DecisionNodeData {
 }
 
 export type DecisionCanvasNode = Node<DecisionNodeData, "decision">;
-/** Everything React Flow draws: config nodes and the decision nodes derived from them. */
-export type FlowCanvasNode = ConfigCanvasNode | DecisionCanvasNode;
-export type CanvasNodeType = ConfigNodeType | "decision";
+
+/** Data on the global card: the functions offered at every node, drawn once. */
+export interface GlobalNodeData {
+  label: string;
+  name: string;
+  type: "global";
+  functions: FlowConfigFunction[];
+  [key: string]: unknown;
+}
+
+export type GlobalCanvasNode = Node<GlobalNodeData, "global">;
+/** The one global card's id; no config node can be named this. */
+export const GLOBAL_NODE_ID = "global:functions";
+
+/** Everything React Flow draws: config nodes, the decision nodes derived from them, and the global card. */
+export type FlowCanvasNode = ConfigCanvasNode | DecisionCanvasNode | GlobalCanvasNode;
+export type CanvasNodeType = ConfigNodeType | "decision" | "global";
 
 export function isConfigNode(node: FlowCanvasNode): node is ConfigCanvasNode {
-  return node.type !== "decision";
+  return node.type !== "decision" && node.type !== "global";
 }
 
 export function isDecisionNode(node: FlowCanvasNode): node is DecisionCanvasNode {
   return node.type === "decision";
+}
+
+export function isGlobalNode(node: FlowCanvasNode): node is GlobalCanvasNode {
+  return node.type === "global";
 }
 
 export function configNodesOf(nodes: ReadonlyArray<FlowCanvasNode>): CanvasNode[] {
@@ -186,8 +204,63 @@ export function configToGraph(config: FlowConfig): Canvas {
       data: { ...node, label: name, name, type },
     });
   }
-  const nodes = withDecisionNodes(configNodes);
+  const nodes = withGlobalNode(withDecisionNodes(configNodes), config.global_functions ?? []);
   return { nodes, edges: edgesForNodes(nodes) };
+}
+
+/**
+ * The global card for the functions offered at every node, or null when
+ * there are none. It keeps its place from `previous` when it is already on
+ * the canvas; a new one goes above and to the left of the other nodes.
+ */
+export function globalNodeFor(
+  functions: ReadonlyArray<FlowConfigFunction>,
+  previous: ReadonlyArray<FlowCanvasNode> = []
+): GlobalCanvasNode | null {
+  if (functions.length === 0) return null;
+  const before = previous.find(isGlobalNode);
+  const others = previous.filter((node) => !isGlobalNode(node));
+  const position = before
+    ? before.position
+    : others.length > 0
+      ? {
+          x: Math.min(...others.map((node) => node.position.x)) - NODE_CARD.width - 48,
+          y: Math.min(...others.map((node) => node.position.y)),
+        }
+      : { x: 0, y: 0 };
+  return {
+    ...(before ?? {}),
+    id: GLOBAL_NODE_ID,
+    type: "global",
+    position,
+    deletable: false,
+    connectable: false,
+    data: { label: "Every node", name: "Every node", type: "global", functions: [...functions] },
+  };
+}
+
+/**
+ * The nodes with the global card brought in step with the global
+ * functions: added, updated, or removed. Returns the same array when the
+ * card already shows these functions.
+ */
+export function withGlobalNode(
+  nodes: FlowCanvasNode[],
+  functions: ReadonlyArray<FlowConfigFunction>
+): FlowCanvasNode[] {
+  const current = nodes.find(isGlobalNode);
+  if (current && sameFunctions(current.data.functions, functions)) return nodes;
+  const rest = nodes.filter((node) => !isGlobalNode(node));
+  const next = globalNodeFor(functions, nodes);
+  if (!current && !next) return nodes;
+  return next ? [...rest, next] : rest;
+}
+
+function sameFunctions(
+  a: ReadonlyArray<FlowConfigFunction>,
+  b: ReadonlyArray<FlowConfigFunction>
+): boolean {
+  return a.length === b.length && a.every((fn, i) => fn === b[i]);
 }
 
 /** The decision nodes the config nodes' branch functions call for, placed under their sources. */
@@ -236,7 +309,7 @@ export function withDecisionNodes(
     const before = existing.get(decision.id);
     return before ? { ...before, data: decision.data } : decision;
   });
-  return [...configNodes, ...decisions];
+  return [...configNodes, ...decisions, ...previous.filter(isGlobalNode)];
 }
 
 /**
