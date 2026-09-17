@@ -33,8 +33,9 @@ function updateFunctions(
 }
 
 /**
- * Removes what an edge stands for: the destination of a transition, or one
- * case or the default of a branch table.
+ * Removes what an edge stands for: the destination of a transition, the
+ * whole branch table for the edge into a decision node, or one case or the
+ * default of a branch table.
  */
 export function removeEdgeRoute(nodes: CanvasNode[], edge: CanvasEdge): CanvasNode[] {
   const data = edge.data;
@@ -42,7 +43,7 @@ export function removeEdgeRoute(nodes: CanvasNode[], edge: CanvasEdge): CanvasNo
   return updateFunctions(nodes, data.sourceNodeId, (functions) =>
     functions.map((fn, i) => {
       if (i !== data.functionIndex) return fn;
-      if (data.kind === "transition") {
+      if (data.kind === "transition" || data.kind === "branch") {
         const { transition_to: _transition, ...rest } = fn;
         return rest;
       }

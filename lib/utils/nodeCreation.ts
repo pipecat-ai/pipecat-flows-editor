@@ -10,6 +10,7 @@ import {
   type ConfigCanvasNode,
   nodeFunctions,
 } from "@/lib/convert/configToCanvas";
+import { DECISION, NODE_CARD } from "@/lib/layout/autoLayout";
 import { getTemplateByType } from "@/lib/nodes/templates";
 import { type FlowConfigFunction, functionTargets, isBranch } from "@/lib/schema/flowConfig";
 
@@ -34,9 +35,10 @@ export interface Added {
   caseIndex?: number;
 }
 
-const CHILD_GAP_X = 90;
-const CHILD_SPACING_Y = 120;
-const DEFAULT_NODE_WIDTH = 220;
+/** Where a new destination goes: below its source, stepped right past the source's existing destinations. */
+const CHILD_GAP_Y = 120;
+const CHILD_SPACING_X = NODE_CARD.width + 48;
+const DEFAULT_NODE_HEIGHT = NODE_CARD.headerHeight;
 
 /** A placeholder tool name that no function on the node uses yet. */
 export function newFunctionName(functions: FlowConfigFunction[]): string {
@@ -44,11 +46,16 @@ export function newFunctionName(functions: FlowConfigFunction[]): string {
   return generateNodeIdFromLabel(`function_${names.length + 1}`, names);
 }
 
-/** To the right of the source, stacked downward past its existing destinations. */
-function placeBeside(source: CanvasNode, siblingCount: number) {
+/**
+ * Below the source, stepped rightward past its existing destinations; a
+ * branch's target goes below the decision node that sits under the card.
+ */
+function placeBelow(source: CanvasNode, siblingCount: number, underDecision = false) {
+  const decision = underDecision ? DECISION.gap + DECISION.height : 0;
   return {
-    x: source.position.x + (source.measured?.width ?? DEFAULT_NODE_WIDTH) + CHILD_GAP_X,
-    y: source.position.y + siblingCount * CHILD_SPACING_Y,
+    x: source.position.x + siblingCount * CHILD_SPACING_X,
+    y:
+      source.position.y + (source.measured?.height ?? DEFAULT_NODE_HEIGHT) + decision + CHILD_GAP_Y,
   };
 }
 
@@ -95,7 +102,7 @@ export function addDestination(
   }
   const node = newNode(
     kind === "end" ? "end" : "node",
-    placeBeside(source, destinationCount(functions)),
+    placeBelow(source, destinationCount(functions), kind === "branch"),
     nodes.map((n) => n.id)
   );
   const fn: FlowConfigFunction =
@@ -126,7 +133,7 @@ export function addBranchCaseDestination(
   if (!source || !fn || !isBranch(fn.transition_to)) return null;
   const node = newNode(
     "node",
-    placeBeside(source, destinationCount(functions)),
+    placeBelow(source, destinationCount(functions), true),
     nodes.map((n) => n.id)
   );
   const updated: FlowConfigFunction = {

@@ -4,6 +4,7 @@ import { Trash2 } from "lucide-react";
 import React, { useCallback, useEffect, useId, useState } from "react";
 
 import { Segment } from "@/components/inspector/Segment";
+import { useCanvasActions } from "@/components/nodes/canvasActions";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -57,6 +58,7 @@ export const FunctionItem = React.forwardRef<HTMLDivElement, FunctionItemProps>(
     },
     ref
   ) => {
+    const actions = useCanvasActions();
     const missingTargets = functionTargets(func).filter((t) => !availableNodeIds.includes(t));
     const hasInvalidTarget = missingTargets.length > 0;
     const [functionName, setFunctionName] = useState(func.name);
@@ -284,6 +286,11 @@ export const FunctionItem = React.forwardRef<HTMLDivElement, FunctionItemProps>(
               onChange={(next) => onChange({ transition_to: next })}
               availableNodeIds={availableNodeIds}
               currentNodeId={currentNodeId}
+              onAddCase={
+                actions && currentNodeId
+                  ? () => actions.addBranchCase(currentNodeId, functionIndex)
+                  : undefined
+              }
               selectedConditionIndex={selectedConditionIndex}
               onFocus={handleFocus}
             />

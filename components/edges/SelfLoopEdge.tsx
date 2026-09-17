@@ -1,66 +1,67 @@
 "use client";
 
-import { BaseEdge, type EdgeProps, useNodes } from "@xyflow/react";
+import { BaseEdge, type EdgeProps, useInternalNode, useReactFlow } from "@xyflow/react";
 
-import { type CanvasNode, handleId, nodeFunctions } from "@/lib/convert/configToCanvas";
-import { isBranch } from "@/lib/schema/flowConfig";
+import {
+  ARROW_MARKER,
+  ARROW_MARKER_SELECTED,
+  type CanvasEdge,
+  nodeFunctions,
+} from "@/lib/convert/configToCanvas";
+import { loopClearance } from "@/lib/layout/autoLayout";
+
+import { useCanvasActions } from "../nodes/canvasActions";
+import { loopPath, nodeBox } from "./edgeGeometry";
+import EdgeLabel from "./EdgeLabel";
 
 /**
- * An edge from a row's port on the right of a card back into the card's own
- * left handle: out to the right, up over the card, and around into the left.
- * Several loops on one card step outward so they stay apart.
+ * An edge from a card back into itself: out of the bottom edge near the
+ * right corner, up the card's right side, and into the top edge there.
+ * Several loops on one card step outward so they stay apart, and the label
+ * sits on the run up the side, far enough out to clear the card.
  */
 export default function SelfLoopEdge({
   id,
-  sourceX,
-  sourceY,
-  targetX,
-  targetY,
   source,
-  sourceHandleId,
+  label,
+  data,
+  selected,
   style = {},
-  markerEnd,
-}: EdgeProps) {
-  const nodes = useNodes();
-  const sourceNode = nodes.find((n) => n.id === source) as CanvasNode | undefined;
-  const nodeRight = (sourceNode?.position.x ?? 0) + (sourceNode?.measured?.width ?? 0);
-  const nodeTop = sourceNode?.position.y ?? targetY;
+}: EdgeProps<CanvasEdge>) {
+  const actions = useCanvasActions();
+  const { setEdges, setNodes } = useReactFlow();
+  const sourceNode = useInternalNode(source);
 
-  // Which of this node's self-loops this is, in row order: one per handle
-  // that leads back to the node, so several cases of one branch stay apart
-  const loopHandles = nodeFunctions(sourceNode).flatMap((fn, functionIndex) => {
-    const transition = fn.transition_to;
-    if (!isBranch(transition)) {
-      return transition === source ? [handleId({ kind: "function", functionIndex })] : [];
-    }
-    const handles = Object.entries(transition.cases)
-      .filter(([, target]) => target === source)
-      .map(([caseValue]) => handleId({ kind: "case", functionIndex, caseValue }));
-    if (transition.default === source) handles.push(handleId({ kind: "default", functionIndex }));
-    return handles;
-  });
-  const loopIndex = Math.max(0, loopHandles.indexOf(sourceHandleId ?? ""));
+  // Which of this node's self-loops this is, in function order
+  const loopIndexes = nodeFunctions(sourceNode as Parameters<typeof nodeFunctions>[0]).flatMap(
+    (fn, functionIndex) => (fn.transition_to === source ? [functionIndex] : [])
+  );
+  const loopIndex = Math.max(0, loopIndexes.indexOf(data?.functionIndex ?? -1));
+  const text = typeof label === "string" ? label : "";
+  const { path, labelX, labelY } = loopPath(nodeBox(sourceNode), loopClearance(text), loopIndex);
 
-  const step = 14;
-  const rightX = Math.max(sourceX, nodeRight) + 24 + loopIndex * step;
-  const topY = nodeTop - 20 - loopIndex * step;
-  const leftX = targetX - 24 - loopIndex * step;
-  const r = 10;
-
-  const path = [
-    `M ${sourceX} ${sourceY}`,
-    `L ${rightX - r} ${sourceY}`,
-    `Q ${rightX} ${sourceY} ${rightX} ${sourceY - r}`,
-    `L ${rightX} ${topY + r}`,
-    `Q ${rightX} ${topY} ${rightX - r} ${topY}`,
-    `L ${leftX + r} ${topY}`,
-    `Q ${leftX} ${topY} ${leftX} ${topY + r}`,
-    `L ${leftX} ${targetY - r}`,
-    `Q ${leftX} ${targetY} ${leftX + r} ${targetY}`,
-    `L ${targetX} ${targetY}`,
-  ].join(" ");
+  const select = () => {
+    setNodes((nds) => nds.map((node) => ({ ...node, selected: false })));
+    setEdges((edges) => edges.map((edge) => ({ ...edge, selected: edge.id === id })));
+    if (data) actions?.selectRow(data.sourceNodeId, data.functionIndex, null);
+  };
 
   return (
-    <BaseEdge id={id} path={path} markerEnd={markerEnd} style={{ ...style, strokeWidth: 1 }} />
+    <>
+      <BaseEdge
+        id={id}
+        path={path}
+        markerEnd={selected ? ARROW_MARKER_SELECTED : ARROW_MARKER}
+        style={{ ...style, strokeWidth: selected ? 1.5 : 1 }}
+      />
+      <EdgeLabel
+        text={text}
+        kind="transition"
+        x={labelX}
+        y={labelY}
+        selected={selected}
+        onClick={select}
+      />
+    </>
   );
 }

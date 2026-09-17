@@ -124,9 +124,12 @@ const MARKER_OWNER = "flow-config";
 
 /*
  * Monaco in the app's palette: the card surface with zinc chrome and a brand
- * cursor, and tokens in the GitHub Light and Dark colors pipecat.ai uses for
- * its code blocks. Hex stands in for the oklch zinc scale, which Monaco
- * cannot read.
+ * cursor, and tokens in the brand's colors. Keys are the indigo, as the one
+ * accent on the canvas; strings, which are mostly prompts, stay near the
+ * text color so they read as prose. Numbers, booleans, and tags are coral:
+ * the sheet's coral on dark, and on light a deep coral of the same hue,
+ * since the sheet's is too pale to read on white; the rare tags are citron
+ * on dark. Hex stands in for the oklch zinc scale, which Monaco cannot read.
  */
 const zinc = {
   50: "#fafafa",
@@ -141,31 +144,50 @@ const zinc = {
   900: "#18181b",
   950: "#09090b",
 };
-const brand = { primary: "#4f46e5", light: "#a5b4fc" };
-
-/* GitHub's syntax colors for YAML: keys, strings, constants, comments. */
-const github = {
-  light: {
-    key: "116329",
-    string: "0a3069",
-    constant: "0550ae",
-    comment: "6e7781",
-    punct: "57606a",
-  },
-  dark: { key: "7ee787", string: "a5d6ff", constant: "79c0ff", comment: "8b949e", punct: "8b949e" },
+const brand = {
+  primary: "#4f46e5",
+  light: "#a5b4fc",
+  dark: "#312e81",
+  coral: "#f58b78",
+  citron: "#d5e65c",
+  /* The coral at a depth that reads on white: the same hue, well past the sheet's tint. */
+  coralDeep: "#b7422d",
 };
 
-function tokenRules(c: typeof github.light) {
+/* The syntax colors for YAML: keys, strings, constants, tags, comments. */
+const palette = {
+  light: {
+    key: brand.primary,
+    string: zinc[800],
+    constant: brand.coralDeep,
+    tag: brand.coralDeep,
+    comment: zinc[500],
+    punct: zinc[500],
+  },
+  dark: {
+    key: brand.light,
+    string: zinc[100],
+    constant: brand.coral,
+    tag: brand.citron,
+    comment: zinc[500],
+    punct: zinc[500],
+  },
+};
+
+function tokenRules(c: typeof palette.light) {
+  const hex = (color: string) => color.replace("#", "");
   return [
-    { token: "type", foreground: c.key },
-    { token: "string", foreground: c.string },
-    { token: "number", foreground: c.constant },
-    { token: "keyword", foreground: c.constant },
-    { token: "namespace", foreground: c.constant },
-    { token: "tag", foreground: c.constant },
-    { token: "comment", foreground: c.comment, fontStyle: "italic" },
-    { token: "operators", foreground: c.punct },
-    { token: "delimiter", foreground: c.punct },
+    { token: "type", foreground: hex(c.key) },
+    { token: "string", foreground: hex(c.string) },
+    // The light base has its own rule for YAML strings, which would win
+    { token: "string.yaml", foreground: hex(c.string) },
+    { token: "number", foreground: hex(c.constant) },
+    { token: "keyword", foreground: hex(c.constant) },
+    { token: "namespace", foreground: hex(c.constant) },
+    { token: "tag", foreground: hex(c.tag) },
+    { token: "comment", foreground: hex(c.comment), fontStyle: "italic" },
+    { token: "operators", foreground: hex(c.punct) },
+    { token: "delimiter", foreground: hex(c.punct) },
   ];
 }
 
@@ -173,7 +195,7 @@ function defineThemes(monaco: Monaco) {
   monaco.editor.defineTheme("pipecat-light", {
     base: "vs",
     inherit: true,
-    rules: tokenRules(github.light),
+    rules: tokenRules(palette.light),
     colors: {
       "editor.background": "#ffffff",
       "editor.foreground": zinc[950],
@@ -181,9 +203,10 @@ function defineThemes(monaco: Monaco) {
       "editorLineNumber.activeForeground": zinc[950],
       "editor.lineHighlightBackground": zinc[50],
       "editor.lineHighlightBorder": "#00000000",
-      "editor.selectionBackground": zinc[200],
-      "editor.inactiveSelectionBackground": zinc[100],
+      "editor.selectionBackground": brand.light + "55",
+      "editor.inactiveSelectionBackground": brand.light + "33",
       "editorCursor.foreground": brand.primary,
+      "editorError.foreground": brand.coral,
       "editorIndentGuide.background1": zinc[200],
       "editorIndentGuide.activeBackground1": zinc[300],
       "editorWidget.background": "#ffffff",
@@ -200,7 +223,7 @@ function defineThemes(monaco: Monaco) {
   monaco.editor.defineTheme("pipecat-dark", {
     base: "vs-dark",
     inherit: true,
-    rules: tokenRules(github.dark),
+    rules: tokenRules(palette.dark),
     colors: {
       "editor.background": zinc[900],
       "editor.foreground": zinc[50],
@@ -208,9 +231,11 @@ function defineThemes(monaco: Monaco) {
       "editorLineNumber.activeForeground": zinc[50],
       "editor.lineHighlightBackground": zinc[800],
       "editor.lineHighlightBorder": "#00000000",
-      "editor.selectionBackground": zinc[700],
-      "editor.inactiveSelectionBackground": zinc[800],
+      "editor.selectionBackground": brand.dark,
+      "editor.inactiveSelectionBackground": brand.dark + "80",
       "editorCursor.foreground": brand.light,
+      "editorError.foreground": brand.coral,
+      "editorWarning.foreground": brand.citron,
       "editorIndentGuide.background1": zinc[800],
       "editorIndentGuide.activeBackground1": zinc[700],
       "editorWidget.background": zinc[900],

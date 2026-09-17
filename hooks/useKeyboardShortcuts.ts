@@ -1,16 +1,17 @@
 import { useEffect } from "react";
 
 import { useEditorStore } from "@/lib/store/editorStore";
-import type { FlowEdge, FlowNode } from "@/lib/types/flowTypes";
+import type { CanvasNode, FlowEdge } from "@/lib/types/flowTypes";
 import { canDuplicateNode, duplicateNode } from "@/lib/utils/nodeDuplication";
 import { removeBranchCase, removeEdgeRoute, removeFunction } from "@/lib/utils/nodeUpdates";
 
 interface KeyboardShortcutsProps {
-  nodes: FlowNode[];
+  /** The config nodes; decision nodes are derived from them and not edited here. */
+  nodes: CanvasNode[];
   edges: FlowEdge[];
   selectedNodeId: string | null;
   selectedFunctionIndex: number | null;
-  setNodes: (updater: (nodes: FlowNode[]) => FlowNode[]) => void;
+  setNodes: (updater: (nodes: CanvasNode[]) => CanvasNode[]) => void;
   /** Deletes a node with the editor's rules: destinations that pointed at it are dropped. */
   deleteNode: (nodeId: string) => void;
   selectNode: (nodeId: string | null, functionIndex?: number | null) => void;

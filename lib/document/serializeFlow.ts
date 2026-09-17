@@ -6,7 +6,7 @@
 import type { Document } from "yaml";
 
 import { canvasToConfig } from "@/lib/convert/canvasToConfig";
-import type { CanvasNode } from "@/lib/convert/configToCanvas";
+import type { FlowCanvasNode } from "@/lib/convert/configToCanvas";
 import type { FlowConfig, FlowConfigFunction } from "@/lib/schema/flowConfig";
 import { checkFlowConfigReferences, checkFlowGraph } from "@/lib/validation/flowConfigValidator";
 import type { LocatedIssue } from "@/lib/validation/flowIssues";
@@ -28,7 +28,7 @@ function issuesFor(config: FlowConfig): LocatedIssue[] {
 }
 
 export function serializeFlow(
-  nodes: CanvasNode[],
+  nodes: ReadonlyArray<FlowCanvasNode>,
   options: {
     document: Document | null;
     globalFunctions: FlowConfigFunction[];

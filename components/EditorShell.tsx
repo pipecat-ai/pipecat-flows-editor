@@ -15,6 +15,7 @@ import { PanelRightOpen } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import LabeledEdge from "@/components/edges/LabeledEdge";
 import SelfLoopEdge from "@/components/edges/SelfLoopEdge";
 import Toolbar from "@/components/header/Toolbar";
 import InspectorPanel from "@/components/inspector/InspectorPanel";
@@ -24,6 +25,8 @@ import {
   CanvasActionsContext,
   CanvasNodeTypesContext,
 } from "@/components/nodes/canvasActions";
+import DecisionNode from "@/components/nodes/DecisionNode";
+import GlobalNode from "@/components/nodes/GlobalNode";
 import NodeContextMenu from "@/components/nodes/NodeContextMenu";
 import StartScreen from "@/components/start/StartScreen";
 import { Button } from "@/components/ui/button";
@@ -33,6 +36,13 @@ import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { deriveCanvasEdges, reconcileEdges } from "@/lib/convert/canvasGraph";
 import { canvasToConfig } from "@/lib/convert/canvasToConfig";
 import { configToCanvas, nodeFunctions } from "@/lib/convert/configToCanvas";
+import {
+  configNodesOf,
+  isConfigNode,
+  reconcileDecisionNodes,
+  withDecisionNodes,
+  withGlobalNode,
+} from "@/lib/convert/configToCanvas";
 import {
   createFlowDocument,
   DEFAULT_FLOW_NAME,
@@ -47,13 +57,14 @@ import {
   isLegacyFlowJson,
 } from "@/lib/document/legacyImport";
 import { serializeFlow } from "@/lib/document/serializeFlow";
-import { layoutNodes } from "@/lib/layout/autoLayout";
+import { type EdgeRoutes, layoutGraph } from "@/lib/layout/autoLayout";
 import { getTemplateByType } from "@/lib/nodes/templates";
 import type { FlowConfig, FlowConfigFunction } from "@/lib/schema/flowConfig";
 import { LEGACY_STORAGE_KEY, loadCurrentFlow, saveCurrentFlow } from "@/lib/storage/localStore";
 import { loadPositions, positionsFromNodes, savePositions } from "@/lib/storage/positionStore";
 import { useEditorStore } from "@/lib/store/editorStore";
 import { useFlowStore } from "@/lib/store/flowStore";
+import type { CanvasNode } from "@/lib/types/flowTypes";
 import type { FlowEdge, FlowNode, ReactFlowInstance } from "@/lib/types/flowTypes";
 import { UndoManager } from "@/lib/undo/undoManager";
 import { handleConnection } from "@/lib/utils/connectionHandlers";
@@ -84,7 +95,13 @@ import { readFlowFile } from "@/lib/utils/readFlowFile";
 import { issueErrors, summarizeIssues } from "@/lib/validation/flowIssues";
 
 /** An undo snapshot is the whole document: the canvas and the flow-level global functions. */
-type History = { nodes: FlowNode[]; edges: FlowEdge[]; globalFunctions: FlowConfigFunction[] };
+type History = {
+  nodes: FlowNode[];
+  edges: FlowEdge[];
+  globalFunctions: FlowConfigFunction[];
+  /** How the layout routed the edges, when the canvas came from one. */
+  routes?: EdgeRoutes;
+};
 
 /** Structural equality with key order ignored, for comparing configs from different sources. */
 function sameConfig(a: FlowConfig | null, b: FlowConfig | null): boolean {
@@ -198,6 +215,16 @@ export default function EditorShell() {
   const nodesRef = useRef<FlowNode[]>([]);
   nodesRef.current = nodes;
 
+  // The helpers under lib/utils work on config nodes. The decision nodes
+  // derived from them are brought in step after every edit, keeping their
+  // positions, and the effect below catches any path that bypasses this.
+  const configNodes = useMemo(() => configNodesOf(nodes), [nodes]);
+  const setConfigNodes = useCallback(
+    (updater: (nodes: CanvasNode[]) => CanvasNode[]) =>
+      setNodes((nds) => withDecisionNodes(updater(configNodesOf(nds)), nds)),
+    [setNodes]
+  );
+
   // React Flow's own delete handling goes through here; keep the editor's rules
   const onNodesChange = useCallback(
     (changes: Parameters<typeof onNodesChangeBase>[0]) =>
@@ -218,6 +245,8 @@ export default function EditorShell() {
       initial: BaseNode,
       node: BaseNode,
       end: BaseNode,
+      decision: DecisionNode,
+      global: GlobalNode,
     }),
     []
   );
@@ -225,11 +254,17 @@ export default function EditorShell() {
   // Memoize edgeTypes for custom edge rendering
   const edgeTypes = useMemo(
     () => ({
+      labeled: LabeledEdge,
       selfloop: SelfLoopEdge,
     }),
     []
   );
 
+  // Set when a flow is opened; the next layout of measured cards fits the view
+  // A flow that was just opened is laid out once its cards are measured,
+  // since layout on data alone works from size estimates, and then fitted
+  const layoutPendingRef = useRef(false);
+  const fitPendingRef = useRef(false);
   const fitViewSoon = useCallback(() => {
     setTimeout(() => {
       useEditorStore.getState().rfInstance?.fitView?.({ padding: 0.2, duration: 300 });
@@ -241,6 +276,7 @@ export default function EditorShell() {
       skipUndoPushRef.current = true;
       setNodes(next.nodes);
       setEdges(next.edges);
+      useEditorStore.getState().setEdgeRoutes(next.routes ?? {});
       useFlowStore.getState().setGlobalFunctions(next.globalFunctions);
       undoManagerRef.current = new UndoManager<History>(next);
       clearSelection();
@@ -292,6 +328,10 @@ export default function EditorShell() {
         initialNode: parsed.config.initial_node,
       });
       replaceCanvas({ ...canvas, globalFunctions });
+      // A file is laid out once its cards are measured; a restored
+      // arrangement is kept as it was
+      layoutPendingRef.current = !options.keepPositions;
+      fitPendingRef.current = true;
       // The pane shows the file as written
       paneConfigRef.current = parsed.config;
       setYamlText(text);
@@ -306,7 +346,6 @@ export default function EditorShell() {
       } else if (!options.silent) {
         showToast(`Opened ${flowName}`, "success");
       }
-      fitViewSoon();
       return true;
     },
     [replaceCanvas, loadFlow, fitViewSoon]
@@ -315,7 +354,8 @@ export default function EditorShell() {
   const startNewFlow = useCallback(() => {
     resetFlow();
     replaceCanvas({ nodes: newFlowNodes(), edges: [], globalFunctions: [] });
-    fitViewSoon();
+    layoutPendingRef.current = true;
+    fitPendingRef.current = true;
   }, [replaceCanvas, resetFlow, fitViewSoon]);
 
   // New Flow shows the start screen over a blank flow; so does a first visit
@@ -347,11 +387,18 @@ export default function EditorShell() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Edges are derived from the nodes' function entries
+  // Decision nodes and edges are derived from the config nodes' function
+  // entries, and the global card from the global functions. A stale set
+  // is corrected first; the edges follow.
   useEffect(() => {
+    const reconciled = withGlobalNode(reconcileDecisionNodes(nodes), globalFunctions);
+    if (reconciled !== nodes) {
+      setNodes(reconciled);
+      return;
+    }
     const derived = deriveCanvasEdges(nodes);
     setEdges((current) => reconcileEdges(current, derived).edges);
-  }, [nodes, setEdges]);
+  }, [nodes, globalFunctions, setNodes, setEdges]);
 
   // Keep selected node visually selected in React Flow (separate effect to avoid loops)
   // Only update when selectedNodeId changes, NOT when selectedFunctionIndex changes
@@ -372,8 +419,8 @@ export default function EditorShell() {
     }
   }, [selectedNodeId, rfInstance]);
 
-  // Document sync (debounced): serialize the canvas, autosave it with the
-  // canvas positions, and rewrite the YAML pane when the config changed.
+  // Document sync (debounced): serialize the canvas, autosave it, and
+  // rewrite the YAML pane when the config changed.
   useEffect(() => {
     if (!hydratedRef.current) return;
     const id = setTimeout(() => {
@@ -409,6 +456,7 @@ export default function EditorShell() {
       const canvas = configToCanvas(parsed.config, { positions });
       setNodes(canvas.nodes);
       setEdges(canvas.edges);
+      useEditorStore.getState().setEdgeRoutes(canvas.routes ?? {});
       setDocument(parsed.document);
       setGlobalFunctions(parsed.config.global_functions ?? []);
     },
@@ -447,21 +495,21 @@ export default function EditorShell() {
   const handleDeleteNodeById = useCallback(
     (nodeId: string) => {
       if (!canDeleteNode(nodesRef.current.find((n) => n.id === nodeId))) return;
-      setNodes((nds) => deleteNode(nds, nodeId));
+      setConfigNodes((nds) => deleteNode(nds, nodeId));
       const flow = useFlowStore.getState();
       flow.setGlobalFunctions(dropFunctionTargets(flow.globalFunctions, nodeId));
       if (useEditorStore.getState().selectedNodeId === nodeId) clearSelection();
     },
-    [setNodes, clearSelection]
+    [setConfigNodes, clearSelection]
   );
 
   // Keyboard shortcuts (excluding undo/redo which is handled by Toolbar)
   useKeyboardShortcuts({
-    nodes,
+    nodes: configNodes,
     edges,
     selectedNodeId,
     selectedFunctionIndex,
-    setNodes,
+    setNodes: setConfigNodes,
     deleteNode: handleDeleteNodeById,
     selectNode,
   });
@@ -469,6 +517,7 @@ export default function EditorShell() {
   // Handle node context menu
   const handleNodeContextMenu = useCallback((event: React.MouseEvent, node: FlowNode) => {
     event.preventDefault();
+    if (!isConfigNode(node)) return;
     setContextMenuPosition({ x: event.clientX, y: event.clientY });
     setContextMenuNodeId(node.id);
     setContextMenuOpen(true);
@@ -478,14 +527,14 @@ export default function EditorShell() {
   const handleDuplicateNode = useCallback(() => {
     if (!contextMenuNodeId) return;
 
-    const nodeToDuplicate = nodes.find((n) => n.id === contextMenuNodeId);
+    const nodeToDuplicate = configNodes.find((n) => n.id === contextMenuNodeId);
     if (!canDuplicateNode(nodeToDuplicate)) return;
 
-    const duplicatedNode = duplicateNode(nodeToDuplicate, nodes);
-    setNodes((nds) => nds.concat(duplicatedNode));
+    const duplicatedNode = duplicateNode(nodeToDuplicate, configNodes);
+    setConfigNodes((nds) => nds.concat(duplicatedNode));
     selectNode(duplicatedNode.id);
     setContextMenuOpen(false);
-  }, [contextMenuNodeId, nodes, setNodes, selectNode]);
+  }, [contextMenuNodeId, configNodes, setConfigNodes, selectNode]);
 
   // Handle delete action
   const handleDeleteNode = useCallback(() => {
@@ -499,7 +548,7 @@ export default function EditorShell() {
   const applyAdded = useCallback(
     (added: Added | null) => {
       if (!added) return;
-      setNodes(added.nodes);
+      setNodes((nds) => withDecisionNodes(added.nodes, nds));
       selectNode(added.sourceNodeId, added.functionIndex, added.caseIndex ?? null);
       setTimeout(() => {
         rfInstance?.setNodes((nds) =>
@@ -526,44 +575,48 @@ export default function EditorShell() {
   const handleRenameNode = useCallback(
     (oldId: string, newId: string) => {
       if (newId === oldId) return;
-      setNodes((nds) => renameNode(nds, oldId, newId));
+      setConfigNodes((nds) => renameNode(nds, oldId, newId));
       const flow = useFlowStore.getState();
       flow.setGlobalFunctions(renameFunctionTargets(flow.globalFunctions, oldId, newId));
       const editor = useEditorStore.getState();
       if (editor.selectedNodeId === oldId) selectNode(newId, editor.selectedFunctionIndex);
     },
-    [setNodes, selectNode]
+    [setConfigNodes, selectNode]
   );
 
   const canvasActions = useMemo<CanvasActions>(
     () => ({
       addDestination: (sourceNodeId, kind) => {
-        const added = addDestination(nodesRef.current, sourceNodeId, kind);
+        const added = addDestination(configNodesOf(nodesRef.current), sourceNodeId, kind);
         applyAdded(added);
         return added?.functionIndex ?? null;
       },
       addBranchCase: (sourceNodeId, functionIndex) =>
-        applyAdded(addBranchCaseDestination(nodesRef.current, sourceNodeId, functionIndex)),
+        applyAdded(
+          addBranchCaseDestination(configNodesOf(nodesRef.current), sourceNodeId, functionIndex)
+        ),
       removeFunction: (nodeId, functionIndex) => {
-        setNodes((nds) => removeFunction(nds, nodeId, functionIndex));
+        setConfigNodes((nds) => removeFunction(nds, nodeId, functionIndex));
         useEditorStore.getState().clearFunctionSelection();
       },
       removeBranchCase: (nodeId, functionIndex, caseIndex) => {
-        setNodes((nds) => removeBranchCase(nds, nodeId, functionIndex, caseIndex));
+        setConfigNodes((nds) => removeBranchCase(nds, nodeId, functionIndex, caseIndex));
         useEditorStore.getState().clearFunctionSelection();
       },
       renameFunction: (nodeId, functionIndex, name) => {
         const formatted = formatFunctionName(name);
         if (validateFunctionName(formatted)) return;
-        setNodes((nds) => renameFunction(nds, nodeId, functionIndex, formatted));
+        setConfigNodes((nds) => renameFunction(nds, nodeId, functionIndex, formatted));
       },
       renameBranchCase: (nodeId, functionIndex, oldValue, newValue) =>
-        setNodes((nds) => renameBranchCase(nds, nodeId, functionIndex, oldValue, newValue)),
+        setConfigNodes((nds) => renameBranchCase(nds, nodeId, functionIndex, oldValue, newValue)),
       setBranchField: (nodeId, functionIndex, field) =>
-        setNodes((nds) => setBranchField(nds, nodeId, functionIndex, field)),
+        setConfigNodes((nds) => setBranchField(nds, nodeId, functionIndex, field)),
       renameNode: (nodeId, name) => {
         if (!name.trim()) return;
-        const others = nodesRef.current.map((n) => n.id).filter((id) => id !== nodeId);
+        const others = configNodesOf(nodesRef.current)
+          .map((n) => n.id)
+          .filter((id) => id !== nodeId);
         handleRenameNode(nodeId, generateNodeIdFromLabel(name, others));
       },
       selectRow: (sourceNodeId, functionIndex, caseIndex) => {
@@ -571,19 +624,47 @@ export default function EditorShell() {
         focusNode(sourceNodeId);
       },
     }),
-    [applyAdded, selectNode, focusNode, setNodes, handleRenameNode]
+    [applyAdded, selectNode, focusNode, setConfigNodes, handleRenameNode]
   );
 
   const handleMakeInitial = useCallback(() => {
     if (!contextMenuNodeId) return;
-    setNodes((nds) => setInitialNode(nds, contextMenuNodeId));
+    setConfigNodes((nds) => setInitialNode(nds, contextMenuNodeId));
     setContextMenuOpen(false);
-  }, [contextMenuNodeId, setNodes]);
+  }, [contextMenuNodeId, setConfigNodes]);
+
+  // Lays the flow out and records how the edges were routed, so they can
+  // follow their routes and stretch with any node moved by hand later. From
+  // the toolbar this is an edit the author can undo; the layout that runs
+  // after a flow opens is not, and skips the undo step itself.
+  const applyLayout = useCallback(() => {
+    const laid = layoutGraph(nodesRef.current, edges);
+    setNodes(laid.nodes);
+    useEditorStore.getState().setEdgeRoutes(laid.routes);
+  }, [edges, setNodes]);
 
   const handleAutoLayout = useCallback(() => {
-    setNodes((nds) => layoutNodes(nds, edges));
+    applyLayout();
     fitViewSoon();
-  }, [setNodes, edges, fitViewSoon]);
+  }, [applyLayout, fitViewSoon]);
+
+  const measuredKey = nodes
+    .map((n) => `${n.id}|${n.measured?.width ?? 0}x${n.measured?.height ?? 0}`)
+    .join(";");
+  useEffect(() => {
+    const current = nodesRef.current;
+    if (current.length === 0 || !current.every((n) => n.measured?.width)) return;
+    if (layoutPendingRef.current) {
+      layoutPendingRef.current = false;
+      skipUndoPushRef.current = true;
+      applyLayout();
+    }
+    if (fitPendingRef.current) {
+      fitPendingRef.current = false;
+      fitViewSoon();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [measuredKey]);
 
   // Recomputed only when a node is added, removed, renamed, or changes type,
   // not on every drag, so cards do not re-render for position changes.
@@ -671,6 +752,33 @@ export default function EditorShell() {
             .catch((error: Error) => showToast(error.message, "error"));
         }}
       >
+        {/* Arrowheads for the edges, in the accent line and, when selected, the brand color. */}
+        <svg aria-hidden className="absolute h-0 w-0">
+          <defs>
+            <marker
+              id="flow-arrow"
+              viewBox="0 0 10 10"
+              refX="9"
+              refY="5"
+              markerWidth="7"
+              markerHeight="7"
+              orient="auto-start-reverse"
+            >
+              <path d="M 0 0 L 10 5 L 0 10 z" className="fill-accent-line" />
+            </marker>
+            <marker
+              id="flow-arrow-selected"
+              viewBox="0 0 10 10"
+              refX="9"
+              refY="5"
+              markerWidth="7"
+              markerHeight="7"
+              orient="auto-start-reverse"
+            >
+              <path d="M 0 0 L 10 5 L 0 10 z" className="fill-brand" />
+            </marker>
+          </defs>
+        </svg>
         <CanvasActionsContext.Provider value={canvasActions}>
           <CanvasNodeTypesContext.Provider value={canvasNodeTypes}>
             <ReactFlow
@@ -682,7 +790,7 @@ export default function EditorShell() {
               onNodesChange={onNodesChange}
               onEdgesChange={onEdgesChange}
               onConnect={(params) => {
-                const connected = handleConnection(params, nodes, setNodes);
+                const connected = handleConnection(params, configNodes, setConfigNodes);
                 if (!connected) return;
                 selectNode(connected.sourceNodeId, connected.functionIndex, connected.caseIndex);
                 focusNode(connected.sourceNodeId);
@@ -704,7 +812,7 @@ export default function EditorShell() {
               zoomOnScroll={false}
               deleteKeyCode={null}
               zoomOnDoubleClick={false}
-              // Flows grow to the right; let a long one be seen whole
+              // Flows grow downward; let a long one be seen whole
               minZoom={0.2}
               proOptions={{ hideAttribution: true }}
               onInit={(instance) => setRfInstance(instance as unknown as ReactFlowInstance)}
@@ -765,36 +873,44 @@ export default function EditorShell() {
             className="shrink-0 h-full"
             style={{ width: `${inspectorPanelWidth}px`, maxWidth: "min(100vw, 800px)" }}
           >
-            <InspectorPanel
-              nodes={nodes}
-              availableNodeIds={nodes.map((n) => n.id)}
-              onChange={(next) => {
-                if (!selectedNodeId || selectedNodeId !== next.id) return;
+            <CanvasActionsContext.Provider value={canvasActions}>
+              <InspectorPanel
+                nodes={configNodes}
+                availableNodeIds={configNodes.map((n) => n.id)}
+                onChange={(next) => {
+                  if (!selectedNodeId || selectedNodeId !== next.id) return;
 
-                const previousFunctions = nodeFunctions(nodes.find((n) => n.id === selectedNodeId));
-                setNodes((nds) => updateNodeData(nds, next.id, next.data));
-                if (next.data.functions !== undefined) {
-                  validateFunctionIndexAfterUpdate(next.id, previousFunctions, next.data.functions);
-                }
-              }}
-              onDelete={(id, kind) => {
-                if (kind === "edge") {
-                  const edge = edges.find((e) => e.id === id);
-                  if (!edge?.data) return;
-                  setNodes((nds) => removeEdgeRoute(nds, edge));
-                  const functionIndex = edge.data.functionIndex;
-                  if (
-                    selectedNodeId === edge.data.sourceNodeId &&
-                    selectedFunctionIndex === functionIndex
-                  ) {
-                    useEditorStore.getState().clearFunctionSelection();
+                  const previousFunctions = nodeFunctions(
+                    nodes.find((n) => n.id === selectedNodeId)
+                  );
+                  setConfigNodes((nds) => updateNodeData(nds, next.id, next.data));
+                  if (next.data.functions !== undefined) {
+                    validateFunctionIndexAfterUpdate(
+                      next.id,
+                      previousFunctions,
+                      next.data.functions
+                    );
                   }
-                } else {
-                  handleDeleteNodeById(id);
-                }
-              }}
-              onRenameNode={handleRenameNode}
-            />
+                }}
+                onDelete={(id, kind) => {
+                  if (kind === "edge") {
+                    const edge = edges.find((e) => e.id === id);
+                    if (!edge?.data) return;
+                    setConfigNodes((nds) => removeEdgeRoute(nds, edge));
+                    const functionIndex = edge.data.functionIndex;
+                    if (
+                      selectedNodeId === edge.data.sourceNodeId &&
+                      selectedFunctionIndex === functionIndex
+                    ) {
+                      useEditorStore.getState().clearFunctionSelection();
+                    }
+                  } else {
+                    handleDeleteNodeById(id);
+                  }
+                }}
+                onRenameNode={handleRenameNode}
+              />
+            </CanvasActionsContext.Provider>
           </div>
         )}
       </div>

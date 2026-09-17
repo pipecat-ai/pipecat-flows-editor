@@ -148,14 +148,15 @@ describe("transition-only functions", () => {
 describe("deriveCanvasEdges", () => {
   const branchFn = { name: "check", transition_to: { field: "s", cases: { ok: "b" } } };
 
-  it("derives an edge per destination from the row's handle", () => {
+  it("derives an edge per transition, through a decision node for a branch", () => {
     const nodes: CanvasNode[] = [
       configNode("a", "initial", { functions: [branchFn, { name: "go", transition_to: "b" }] }),
       configNode("b", "node", {}),
     ];
-    expect(deriveCanvasEdges(nodes).map((e) => [e.sourceHandle, e.target])).toEqual([
-      ["fn:0:case:ok", "b"],
-      ["fn:1", "b"],
+    expect(deriveCanvasEdges(nodes).map((e) => [e.source, e.target, e.data?.kind])).toEqual([
+      ["a", "decision:0:a", "branch"],
+      ["decision:0:a", "b", "case"],
+      ["a", "b", "transition"],
     ]);
   });
 

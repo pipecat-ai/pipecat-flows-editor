@@ -1,6 +1,13 @@
 import { create } from "zustand";
 
-import { type CanvasEdge, type CanvasNode, nodeFunctions } from "@/lib/convert/configToCanvas";
+import {
+  type CanvasEdge,
+  type CanvasNode,
+  type DecisionNodeData,
+  type FlowCanvasNode,
+  nodeFunctions,
+} from "@/lib/convert/configToCanvas";
+import type { EdgeRoutes } from "@/lib/layout/autoLayout";
 import type { FlowConfigFunction } from "@/lib/schema/flowConfig";
 import type { ReactFlowInstance } from "@/lib/types/flowTypes";
 
@@ -37,11 +44,15 @@ interface EditorState {
 
   // React Flow instance
   rfInstance: ReactFlowInstance | null;
+  /** How the last layout routed each edge; an edge whose endpoint has moved since ignores its route. */
+  edgeRoutes: EdgeRoutes;
 
   // Internal state for tracking
   _isDeletingFunction: boolean;
   /** A tab the inspector should show next, set by a card and cleared once shown. */
   requestedInspectorTab: string | null;
+  /** The global function open in the Flow panel, by index. */
+  selectedGlobalIndex: number | null;
 
   // Basic setters
   setSelectedNodeId: (id: string | null) => void;
@@ -56,7 +67,9 @@ interface EditorState {
   setIsInspectorResizing: (isResizing: boolean) => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
   requestInspectorTab: (tab: string | null) => void;
+  selectGlobal: (index: number | null) => void;
   setRfInstance: (instance: ReactFlowInstance | null) => void;
+  setEdgeRoutes: (routes: EdgeRoutes) => void;
 
   // Selection actions (with validation and logic)
   selectNode: (
@@ -64,11 +77,11 @@ interface EditorState {
     functionIndex?: number | null,
     conditionIndex?: number | null
   ) => void;
-  selectNodeFromEdge: (edge: CanvasEdge, nodes: CanvasNode[]) => void;
+  selectNodeFromEdge: (edge: CanvasEdge, nodes: ReadonlyArray<FlowCanvasNode>) => void;
   selectNodeFromCanvas: (
-    node: CanvasNode | null,
+    node: FlowCanvasNode | null,
     edge: CanvasEdge | null,
-    nodes: CanvasNode[]
+    nodes: ReadonlyArray<FlowCanvasNode>
   ) => void;
   clearSelection: (preserveIfDeleting?: boolean) => void;
 
@@ -119,8 +132,10 @@ export const useEditorStore = create<EditorState>((set, get) => {
     isInspectorResizing: false,
     sidebarCollapsed: readSidebarCollapsed(),
     rfInstance: null,
+    edgeRoutes: {},
     _isDeletingFunction: false,
     requestedInspectorTab: null,
+    selectedGlobalIndex: null,
 
     // Basic setters
     setSelectedNodeId: (id) => {
@@ -161,7 +176,9 @@ export const useEditorStore = create<EditorState>((set, get) => {
       set({ sidebarCollapsed: collapsed });
     },
     setRfInstance: (instance) => set({ rfInstance: instance }),
+    setEdgeRoutes: (edgeRoutes) => set({ edgeRoutes }),
     requestInspectorTab: (tab) => set({ requestedInspectorTab: tab }),
+    selectGlobal: (index) => set({ selectedGlobalIndex: index }),
 
     // Selection actions with validation
     selectNode: (nodeId, functionIndex = null, conditionIndex = null) => {
@@ -218,6 +235,13 @@ export const useEditorStore = create<EditorState>((set, get) => {
     selectNodeFromCanvas: (node, edge, nodes) => {
       if (edge) {
         get().selectNodeFromEdge(edge, nodes);
+      } else if (node && node.type === "decision") {
+        // A decision node stands for a branch function on its source
+        const data = node.data as DecisionNodeData;
+        get().selectNode(data.sourceNodeId, data.functionIndex, null);
+      } else if (node && node.type === "global") {
+        // The global card's functions are edited in the Flow panel
+        get().clearSelection();
       } else if (node) {
         // Only update if node changed (clear function index when switching nodes)
         if (get().selectedNodeId !== node.id) {
