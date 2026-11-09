@@ -83,6 +83,7 @@
   "overrides": {
     "postcss": "^8.5.12",
     "fast-uri": "^3.1.9",
-    "zod": "^4.6.7"
+    "zod": "^4.6.7",
+    "minimatch": ">=11.0.1"
   }
 }
